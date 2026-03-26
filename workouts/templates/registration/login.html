@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block app_class %}narrow-page{% endblock %}
+{% block title %}Login{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{% static 'workouts/css/form_styles.css' %}">
+{% endblock %}
+
+{% block main %}
+  <h1>Login</h1>
+
+  {% if messages %}
+    {% for message in messages %}
+      <p class="invalid">{{ message }}</p>
+    {% endfor %}
+  {% endif %}
+
+  <form method="post">
+    {% csrf_token %}
+    {% for field in form %}
+      {% include "workouts/partials/form_field.html" %}
+    {% endfor %}
+    <div class="button-row">
+      <a class="secondary" href="{% url 'password_reset' %}">Forgot password?</a>
+      <button type="submit">Login</button>
+    </div>
+  </form>
+{% endblock %}

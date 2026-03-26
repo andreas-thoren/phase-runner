@@ -1,0 +1,10 @@
+{% extends "workouts/form_base.html" %}
+
+{% block page_title %}Microcycle {{ view_type }}{% endblock %}
+{% block heading %}Microcycle {{ view_type }}{% endblock %}
+
+{% block form_content %}
+  {% for field in form %}
+    {% include "workouts/partials/form_field.html" %}
+  {% endfor %}
+{% endblock %}

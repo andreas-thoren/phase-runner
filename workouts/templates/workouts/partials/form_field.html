@@ -1,0 +1,13 @@
+<div class="form-group">
+  <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+  {{ field }}
+</div>
+
+{% if field.errors %}
+<div class="error-div">
+  <div class="error-padding"></div>
+  <small class="invalid">
+    {{ field.errors|striptags }}
+  </small>
+</div>
+{% endif %}

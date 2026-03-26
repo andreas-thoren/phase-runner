@@ -1,0 +1,29 @@
+{% extends "workouts/list_base.html" %}
+{% load static %}
+
+{% block page_title %}Plans{% endblock %}
+{% block heading %}Plans{% endblock %}
+
+{% block toolbar %}
+  <div class="list-toolbar">
+    <a href="{% url 'workouts:create_macrocycle' %}" role="button" class="button-slim">New plan</a>
+  </div>
+{% endblock %}
+
+{% block table_head %}
+  <th>Start date</th>
+  <th>Name</th>
+  <th>Description</th>
+{% endblock %}
+
+{% block table_body %}
+  {% for macro in macrocycles %}
+    <tr id="row-{{ macro.pk }}" data-href="{{ macro.get_absolute_url }}" class="workout-row" tabindex="0">
+      <td data-label="Start date">{{ macro.start_date|date:"Y-m-d" }}</td>
+      <td data-label="Name">{{ macro.name }}</td>
+      <td data-label="Description">{{ macro.description|default:"—" }}</td>
+    </tr>
+  {% endfor %}
+{% endblock %}
+
+{% block empty_message %}No plans yet.{% endblock %}

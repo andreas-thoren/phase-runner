@@ -1,0 +1,31 @@
+<div class="list-toolbar">
+  <button id="toggle-filters" class="secondary button-slim" type="button">Filter Options</button>
+</div>
+
+<form method="get" class="filter-bar" id="filter-bar" {% if not show_filters %}hidden{% endif %}>
+  <div class="filter-fields">
+    <label>
+      From
+      {{ filter_form.date_from }}
+    </label>
+    <label>
+      To
+      {{ filter_form.date_to }}
+    </label>
+    {% if show_activity %}
+      <label>
+        Activity
+        {{ filter_form.activity }}
+      </label>
+    {% endif %}
+    <label>
+      Status
+      {{ filter_form.status }}
+    </label>
+  </div>
+  <div class="button-row">
+    <input type="hidden" name="show_filters" value="1">
+    <button type="button" class="secondary" id="filter-clear" {% if not filter_querystring %}disabled{% endif %} data-clear-url="{{ request.path }}">Clear</button>
+    <button type="submit" id="filter-submit" {% if not filter_querystring %}disabled{% endif %}>Filter</button>
+  </div>
+</form>

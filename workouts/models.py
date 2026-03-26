@@ -1,0 +1,646 @@
+"""
+Models for the workouts app.
+
+Workout is the single core model with a mandatory WorkoutSubtype FK
+(e.g. Running, Cycling). Optional detail models (OneToOne) add
+type-specific fields. The detail type is identified by a WorkoutType
+enum on a simple base class that auto-registers subclasses.
+
+WorkoutSubtype provides a flexible subtype system with JSON-defined UI
+schemas (gui_schema), keyed to a parent WorkoutType. Every workout
+must have a subtype; the subtype determines the workout_type and is
+immutable after creation.
+
+Periodization models (Macrocycle → Mesocycle → Microcycle) represent
+training plan structure. Dates are computed bottom-up from Microcycle
+duration_days — use Macrocycle.hydrate() before accessing start/end dates.
+
+Mixins:
+    SlugFieldMixin      — abstract mixin adding auto-created unique slug
+    OrderMixin          — abstract mixin ensuring gap-free ordering on delete
+
+Models:
+    WorkoutSubtype      — subtype with gui_schema (e.g. Running under Aerobic)
+    Workout             — user, name, start_time, description, status, type, subtype
+    DetailBase          — abstract base with auto-registration + shared fields (duration, load)
+    AerobicDetails      — concrete, OneToOne → Workout, adds distance + speed/pace
+    StrengthDetails     — concrete, OneToOne → Workout
+    GenericDetails      — concrete, OneToOne → Workout (duration/load only)
+    Macrocycle          — top-level training block (start_date + computed end_date)
+    Mesocycle           — ordered phase within a macrocycle (base, build, peak, …)
+    Microcycle          — ordered cycle within a mesocycle (duration_days is source of truth)
+    ActiveMacrocycle    — one-per-user mapping to the currently active macrocycle
+"""
+
+from datetime import timedelta
+from datetime import date
+from typing import Any
+
+from django.contrib.auth import get_user_model
+from django.utils.text import slugify
+from django.core.exceptions import ValidationError
+from django.db import models, transaction
+from django.db.models import Max, Prefetch
+from django.urls import reverse
+from django.utils import timezone
+
+from .enums import MesocycleType, MicrocycleType, WorkoutStatus, WorkoutType
+from .utils import GreaterThanDurationValidator, HydratedProperty, m_to_km
+
+# ==============================================================================
+# MIXINS
+# ==============================================================================
+
+
+class SlugFieldMixin(models.Model):
+    """Mixin that adds an auto-created, unique slug field.
+
+    Override ``_slug_source_field`` to slugify a field other than ``name``,
+    or override ``get_slug()`` for fully custom logic.
+    """
+
+    _slug_source_field = "name"
+
+    slug = models.SlugField(max_length=255, unique=True, editable=False)
+
+    def get_slug(self) -> str:
+        value = getattr(self, self._slug_source_field)
+        return slugify(value, allow_unicode=False)
+
+    def _unique_slug(self) -> str:
+        base = self.get_slug()
+        slug = base
+        qs = type(self).objects.exclude(pk=self.pk)
+        counter = 1
+        while qs.filter(slug=slug).exists():
+            slug = f"{base}-{counter}"
+            counter += 1
+        return slug
+
+    def clean(self) -> None:
+        super().clean()
+        self.slug = self._unique_slug()
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        self.slug = self._unique_slug()
+        super().save(*args, **kwargs)
+
+    class Meta:
+        abstract = True
+
+
+class OrderMixin(models.Model):
+    """Mixin that ensures gap-free ordering among siblings on delete.
+
+    Subclasses must set ``_order_parent_field`` to the FK field name that
+    scopes the ordering (e.g. ``"macrocycle"`` for Mesocycle).
+    """
+
+    _order_parent_field: str
+
+    def _lock_parent(self) -> None:
+        """Lock the parent row with SELECT … FOR UPDATE to serialise sibling operations."""
+        parent = getattr(self, self._order_parent_field)
+        type(parent).objects.select_for_update().get(pk=parent.pk)
+
+    def compact_siblings(self, from_order: int) -> models.QuerySet:
+        """Close the ordering gap by decrementing siblings above ``from_order``.
+
+        Returns a lazy queryset of the affected siblings (those now at
+        ``from_order`` and above). Subclasses may override to perform
+        additional cleanup (e.g. slug refresh) using the returned queryset
+        — call ``super().compact_siblings(from_order)`` first.
+        """
+        parent_id = getattr(self, f"{self._order_parent_field}_id")
+        type(self).objects.filter(
+            **{self._order_parent_field: parent_id, "order__gt": from_order}
+        ).update(order=models.F("order") - 1)
+        return type(self).objects.filter(
+            **{self._order_parent_field: parent_id, "order__gte": from_order}
+        )
+
+    def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
+        with transaction.atomic():
+            self._lock_parent()
+            from_order = self.order
+            result = super().delete(*args, **kwargs)
+            self.compact_siblings(from_order)
+        return result
+
+    class Meta:
+        abstract = True
+
+
+# ==============================================================================
+# LOOKUP MODELS
+# ==============================================================================
+
+
+class WorkoutSubtypeManager(models.Manager):
+    """Custom manager enabling natural key lookups for fixture loading."""
+
+    def get_by_natural_key(self, name: str, parent_type: str) -> "WorkoutSubtype":
+        return self.get(name=name, parent_type=parent_type)
+
+
+class WorkoutSubtype(SlugFieldMixin, models.Model):
+    """Named activity subtype (e.g. Running, Cycling) with a JSON-defined UI schema."""
+
+    objects = WorkoutSubtypeManager()
+
+    name = models.CharField(max_length=100)
+    parent_type = models.CharField(
+        max_length=20,
+        choices=WorkoutType.choices(),
+    )
+    gui_schema = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Defines UI inputs (e.g., {'z1_pct': {'type': 'number', 'label': 'Zone 1 %'}})",
+    )
+
+    def natural_key(self) -> tuple[str, str]:
+        return (self.name, self.parent_type)
+
+    def __str__(self) -> str:
+        return f"{self.name} ({self.parent_type})"
+
+    class Meta:
+        verbose_name_plural = "Workout subtypes"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["name", "parent_type"], name="uq_subtype_name_parent"
+            ),
+        ]
+
+
+# ==============================================================================
+# WORKOUT
+# ==============================================================================
+
+
+class Workout(models.Model):
+    """Core workout record. Subtype determines workout_type and is immutable after creation."""
+
+    user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+    start_time = models.DateTimeField(default=timezone.now)
+    description = models.CharField(max_length=255, default="", blank=True)
+    workout_status = models.CharField(
+        max_length=20,
+        choices=WorkoutStatus.choices(),
+        default=WorkoutStatus.PLANNED,
+    )
+    workout_type = models.CharField(
+        max_length=20,
+        choices=WorkoutType.choices(),
+    )
+    subtype = models.ForeignKey(WorkoutSubtype, on_delete=models.PROTECT)
+
+    def get_absolute_url(self) -> str:
+        return reverse("workouts:workout_detail", kwargs={"pk": self.pk})
+
+    def get_detail(self) -> "DetailBase | None":
+        """Return the type-specific detail row, or None if it doesn't exist."""
+        model = DetailBase._detail_registry.get(self.workout_type)
+        if model is None:
+            return None
+        try:
+            return getattr(self, model.get_related_name())
+        except model.DoesNotExist:
+            return None
+
+    def clean(self) -> None:
+        super().clean()
+        if self.subtype_id and self.workout_type != self.subtype.parent_type:
+            raise ValidationError(
+                {
+                    "subtype": (
+                        f"Type '{self.workout_type}' does not match "
+                        f"subtype '{self.subtype.name}'."
+                    )
+                }
+            )
+
+    @property
+    def gui_fields(self) -> dict:
+        detail = self.get_detail()
+        if detail and isinstance(detail.additional_data, dict):
+            return detail.additional_data.get("gui_fields", {})
+        return {}
+
+    def __str__(self) -> str:
+        return f"{self.name} - {self.start_time}"
+
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=["user", "-start_time"],
+                name="wrk_user_time_idx",
+            ),
+        ]
+
+
+# ==============================================================================
+# DETAIL MODELS
+# ==============================================================================
+
+
+class DetailBase(models.Model):
+    """Abstract base for type-specific workout details (duration, load, additional_data).
+
+    Concrete subclasses auto-register via ``__init_subclass__`` into
+    ``_detail_registry``, keyed by their ``_workout_type``. Always calls
+    ``full_clean()`` on save to enforce model validation.
+    """
+
+    _detail_registry: dict[WorkoutType, type["DetailBase"]] = {}
+    _workout_type: WorkoutType
+    # Declared on each concrete subclass as a OneToOneField; annotated here for type checkers.
+    workout: "Workout"
+    workout_id: int
+
+    duration = models.DurationField(
+        null=True,
+        blank=True,
+        validators=[GreaterThanDurationValidator(timedelta(seconds=0))],
+    )
+    additional_data = models.JSONField(default=dict, blank=True)
+    load = models.PositiveIntegerField(null=True, blank=True)
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        if hasattr(cls, "_workout_type") and not getattr(
+            getattr(cls, "Meta", None), "abstract", False
+        ):
+            DetailBase._detail_registry[cls._workout_type] = cls
+
+    @classmethod
+    def get_related_name(cls) -> str:
+        """Return the reverse accessor name for this detail's OneToOne to Workout."""
+        return cls._meta.get_field("workout").remote_field.related_name  # type: ignore[union-attr,return-value]
+
+    def _validate_gui_fields(self) -> None:
+        subtype = getattr(self.workout, "subtype", None)
+        if not subtype or not subtype.gui_schema:
+            return
+        gui_fields = self.additional_data.get("gui_fields", {})
+        if not isinstance(gui_fields, dict):
+            raise ValidationError({"additional_data": "gui_fields must be a dict."})
+        unknown = set(gui_fields) - set(subtype.gui_schema)
+        if unknown:
+            raise ValidationError(
+                {
+                    "additional_data": (
+                        f"gui_fields contains keys not in subtype "
+                        f"'{subtype.name}' schema: {', '.join(sorted(unknown))}"
+                    )
+                }
+            )
+
+    def clean(self) -> None:
+        super().clean()
+        if not self.workout_id:
+            return
+        if self.workout.workout_type != self._workout_type:
+            raise ValidationError(
+                f"Workout type '{self.workout.workout_type}' does not match "
+                f"detail type '{self._workout_type}'."
+            )
+        self._validate_gui_fields()
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    def __str__(self) -> str:
+        return f"{self.__class__.__name__} for workout {self.pk}"
+
+    class Meta:
+        abstract = True
+
+
+class AerobicDetails(DetailBase):
+    """Aerobic workout details with distance (meters) and computed speed/pace."""
+
+    _workout_type = WorkoutType.AEROBIC
+
+    workout = models.OneToOneField(
+        Workout,
+        primary_key=True,
+        on_delete=models.CASCADE,
+        related_name="aerobic_details",
+    )
+    distance = models.PositiveIntegerField(
+        null=True, blank=True, help_text="Distance in meters."
+    )
+
+    @property
+    def distance_km(self) -> float | None:
+        return m_to_km(self.distance)
+
+    @property
+    def speed(self) -> float | None:
+        """Speed in km/h, computed from distance and duration."""
+        km = self.distance_km
+        if not (self.duration and km):
+            return None
+        secs = self.duration.total_seconds()  # pylint: disable=no-member
+        return 3600 * km / secs if secs else None
+
+    @property
+    def pace(self) -> float | None:
+        """Pace in seconds per km."""
+        km = self.distance_km
+        if not (self.duration and km and km > 0):
+            return None
+        return self.duration.total_seconds() / km
+
+    @property
+    def pace_display(self) -> str:
+        """Formatted pace as M:SS min/km."""
+        p = self.pace
+        if p is None:
+            return ""
+        total_seconds = round(p)
+        minutes = total_seconds // 60
+        seconds = total_seconds % 60
+        return f"{minutes}:{seconds:02d} min/km"
+
+    class Meta:
+        verbose_name_plural = "Aerobic details"
+
+
+class StrengthDetails(DetailBase):
+    """Strength workout details (sets, total weight)."""
+
+    _workout_type = WorkoutType.STRENGTH
+
+    workout = models.OneToOneField(
+        Workout,
+        primary_key=True,
+        on_delete=models.CASCADE,
+        related_name="strength_details",
+    )
+    num_sets = models.PositiveIntegerField(null=True, blank=True)
+    total_weight = models.PositiveIntegerField(
+        null=True, blank=True, help_text="Total weight in kg."
+    )
+
+    class Meta:
+        verbose_name_plural = "Strength details"
+
+
+class GenericDetails(DetailBase):
+    """Generic workout details (duration and load only, no extra fields)."""
+
+    _workout_type = WorkoutType.GENERIC
+
+    workout = models.OneToOneField(
+        Workout,
+        primary_key=True,
+        on_delete=models.CASCADE,
+        related_name="generic_details",
+    )
+
+    class Meta:
+        verbose_name_plural = "Generic details"
+
+
+# ==============================================================================
+# PERIODIZATION
+# ==============================================================================
+
+
+class Macrocycle(models.Model):
+    """Top-level training block. Owns mesocycles → microcycles.
+
+    Call hydrate() to compute dates bottom-up from Microcycle.duration_days.
+    HydratedProperty fields (end_date, scheduled_duration) raise
+    AttributeError until hydrated.
+    """
+
+    user = models.ForeignKey(get_user_model(), on_delete=models.CASCADE)
+    name = models.CharField(max_length=255)
+    start_date = models.DateField()
+    description = models.CharField(max_length=255, default="", blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "name"], name="uq_macro_user_name"),
+        ]
+
+    scheduled_duration = HydratedProperty()
+    end_date = HydratedProperty()
+
+    @staticmethod
+    def _calc_end_date(start_date: date, days_duration: int) -> date:
+        if days_duration > 0:
+            return start_date + timedelta(days=days_duration - 1)
+        return start_date
+
+    def hydrate(self: "Macrocycle") -> "Macrocycle":
+        """Fetch the full tree in two queries, compute dates in Python, cache on instances.
+
+        Usage:
+            macro = macro.hydrate()
+            for meso in macro.hydrated_mesocycles:
+                print(meso.start_date, meso.end_date)
+                for micro in meso.hydrated_microcycles:
+                    print(micro.start_date, micro.end_date)
+        """
+        mesocycles = list(
+            self.mesocycles.prefetch_related(
+                Prefetch(
+                    "microcycles",
+                    queryset=Microcycle.objects.order_by("order"),
+                )
+            ).order_by("order")
+        )
+
+        current_date = self.start_date
+        total_macro_duration = 0
+
+        for meso in mesocycles:
+            meso._cached_start_date = current_date
+
+            micros = list(meso.microcycles.all())
+            meso_duration = 0
+
+            for micro in micros:
+                micro._cached_start_date = current_date
+                micro.mesocycle = meso
+                days = micro.duration_days
+                micro._cached_end_date = self._calc_end_date(current_date, days)
+
+                current_date += timedelta(days=days)
+                meso_duration += days
+
+            meso._cached_duration_days = meso_duration
+            meso._cached_end_date = self._calc_end_date(
+                meso._cached_start_date, meso_duration
+            )
+            meso.hydrated_microcycles = micros
+            total_macro_duration += meso_duration
+
+        self._cached_scheduled_duration = total_macro_duration
+        self._cached_end_date = self._calc_end_date(
+            self.start_date, total_macro_duration
+        )
+        self.hydrated_mesocycles = mesocycles
+        return self
+
+    def get_absolute_url(self) -> str:
+        return reverse("workouts:macrocycle_detail", kwargs={"macro_pk": self.pk})
+
+    def __str__(self) -> str:
+        return self.name
+
+
+class Mesocycle(OrderMixin, models.Model):
+    """Ordered phase within a macrocycle (base, build, peak, …).
+
+    HydratedProperty fields (start_date, end_date, duration_days) are
+    populated by Macrocycle.hydrate().
+    """
+
+    _order_parent_field = "macrocycle"
+
+    macrocycle = models.ForeignKey(
+        Macrocycle, on_delete=models.CASCADE, related_name="mesocycles"
+    )
+    order = models.PositiveSmallIntegerField(editable=False)
+    meso_type = models.CharField(max_length=20, choices=MesocycleType.choices())
+    comment = models.CharField(max_length=255, default="", blank=True)
+
+    duration_days = HydratedProperty()
+    start_date = HydratedProperty()
+    end_date = HydratedProperty()
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        if self._state.adding and self.order is None:
+            with transaction.atomic():
+                self._lock_parent()
+                last = Mesocycle.objects.filter(macrocycle=self.macrocycle).aggregate(
+                    largest=Max("order")
+                )["largest"]
+                self.order = (last or 0) + 1
+                super().save(*args, **kwargs)
+        else:
+            super().save(*args, **kwargs)
+
+    def get_absolute_url(self) -> str:
+        return reverse(
+            "workouts:mesocycle_detail",
+            kwargs={
+                "macro_pk": self.macrocycle.pk,
+                "meso_pk": self.pk,
+            },
+        )
+
+    def __str__(self) -> str:
+        return f"{self.get_meso_type_display()} (Meso {self.order})"  # type: ignore[attr-defined]
+
+    class Meta:
+        ordering = ["macrocycle", "order"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["macrocycle", "order"], name="uq_meso_order"
+            ),
+        ]
+
+
+class Microcycle(OrderMixin, models.Model):
+    """Ordered cycle within a mesocycle. duration_days is the source of truth for all date computation.
+
+    HydratedProperty fields (start_date, end_date) are populated by
+    Macrocycle.hydrate().
+    """
+
+    _order_parent_field = "mesocycle"
+
+    mesocycle = models.ForeignKey(
+        Mesocycle, on_delete=models.CASCADE, related_name="microcycles"
+    )
+    order = models.PositiveSmallIntegerField(editable=False)
+    duration_days = models.PositiveSmallIntegerField(default=7)
+    micro_type = models.CharField(
+        max_length=20, choices=MicrocycleType.choices(), default=MicrocycleType.LOAD
+    )
+
+    comment = models.CharField(max_length=255, default="", blank=True)
+    planned_num_runs = models.PositiveIntegerField(null=True, blank=True)
+    planned_distance = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Total planned distance in meters.",
+    )
+    planned_long_run_distance = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        help_text="Planned long run distance in meters.",
+    )
+    planned_strength_sessions = models.PositiveIntegerField(null=True, blank=True)
+    planned_cross_sessions = models.PositiveIntegerField(null=True, blank=True)
+
+    @property
+    def macrocycle(self) -> Macrocycle:
+        return self.mesocycle.macrocycle
+
+    start_date = HydratedProperty()
+    end_date = HydratedProperty()
+
+    @property
+    def planned_distance_km(self) -> float | None:
+        return m_to_km(self.planned_distance)
+
+    @property
+    def planned_long_run_distance_km(self) -> float | None:
+        return m_to_km(self.planned_long_run_distance)
+
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        if self._state.adding and self.order is None:
+            with transaction.atomic():
+                self._lock_parent()
+                last = Microcycle.objects.filter(mesocycle=self.mesocycle).aggregate(
+                    largest=Max("order")
+                )["largest"]
+                self.order = (last or 0) + 1
+                super().save(*args, **kwargs)
+        else:
+            super().save(*args, **kwargs)
+
+    def get_absolute_url(self) -> str:
+        return reverse(
+            "workouts:microcycle_detail",
+            kwargs={
+                "macro_pk": self.mesocycle.macrocycle.pk,
+                "meso_pk": self.mesocycle.pk,
+                "micro_pk": self.pk,
+            },
+        )
+
+    def __str__(self) -> str:
+        return f"{self.get_micro_type_display()} (Micro {self.order}, {self.duration_days} days)"
+
+    class Meta:
+        ordering = ["mesocycle", "order"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["mesocycle", "order"], name="uq_micro_order"
+            ),
+        ]
+
+
+class ActiveMacrocycle(models.Model):
+    """Maps a user to their currently active macrocycle (one per user)."""
+
+    user = models.OneToOneField(
+        get_user_model(),
+        on_delete=models.CASCADE,
+        primary_key=True,
+    )
+    macrocycle = models.ForeignKey(Macrocycle, on_delete=models.CASCADE)
+
+    def __str__(self) -> str:
+        return f"{self.user} → {self.macrocycle}"

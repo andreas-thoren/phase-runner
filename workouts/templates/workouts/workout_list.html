@@ -1,0 +1,34 @@
+{% extends "workouts/list_base.html" %}
+{% load static %}
+
+{% block page_title %}All workouts page{% endblock %}
+{% block heading %}Workouts{% endblock %}
+
+{% block scripts %}
+  {{ block.super }}
+  <script src="{% static 'workouts/js/workout_list.js' %}" defer></script>
+{% endblock %}
+
+{% block toolbar %}
+  {% include "workouts/partials/workout_filters.html" with show_activity=True %}
+{% endblock %}
+
+{% block table_head %}
+  <th>Date</th>
+  <th>Activity</th>
+  <th>Name</th>
+  <th>Status</th>
+{% endblock %}
+
+{% block table_body %}
+  {% for wrk in workouts %}
+    <tr id="row-{{ wrk.pk }}" data-href="{{ wrk.get_absolute_url }}" class="workout-row" tabindex="0">
+      <td data-label="Date">{{ wrk.start_time|date:"Y-m-d" }}</td>
+      <td data-label="Activity">{{ wrk.subtype.name|default:"—" }}</td>
+      <td data-label="Name">{{ wrk.name }}</td>
+      <td data-label="Status">{{ wrk.get_workout_status_display }}</td>
+    </tr>
+  {% endfor %}
+{% endblock %}
+
+{% block empty_message %}No workouts match your filters.{% endblock %}

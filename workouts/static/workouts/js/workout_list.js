@@ -1,0 +1,33 @@
+document.getElementById("toggle-filters").addEventListener("click", () => {
+  const bar = document.getElementById("filter-bar");
+  bar.hidden = !bar.hidden;
+  const url = new URL(window.location);
+  if (bar.hidden) {
+    url.searchParams.delete("show_filters");
+  } else {
+    url.searchParams.set("show_filters", "1");
+  }
+  history.replaceState(null, "", url);
+});
+
+const filterBar = document.getElementById("filter-bar");
+const filterSubmit = document.getElementById("filter-submit");
+
+function updateFilterButton() {
+  const hasValue = Array.from(filterBar.elements).some(
+    el => el !== filterSubmit && el.name !== "show_filters" && el.value
+  );
+  filterSubmit.disabled = !hasValue;
+}
+
+filterBar.addEventListener("input", updateFilterButton);
+filterBar.addEventListener("change", updateFilterButton);
+
+const filterClear = document.getElementById("filter-clear");
+if (filterClear) {
+  filterClear.addEventListener("click", () => {
+    window.location.href = filterClear.dataset.clearUrl;
+  });
+}
+
+// Clickable rows are handled by clickable_rows.js (loaded separately).

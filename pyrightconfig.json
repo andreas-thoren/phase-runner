@@ -1,0 +1,5 @@
+{
+  "reportIncompatibleVariableOverride": "none",
+  "reportIncompatibleMethodOverride": "none",
+  "reportAssignmentType": "none"
+}

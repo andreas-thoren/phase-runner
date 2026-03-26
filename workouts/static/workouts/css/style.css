@@ -1,0 +1,93 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  margin: auto;
+  padding: 0 calc(64px / 2) 0 calc(64px / 2);
+  min-width: 320px;
+  max-width: 1600px;
+  min-height: 100vh;
+}
+.app.narrow-page {
+  max-width: 1088px;
+}
+@media (min-width: 1888px) {
+  .app:has(#sidebar-menu) {
+    max-width: 1888px;
+    margin-left: calc((100vw - 1888px) / 3);
+    margin-right: auto;
+  }
+  .app.narrow-page:has(#sidebar-menu) {
+    max-width: 1376px;
+    margin-left: calc((100vw - 1376px) / 3);
+  }
+}
+
+.header {
+  height: 90px;
+  padding-top: 0.5rem;
+  margin-bottom: 60px;
+}
+
+.header-svg {
+  color: hsl(195, 85%, 41%);
+}
+
+.logout-form {
+  margin: 0;
+}
+
+details.account-dropdown > summary:not([role]) {
+  background-color: transparent;
+  border: none;
+  padding: 0;
+  color: var(--pico-secondary);
+}
+details.account-dropdown > summary:not([role])::after {
+  display: none;
+}
+details.account-dropdown > summary:not([role]):hover, details.account-dropdown > summary:not([role]):focus {
+  background-color: transparent;
+  color: var(--pico-secondary-hover);
+}
+details.account-dropdown > summary:not([role]) svg {
+  height: 1.5rem;
+  width: 1.5rem;
+  vertical-align: middle;
+}
+details.account-dropdown ul li {
+  direction: ltr;
+}
+details.account-dropdown .account-username {
+  font-size: 0.85rem;
+  color: var(--pico-muted-color);
+}
+
+footer {
+  margin-top: 4rem;
+  padding: 1.5rem 0 1rem 0;
+  border-top: 1px dotted var(--pico-form-element-border-color);
+}
+
+.button-slim {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.button-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+.button-row a,
+.button-row span {
+  margin-bottom: var(--pico-spacing);
+  flex: 0 1 8rem;
+}
+.button-row span {
+  visibility: hidden;
+}
+.button-row button {
+  flex: 0 1 12rem;
+}

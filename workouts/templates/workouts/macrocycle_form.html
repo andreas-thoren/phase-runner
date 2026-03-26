@@ -1,0 +1,81 @@
+{% extends "workouts/form_base.html" %}
+{% load static %}
+
+{% block page_title %}{% if object %}{{ object.name }}{% else %}New Macrocycle{% endif %}{% endblock %}
+{% block heading %}{% if object %}{{ object.name }}{% else %}New Macrocycle{% endif %}{% endblock %}
+
+{% block after_heading %}
+  {% if view_type == "detail" %}
+    <form method="post" action="{{ toggle_active_url }}" class="active-badge-form">
+      {% csrf_token %}
+      <button type="submit" class="active-badge {% if is_active %}active{% endif %}">
+        {% if is_active %}★ Active plan{% else %}☆ Set as active{% endif %}
+      </button>
+    </form>
+  {% endif %}
+{% endblock %}
+
+{% block styles %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'workouts/css/workouts.css' %}">
+{% endblock %}
+
+{% block scripts %}
+  {{ block.super }}
+  <script src="{% static 'workouts/js/clickable_rows.js' %}" defer></script>
+{% endblock %}
+
+{% block below_heading %}
+  {% if summary_url %}
+    <div class="plan-summary-row">
+      <a href="{{ summary_url }}" role="button" class="button-slim secondary">Summary</a>
+    </div>
+  {% endif %}
+{% endblock %}
+
+{% block form_content %}
+  {% for field in form %}
+    {% include "workouts/partials/form_field.html" %}
+  {% endfor %}
+{% endblock %}
+
+{% block after_form %}
+  {% if view_type == "detail" %}
+    <hr>
+    <div class="list-toolbar">
+      <h2>Mesocycles</h2>
+      <a href="{{ create_meso_url }}" data-replace role="button" class="button-slim">Add mesocycle</a>
+    </div>
+
+    {% if mesocycles %}
+      <figure>
+        <table class="record-table">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Start</th>
+              <th>End</th>
+              <th>Comment</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for meso in mesocycles %}
+              <tr id="row-{{ meso.pk }}" data-href="{{ meso.get_absolute_url }}" class="workout-row" tabindex="0">
+                <td data-label="Type">{{ meso.get_meso_type_display }}</td>
+                <td data-label="Start">{{ meso.start_date|date:"Y-m-d"|default:"—" }}</td>
+                <td data-label="End">{{ meso.end_date|date:"Y-m-d"|default:"—" }}</td>
+                <td data-label="Comment">{{ meso.comment|default:"—" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </figure>
+    {% elif can_create_defaults %}
+      <div class="empty-state-action">
+        <a href="{{ create_defaults_url }}" role="button">Generate cycles</a>
+      </div>
+    {% else %}
+      <p>No mesocycles yet.</p>
+    {% endif %}
+  {% endif %}
+{% endblock %}

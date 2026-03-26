@@ -1,0 +1,193 @@
+@media (min-width: 1888px) {
+  main:has(#sidebar-menu) {
+    display: grid;
+    grid-template-columns: 208px 1fr;
+    grid-template-rows: auto 1fr;
+    grid-template-areas: "menu breadcrumb" "menu body";
+    -moz-column-gap: 80px;
+         column-gap: 80px;
+  }
+  #sidebar-breadcrumb {
+    grid-area: breadcrumb;
+  }
+  #sidebar-breadcrumb .breadcrumb-hamburger {
+    display: none;
+  }
+  #sidebar-breadcrumb li.breadcrumb-hamburger + li::before {
+    content: none;
+  }
+  #sidebar-breadcrumb li.breadcrumb-hamburger + li {
+    margin-left: 0;
+    padding-left: 0;
+  }
+  #sidebar-menu {
+    grid-area: menu;
+  }
+  #sidebar-menu nav {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100vh - 2rem);
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .main-content {
+    grid-area: body;
+    min-width: 0;
+  }
+}
+#sidebar-menu button,
+#sidebar-breadcrumb button {
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  color: var(--pico-secondary);
+  width: auto;
+  margin: 0;
+}
+
+#sidebar-menu {
+  padding: var(--pico-nav-element-spacing-vertical) 0;
+}
+#sidebar-menu .sidebar-mobile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+#sidebar-menu .sidebar-mobile-header span {
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+#sidebar-menu nav details {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+#sidebar-menu nav details summary {
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 0.5rem 0;
+  color: var(--pico-color);
+}
+#sidebar-menu nav details:first-of-type > summary {
+  padding-top: 0;
+}
+#sidebar-menu nav details[open] > summary {
+  color: var(--pico-primary);
+}
+#sidebar-menu nav ul {
+  padding: 0 0 0.5rem 0;
+  margin: 0;
+  border-left: 1px solid var(--pico-muted-border-color);
+}
+#sidebar-menu nav ul a {
+  display: block;
+  padding: 0.5rem 0 0.5rem 0.75rem;
+  font-size: 0.85rem;
+  color: var(--pico-muted-color);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  border-radius: 0;
+  margin-left: -1px;
+  background: none;
+  transition: color 0.15s, border-color 0.15s;
+  --pico-text-decoration: none;
+}
+#sidebar-menu nav ul a:hover {
+  color: var(--pico-color);
+}
+#sidebar-menu nav ul a[aria-current=page] {
+  color: var(--pico-primary);
+  border-left-color: var(--pico-primary);
+  font-weight: 500;
+}
+#sidebar-menu nav ul a.disabled-link {
+  opacity: 0.4;
+  pointer-events: none;
+}
+#sidebar-menu .sidebar-type-label {
+  display: block;
+  padding: 0.5rem 0 0.25rem 0.75rem;
+  margin-bottom: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--pico-muted-color);
+}
+#sidebar-menu .sidebar-type-label + ul {
+  margin-bottom: 0.5rem;
+  padding-left: 0.5rem;
+}
+
+@media (min-width: 1888px) {
+  #sidebar-menu .sidebar-mobile-header {
+    display: none;
+  }
+}
+@media (max-width: 1887px) {
+  #sidebar-menu {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    transform: translateX(calc(100% + var(--pico-spacing, 1rem)));
+    transition: transform 0.3s ease;
+    pointer-events: none;
+  }
+  #sidebar-menu::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--pico-background-color);
+  }
+  #sidebar-menu > * {
+    position: relative;
+  }
+  #sidebar-menu.is-open {
+    transform: translateX(0);
+    pointer-events: auto;
+    padding: 1.5rem;
+    overflow-y: auto;
+  }
+  html:has(#sidebar-menu.is-open) {
+    overflow: hidden;
+  }
+}
+#sidebar-breadcrumb {
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+  background: var(--pico-background-color);
+  transition: box-shadow 0.2s, border-color 0.2s;
+  border-bottom: 1px solid transparent;
+}
+#sidebar-breadcrumb.is-sticky {
+  border-bottom-color: var(--pico-muted-border-color);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+}
+#sidebar-breadcrumb ul {
+  padding: 0;
+  margin: 0;
+  font-size: 0.85rem;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+}
+#sidebar-breadcrumb ul li:last-child {
+  color: var(--pico-muted-color);
+}
+#sidebar-breadcrumb ul li.breadcrumb-hamburger {
+  padding-left: 0;
+}
+#sidebar-breadcrumb ul li.breadcrumb-hamburger button[data-sidebar-open] {
+  padding-left: 0;
+}
+#sidebar-breadcrumb ul li.breadcrumb-hamburger::after {
+  content: none;
+}
+
+@media (max-width: 1887px) {
+  #sidebar-breadcrumb {
+    position: sticky;
+    top: -1px;
+    z-index: 50;
+  }
+}

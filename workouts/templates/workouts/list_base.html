@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{% block page_title %}List{% endblock %}{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{% static 'workouts/css/workouts.css' %}">
+{% endblock %}
+
+{% block scripts %}
+  <script src="{% static 'workouts/js/clickable_rows.js' %}" defer></script>
+{% endblock %}
+
+{% block main %}
+  <h1>{% block heading %}{% endblock %}</h1>
+
+  {% block toolbar %}{% endblock %}
+
+  {% if object_list %}
+    <figure>
+      <table class="record-table">
+        <thead>
+          <tr>
+            {% block table_head %}{% endblock %}
+          </tr>
+        </thead>
+        <tbody>
+          {% block table_body %}{% endblock %}
+        </tbody>
+      </table>
+    </figure>
+  {% else %}
+    <p>{% block empty_message %}No items found.{% endblock %}</p>
+  {% endif %}
+
+  {% if is_paginated %}
+    <nav aria-label="Pagination">
+      <ul>
+        {% if page_obj.has_previous %}
+          <li><a href="?{{ page_prefix }}page=1">&laquo;</a></li>
+          <li><a href="?{{ page_prefix }}page={{ page_obj.previous_page_number }}">&lsaquo;</a></li>
+        {% else %}
+          <li><a href="#" aria-disabled="true">&laquo;</a></li>
+          <li><a href="#" aria-disabled="true">&lsaquo;</a></li>
+        {% endif %}
+
+        {% for num in page_range %}
+          {% if num == page_obj.number %}
+            <li><a href="?{{ page_prefix }}page={{ num }}" aria-current="page"><strong>{{ num }}</strong></a></li>
+          {% else %}
+            <li><a href="?{{ page_prefix }}page={{ num }}">{{ num }}</a></li>
+          {% endif %}
+        {% endfor %}
+
+        {% if page_obj.has_next %}
+          <li><a href="?{{ page_prefix }}page={{ page_obj.next_page_number }}">&rsaquo;</a></li>
+          <li><a href="?{{ page_prefix }}page={{ page_obj.paginator.num_pages }}">&raquo;</a></li>
+        {% else %}
+          <li><a href="#" aria-disabled="true">&rsaquo;</a></li>
+          <li><a href="#" aria-disabled="true">&raquo;</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+  {% endif %}
+
+{% endblock %}

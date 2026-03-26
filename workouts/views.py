@@ -1,0 +1,1012 @@
+"""Views for the workouts app.
+
+Mixins
+------
+PaginationMixin
+    Adds a sliding page-range window to any paginated ListView, avoiding
+    rendering all page numbers when there are many pages.
+
+NoCacheMixin
+    Adds ``Cache-Control: no-store`` to prevent browser caching. Used on
+    detail views and list views so back-navigation always shows fresh data.
+
+FormContextMixin
+    Shared base for all CRUD views using form_base.html. From a single
+    ``view_type`` class attribute it auto-resolves: view_type, read_only,
+    edit_url, delete_url, detail_url, list_url, and get_success_url.
+    Model name and URL kwargs are derived from ``self.model._meta.model_name``
+    and ``self.kwargs``. Requires URL names to follow the convention documented
+    in workouts/urls.py (``{model}_list``, ``{model}_detail``,
+    ``edit_{model}``, ``delete_{model}``). Child models without a list view
+    override ``get_parent_url()`` to provide the cancel/fallback URL.
+
+MacrocycleChildMixin
+    Resolves the parent macrocycle from ``kwargs["macro_pk"]``, scopes
+    ``get_queryset()`` by macrocycle, and provides ``get_parent_url()``
+    returning the macrocycle detail URL. Used by Mesocycle CRUD views.
+
+MesocycleChildMixin
+    Resolves the parent mesocycle from ``kwargs["macro_pk"]`` +
+    ``kwargs["meso_pk"]``, scopes ``get_queryset()`` by mesocycle, and
+    provides ``get_parent_url()`` returning the mesocycle detail URL.
+    Used by Microcycle CRUD views.
+
+WorkoutMutateMixin
+    Shared logic for Create and Update workout views. Handles detail form
+    instantiation, GUI field collection, and atomic save of workout + detail.
+
+WorkoutReadonlyFormMixin
+    Builds read-only workout_form, detail_form, and gui_fields_display context
+    for workout detail and delete views.
+
+LoginView
+    Overrides Django's LoginView to use PRG pattern — redirects back with
+    a message on invalid credentials instead of re-rendering the form.
+
+GUI schema helpers
+------------------
+Workout subtypes define a ``gui_schema`` JSONField that describes dynamic
+per-subtype form fields (e.g. "cadence" for Running). The private helpers
+below handle the view-layer plumbing:
+
+- ``_gui_schemas_json()``: serialises all subtype schemas to JSON for the
+  client-side JS that renders the dynamic inputs.
+- ``_collect_gui_fields()``: extracts submitted ``gui-*`` POST keys, casts
+  numbers per schema, and returns a clean dict for storage.
+- ``_gui_fields_from_detail()`` / ``_gui_fields_display()``: read stored
+  gui_fields from a detail row for edit pre-population and read-only display.
+
+Adding new CRUD views
+---------------------
+1. Register URL names following the convention in workouts/urls.py.
+2. Create a ``{model}_form.html`` template that extends ``form_base.html``
+   and fills the ``form_content`` block.
+3. Create view classes inheriting ``(FormContextMixin, DetailView/CreateView/...)``.
+   Set ``view_type`` as a class attribute (e.g. ``view_type = ViewType.DETAIL``).
+   Everything else (URLs, read_only, success redirect) is handled by the mixin.
+4. For child models without a list view, inherit ``MacrocycleChildMixin`` (or
+   equivalent) and override ``get_parent_url()`` to return the parent's URL.
+5. Add the model to ``FormContextMixinConventionTest`` in ``tests/test_views.py``
+   (``models_and_kwargs`` for top-level, ``child_models_and_kwargs`` for children).
+"""
+
+import json
+from collections import defaultdict
+from datetime import date
+from typing import Any
+
+from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.contrib.auth import views as auth_views
+from django import forms
+from django.db import transaction
+from django.db.models import QuerySet
+from django.http import (
+    Http404,
+    HttpRequest,
+    HttpResponse,
+    HttpResponseBase,
+    HttpResponseRedirect,
+)
+from django.shortcuts import get_object_or_404, redirect
+from django.views import View
+from django.views.generic import DetailView, ListView
+from django.views.generic.edit import CreateView, FormView, UpdateView, DeleteView
+from django.urls import reverse
+
+from .constants import APP_NAMESPACE
+from .utils import create_default_cycles, m_to_km
+from .enums import WorkoutType, ViewType
+from .forms import (
+    CreateCyclesForm,
+    WorkoutForm,
+    WorkoutFilterForm,
+    MacrocycleForm,
+    MesocycleForm,
+    MicrocycleForm,
+    DETAIL_FORMS,
+)
+from .models import (
+    Workout,
+    WorkoutSubtype,
+    DetailBase,
+    ActiveMacrocycle,
+    Macrocycle,
+    Mesocycle,
+    Microcycle,
+)
+
+
+def _gui_schemas_json() -> str:
+    schemas = {}
+    for st in WorkoutSubtype.objects.all():
+        schemas[st.pk] = st.gui_schema
+    return json.dumps(schemas)
+
+
+def _gui_fields_from_detail(workout: Workout) -> dict:
+    detail = workout.get_detail()
+    if detail and isinstance(detail.additional_data, dict):
+        return detail.additional_data.get("gui_fields", {})
+    return {}
+
+
+def _gui_fields_display(workout: Workout) -> list[dict]:
+    gui_fields = _gui_fields_from_detail(workout)
+    if not gui_fields or not workout.subtype:
+        return []
+    schema = workout.subtype.gui_schema or {}
+    return [
+        {"label": schema.get(key, {}).get("label", key), "value": value}
+        for key, value in gui_fields.items()
+    ]
+
+
+def _detail_is_empty(detail_form: forms.ModelForm, gui_fields: dict) -> bool:
+    if gui_fields:
+        return False
+    return all(not v for v in detail_form.cleaned_data.values())
+
+
+def _collect_gui_fields(post_data: dict, subtype: WorkoutSubtype | None) -> dict:
+    gui_fields = {}
+    if not subtype or not subtype.gui_schema:
+        return gui_fields
+    for key in post_data:
+        if key.startswith("gui-"):
+            field_name = key[4:]
+            value = post_data[key].strip()
+            if not value:
+                continue
+            schema_entry = subtype.gui_schema.get(field_name, {})
+            if schema_entry.get("type") == "number":
+                try:
+                    value = float(value)
+                    if value == int(value):
+                        value = int(value)
+                except (ValueError, TypeError):
+                    pass
+            gui_fields[field_name] = value
+    return gui_fields
+
+
+class PaginationMixin:
+    """Adds a sliding page-range window to paginated list views."""
+
+    pagination_window = 5
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        ctx = super().get_context_data(**kwargs)  # type: ignore[misc]
+        page_obj = ctx.get("page_obj")
+        if page_obj and page_obj.paginator.num_pages > 1:
+            current = page_obj.number
+            total = page_obj.paginator.num_pages
+            w = self.pagination_window
+            ideal_start = max(1, current - w // 2)
+            clamped_end = min(total, ideal_start + w - 1)
+            final_start = max(1, clamped_end - w + 1)
+            ctx["page_range"] = range(final_start, clamped_end + 1)
+        return ctx
+
+
+class NoCacheMixin:
+    """Adds Cache-Control: no-store to prevent browser from caching the response."""
+
+    def dispatch(self, request: HttpRequest, *args, **kwargs) -> HttpResponseBase:
+        response = super().dispatch(request, *args, **kwargs)  # type: ignore[misc]
+        response["Cache-Control"] = "no-store"
+        return response
+
+
+class FormContextMixin:
+    """Auto-resolves view_type, read_only, and CRUD URLs for form_base.html."""
+
+    view_type = None  # set on concrete view classes
+
+    def get_parent_url(self) -> str | None:
+        """Return the parent detail URL for child models without a list view."""
+        return None
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        ctx = super().get_context_data(**kwargs)  # type: ignore[misc]
+        name = self.model._meta.model_name  # type: ignore[attr-defined]
+        vt = self.view_type
+        kw = self.kwargs  # type: ignore[attr-defined]
+
+        ctx["view_type"] = vt
+        ctx["read_only"] = vt in (ViewType.DETAIL, ViewType.DELETE)
+
+        if vt == ViewType.DETAIL:
+            ctx["edit_url"] = reverse(f"{APP_NAMESPACE}:edit_{name}", kwargs=kw)
+            ctx["delete_url"] = reverse(f"{APP_NAMESPACE}:delete_{name}", kwargs=kw)
+        elif vt in (ViewType.UPDATE, ViewType.DELETE):
+            ctx["cancel_url"] = self.object.get_absolute_url()  # type: ignore[attr-defined]
+        elif vt == ViewType.CREATE:
+            parent_url = self.get_parent_url()
+            ctx["cancel_url"] = parent_url or reverse(f"{APP_NAMESPACE}:{name}_list")
+
+        return ctx
+
+    def get_success_url(self) -> str:
+        if self.view_type in (ViewType.CREATE, ViewType.UPDATE):
+            return self.object.get_absolute_url()  # type: ignore[attr-defined]
+        parent_url = self.get_parent_url()
+        if parent_url:
+            return parent_url
+        name = self.model._meta.model_name  # type: ignore[attr-defined]
+        return reverse(f"{APP_NAMESPACE}:{name}_list")
+
+
+class BaseWorkoutListView(LoginRequiredMixin, NoCacheMixin, PaginationMixin, ListView):
+    """Shared base for workout list views with filtering and pagination."""
+
+    context_object_name = "workouts"
+    paginate_by = 15
+
+    def get_base_queryset(self) -> QuerySet:
+        related = ["subtype"] + [
+            model.get_related_name() for model in DetailBase._detail_registry.values()
+        ]
+        return (
+            Workout.objects.filter(user=self.request.user)
+            .select_related(*related)
+            .order_by("-start_time")
+        )
+
+    def apply_filters(self, qs: QuerySet) -> QuerySet:
+        if self.filter_form.is_valid():
+            date_from = self.filter_form.cleaned_data.get("date_from")
+            date_to = self.filter_form.cleaned_data.get("date_to")
+            status = self.filter_form.cleaned_data.get("status")
+            if date_from:
+                qs = qs.filter(start_time__date__gte=date_from)
+            if date_to:
+                qs = qs.filter(start_time__date__lte=date_to)
+            if status:
+                qs = qs.filter(workout_status=status)
+        return qs
+
+    def get_queryset(self) -> QuerySet:
+        qs = self.get_base_queryset()
+        self.filter_form = WorkoutFilterForm(self.request.GET or None)
+        qs = self.apply_filters(qs)
+        return qs
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        context["filter_form"] = self.filter_form
+
+        context["show_filters"] = "show_filters" in self.request.GET
+
+        params = self.request.GET.copy()
+        params.pop("page", None)
+        params.pop("show_filters", None)
+        qs = params.urlencode()
+        context["filter_querystring"] = qs
+        context["page_prefix"] = f"{qs}&" if qs else ""
+        return context
+
+
+class LoginView(auth_views.LoginView):
+    """PRG login — redirects back with a message on invalid credentials."""
+
+    def form_invalid(self, form: forms.Form) -> HttpResponseRedirect:
+        messages.error(self.request, "Invalid username or password.")
+        return redirect("login")
+
+
+class IndexView(LoginRequiredMixin, View):
+    """Landing page — redirects to the active plan summary or the plan list."""
+
+    def get(self, request: HttpRequest) -> HttpResponseRedirect:
+        try:
+            active = ActiveMacrocycle.objects.get(user=request.user)
+            return redirect(
+                reverse(
+                    f"{APP_NAMESPACE}:macrocycle_summary",
+                    kwargs={"macro_pk": active.macrocycle.pk},
+                )
+            )
+        except ActiveMacrocycle.DoesNotExist:
+            return redirect(reverse(f"{APP_NAMESPACE}:macrocycle_list"))
+
+
+class WorkoutListView(BaseWorkoutListView):
+    """All workouts list with optional activity filter."""
+
+    template_name = "workouts/workout_list.html"
+
+    def apply_filters(self, qs: QuerySet) -> QuerySet:
+        qs = super().apply_filters(qs)
+        if self.filter_form.is_valid():
+            activity = self.filter_form.cleaned_data.get("activity")
+            if activity:
+                qs = qs.filter(subtype=activity)
+        return qs
+
+
+class RunningListView(BaseWorkoutListView):
+    """Running-only list with aerobic details (distance, pace)."""
+
+    template_name = "workouts/running_list.html"
+
+    def get_base_queryset(self) -> QuerySet:
+        return (
+            Workout.objects.filter(user=self.request.user)
+            .select_related("subtype", "aerobic_details")
+            .filter(subtype__name="Running")
+            .order_by("-start_time")
+        )
+
+
+class WorkoutReadonlyFormMixin:
+    """Builds read-only workout_form, detail_form, and gui_fields_display context."""
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        workout = self.object
+        workout_form = WorkoutForm(instance=workout, read_only=True)
+
+        detail = workout.get_detail()
+        detail_form = None
+        if detail is not None:
+            form_class = DETAIL_FORMS.get(workout.workout_type)
+            if form_class:
+                detail_form = form_class(instance=detail, read_only=True)  # type: ignore[call-arg]
+
+        context.update(
+            {
+                "workout_form": workout_form,
+                "detail_form": detail_form,
+                "gui_fields_display": _gui_fields_display(workout),
+            }
+        )
+        return context
+
+
+class WorkoutDetailView(
+    LoginRequiredMixin,
+    NoCacheMixin,
+    WorkoutReadonlyFormMixin,
+    FormContextMixin,
+    DetailView,
+):
+    """Read-only workout detail with type-specific fields and GUI fields."""
+
+    model = Workout
+    template_name = "workouts/workout_form.html"
+    view_type = ViewType.DETAIL
+
+    def get_queryset(self) -> QuerySet:
+        return super().get_queryset().filter(user=self.request.user)
+
+
+class WorkoutMutateMixin:
+    """Shared logic for Create and Update workout views handling detail forms and GUI fields."""
+
+    def get_workout_type(self) -> WorkoutType:
+        if getattr(self, "object", None) and self.object.pk:
+            return self.object.workout_type
+        wt = self.kwargs.get("workout_type")
+        if wt is None:
+            return WorkoutType.GENERIC
+        try:
+            return WorkoutType(wt)
+        except ValueError as exc:
+            raise Http404("Invalid workout type") from exc
+
+    def _get_existing_detail(self) -> DetailBase | None:
+        workout = getattr(self, "object", None)
+        if workout and workout.pk:
+            return workout.get_detail()
+        return None
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        workout = getattr(self, "object", None)
+        detail = self._get_existing_detail()
+
+        if "detail_form" not in context:
+            form_class = DETAIL_FORMS.get(self.get_workout_type())
+            if form_class:
+                if self.request.method == "POST":
+                    context["detail_form"] = form_class(
+                        self.request.POST, instance=detail, prefix="detail"
+                    )
+                else:
+                    context["detail_form"] = form_class(
+                        instance=detail, prefix="detail"
+                    )
+
+        context["workout_form"] = context.get("form")
+        context["gui_schemas_json"] = _gui_schemas_json()
+        if workout and workout.pk:
+            context["gui_fields_json"] = json.dumps(_gui_fields_from_detail(workout))
+        else:
+            context["gui_fields_json"] = json.dumps({})
+        return context
+
+    def form_valid(self, form: forms.ModelForm) -> HttpResponse:
+        detail = self._get_existing_detail()
+        form_class = DETAIL_FORMS.get(self.get_workout_type())
+
+        detail_form = None
+        if form_class:
+            detail_form = form_class(
+                self.request.POST, instance=detail, prefix="detail"
+            )
+            if not detail_form.is_valid():
+                return self.render_to_response(
+                    self.get_context_data(form=form, detail_form=detail_form)
+                )
+
+        gui_fields = _collect_gui_fields(self.request.POST, form.instance.subtype)
+
+        with transaction.atomic():
+            response = super().form_valid(form)
+            if detail_form:
+                empty = _detail_is_empty(detail_form, gui_fields)
+                if detail is not None and empty:
+                    detail.delete()
+                elif not empty:
+                    detail_obj = detail_form.save(commit=False)
+                    if detail is None:
+                        detail_obj.workout = self.object
+                    if gui_fields:
+                        detail_obj.additional_data = {
+                            **detail_obj.additional_data,
+                            "gui_fields": gui_fields,
+                        }
+                    detail_obj.save()
+
+        return response
+
+
+class WorkoutCreateView(
+    LoginRequiredMixin, WorkoutMutateMixin, FormContextMixin, CreateView
+):
+    """Create workout with type from URL kwarg and subtype from query param."""
+
+    model = Workout
+    form_class = WorkoutForm
+    template_name = "workouts/workout_form.html"
+    view_type = ViewType.CREATE
+
+    def get_form(
+        self, form_class: type[forms.BaseForm] | None = None
+    ) -> forms.BaseForm:
+        form = super().get_form(form_class)
+        form.instance.workout_type = self.get_workout_type()
+        form.instance.user = self.request.user
+        subtype_slug = self.request.GET.get("subtype")
+        if not subtype_slug:
+            raise Http404("Subtype is required")
+        try:
+            subtype = WorkoutSubtype.objects.get(slug=subtype_slug)
+        except WorkoutSubtype.DoesNotExist as exc:
+            raise Http404("Invalid subtype") from exc
+        if subtype.parent_type != form.instance.workout_type:
+            raise Http404("Subtype does not match workout type")
+        form.instance.subtype = subtype
+        return form
+
+
+class WorkoutEditView(
+    LoginRequiredMixin, WorkoutMutateMixin, FormContextMixin, UpdateView
+):
+    """Edit workout — creates/updates/deletes detail row as needed."""
+
+    model = Workout
+    form_class = WorkoutForm
+    template_name = "workouts/workout_form.html"
+    view_type = ViewType.UPDATE
+
+    def get_queryset(self) -> QuerySet:
+        return super().get_queryset().filter(user=self.request.user)
+
+
+class WorkoutDeleteView(
+    LoginRequiredMixin,
+    NoCacheMixin,
+    WorkoutReadonlyFormMixin,
+    FormContextMixin,
+    DeleteView,
+):
+    """Delete confirmation view showing read-only workout data."""
+
+    model = Workout
+    template_name = "workouts/workout_form.html"
+    view_type = ViewType.DELETE
+
+    def get_queryset(self) -> QuerySet:
+        return super().get_queryset().filter(user=self.request.user)
+
+
+# ==============================================================================
+# PLANNING VIEWS
+# ==============================================================================
+
+
+class MacrocycleListView(LoginRequiredMixin, NoCacheMixin, PaginationMixin, ListView):
+    """Paginated list of macrocycles ordered by start date (newest first)."""
+
+    model = Macrocycle
+    template_name = "workouts/macrocycle_list.html"
+    context_object_name = "macrocycles"
+    paginate_by = 15
+    ordering = ["-start_date"]
+
+    def get_queryset(self) -> QuerySet:
+        return super().get_queryset().filter(user=self.request.user)
+
+
+class MacrocycleDetailView(
+    LoginRequiredMixin, NoCacheMixin, FormContextMixin, DetailView
+):
+    """Macrocycle detail with hydrated mesocycle table and active-plan toggle."""
+
+    model = Macrocycle
+    template_name = "workouts/macrocycle_form.html"
+    pk_url_kwarg = "macro_pk"
+    view_type = ViewType.DETAIL
+
+    def get_queryset(self) -> QuerySet:
+        return super().get_queryset().filter(user=self.request.user)
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        ctx = super().get_context_data(**kwargs)
+        ctx["form"] = MacrocycleForm(instance=self.object, read_only=True)
+        self.object.hydrate()
+        ctx["mesocycles"] = self.object.hydrated_mesocycles
+        ctx["create_meso_url"] = reverse(
+            f"{APP_NAMESPACE}:create_mesocycle",
+            kwargs={"macro_pk": self.object.pk},
+        )
+        ctx["create_defaults_url"] = reverse(
+            f"{APP_NAMESPACE}:create_default_cycles",
+            kwargs={"macro_pk": self.object.pk},
+        )
+        ctx["can_create_defaults"] = not self.object.hydrated_mesocycles
+        if self.object.hydrated_mesocycles:
+            ctx["summary_url"] = reverse(
+                f"{APP_NAMESPACE}:macrocycle_summary",
+                kwargs={"macro_pk": self.object.pk},
+            )
+
+        ctx["is_active"] = ActiveMacrocycle.objects.filter(
+            user=self.request.user, macrocycle=self.object
+        ).exists()
+        ctx["toggle_active_url"] = reverse(
+            f"{APP_NAMESPACE}:toggle_active",
+            kwargs={"macro_pk": self.object.pk},
+        )
+        return ctx
+
+
+class MacrocycleCreateDefaultCyclesView(LoginRequiredMixin, FormView):
+    """Form view for auto-generating mesocycles and microcycles from duration targets."""
+
+    form_class = CreateCyclesForm
+    template_name = "workouts/create_cycles_form.html"
+
+    def get_macrocycle(self) -> Macrocycle:
+        if not hasattr(self, "_macrocycle"):
+            self._macrocycle = get_object_or_404(
+                Macrocycle, pk=self.kwargs["macro_pk"], user=self.request.user
+            )
+        return self._macrocycle
+
+    def get(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:
+        macro = self.get_macrocycle()
+        if macro.mesocycles.exists():
+            return self.render_to_response(self.get_context_data(has_mesocycles=True))
+        return super().get(request, *args, **kwargs)
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        ctx = super().get_context_data(**kwargs)
+        macro = self.get_macrocycle()
+        ctx["macrocycle"] = macro
+        ctx["view_type"] = ViewType.CREATE
+        ctx["read_only"] = False
+        ctx["cancel_url"] = macro.get_absolute_url()
+        ctx["submit_label"] = "Create"
+        return ctx
+
+    def form_valid(self, form: CreateCyclesForm) -> HttpResponse:
+        macro = self.get_macrocycle()
+        if macro.mesocycles.exists():
+            return self.render_to_response(
+                self.get_context_data(form=form, has_mesocycles=True)
+            )
+        create_default_cycles(
+            macrocycle=macro,
+            target_duration_days=form.cleaned_data["target_duration_days"],
+            meso_duration_days=form.cleaned_data["meso_duration_days"],
+            micro_duration_days=form.cleaned_data["micro_duration_days"],
+        )
+        return redirect(macro.get_absolute_url())
+
+
+class ToggleActiveMacrocycleView(LoginRequiredMixin, View):
+    """POST-only view that toggles a macrocycle as the user's active plan."""
+
+    http_method_names = ["post"]
+
+    def post(self, request: HttpRequest, macro_pk: int) -> HttpResponseRedirect:
+        macro = get_object_or_404(Macrocycle, pk=macro_pk, user=request.user)
+        active = ActiveMacrocycle.objects.filter(user=request.user)
+        if active.filter(macrocycle=macro).exists():
+            active.filter(macrocycle=macro).delete()
+        else:
+            ActiveMacrocycle.objects.update_or_create(
+                user=request.user, defaults={"macrocycle": macro}
+            )
+        return redirect(macro.get_absolute_url())
+
+
+def _empty_actuals() -> dict[str, int]:
+    return {
+        "runs": 0,
+        "run_distance": 0,
+        "long_run_distance": 0,
+        "run_load": 0,
+        "cross_sessions": 0,
+        "strength_sessions": 0,
+        "total_load": 0,
+    }
+
+
+def _find_bucket(w_date: date, buckets: list[tuple[date, date, int]]) -> int | None:
+    for start, end, micro_pk in buckets:
+        if start <= w_date <= end:
+            return micro_pk
+    return None
+
+
+def _aggregate_workouts(
+    overall_start: date, overall_end: date, micro_entries: list[dict], user
+) -> dict[int, dict[str, int]]:
+    result = defaultdict(_empty_actuals)
+    workouts = (
+        Workout.objects.select_related("subtype")
+        .prefetch_related("aerobic_details", "strength_details", "generic_details")
+        .filter(
+            user=user,
+            start_time__date__gte=overall_start,
+            start_time__date__lte=overall_end,
+        )
+    )
+
+    buckets = [(e["start"], e["end"], e["pk"]) for e in micro_entries]
+
+    for w in workouts:
+        w_date = w.start_time.date()
+        micro_pk = _find_bucket(w_date, buckets)
+        if micro_pk is None:
+            continue
+
+        actuals = result[micro_pk]
+        detail = w.get_detail()
+        load = detail.load if detail and detail.load else 0
+
+        actuals["total_load"] += load
+
+        if w.subtype.name == "Running":
+            actuals["runs"] += 1
+            actuals["run_load"] += load
+            distance = 0
+            try:
+                ad = w.aerobic_details
+                distance = ad.distance or 0
+            except Workout.aerobic_details.RelatedObjectDoesNotExist:  # type: ignore[attr-defined]
+                pass
+            actuals["run_distance"] += distance
+            if distance > actuals["long_run_distance"]:
+                actuals["long_run_distance"] = distance
+        elif w.workout_type == WorkoutType.STRENGTH:
+            actuals["strength_sessions"] += 1
+        else:
+            actuals["cross_sessions"] += 1
+
+    return dict(result)
+
+
+class MacrocycleSummaryView(LoginRequiredMixin, NoCacheMixin, DetailView):
+    """Read-only overview table comparing planned goals vs actual workout stats per microcycle."""
+
+    model = Macrocycle
+    pk_url_kwarg = "macro_pk"
+    template_name = "workouts/macrocycle_summary.html"
+
+    def get_queryset(self) -> QuerySet:
+        return super().get_queryset().filter(user=self.request.user)
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        ctx = super().get_context_data(**kwargs)
+        macro = self.object
+        macro.hydrate()
+        ctx["rows"] = self._build_summary_rows(macro)
+        return ctx
+
+    def _build_summary_rows(self, macro: Macrocycle) -> list[dict]:
+        rows = []
+        micro_entries = []
+
+        for meso in macro.hydrated_mesocycles:
+            for micro in meso.hydrated_microcycles:
+                micro_entries.append(
+                    {
+                        "pk": micro.pk,
+                        "start": micro.start_date,
+                        "end": micro.end_date,
+                    }
+                )
+
+        if not micro_entries:
+            return rows
+
+        overall_start = micro_entries[0]["start"]
+        overall_end = micro_entries[-1]["end"]
+        actuals_by_micro = _aggregate_workouts(
+            overall_start, overall_end, micro_entries, self.request.user
+        )
+
+        workout_list_url = reverse(f"{APP_NAMESPACE}:workout_list")
+
+        for meso in macro.hydrated_mesocycles:
+            meso_first = True
+            meso_micro_count = len(meso.hydrated_microcycles)
+            for micro in meso.hydrated_microcycles:
+                actuals = actuals_by_micro.get(micro.pk, _empty_actuals())
+                date_from = micro.start_date.isoformat()
+                date_to = micro.end_date.isoformat()
+                rows.append(
+                    {
+                        "micro_pk": micro.pk,
+                        "start_date": micro.start_date,
+                        "meso_pk": meso.pk,
+                        "meso_display": meso.get_meso_type_display(),
+                        "meso_url": meso.get_absolute_url(),
+                        "meso_first_row": meso_first,
+                        "meso_rowspan": meso_micro_count if meso_first else 0,
+                        "micro_type_display": micro.get_micro_type_display(),
+                        "micro_url": micro.get_absolute_url(),
+                        "workouts_url": (
+                            f"{workout_list_url}"
+                            f"?date_from={date_from}&date_to={date_to}"
+                        ),
+                        "planned_distance_km": micro.planned_distance_km,
+                        "planned_long_run_km": micro.planned_long_run_distance_km,
+                        "planned_num_runs": micro.planned_num_runs,
+                        "run_distance": m_to_km(actuals["run_distance"]) or 0,
+                        "long_run_distance": m_to_km(actuals["long_run_distance"]) or 0,
+                        **{
+                            k: v
+                            for k, v in actuals.items()
+                            if k not in ("run_distance", "long_run_distance")
+                        },
+                    }
+                )
+                meso_first = False
+
+        return rows
+
+
+class MacrocycleCreateView(LoginRequiredMixin, FormContextMixin, CreateView):
+    """Create a new macrocycle for the current user."""
+
+    model = Macrocycle
+    form_class = MacrocycleForm
+    template_name = "workouts/macrocycle_form.html"
+    view_type = ViewType.CREATE
+
+    def get_form(
+        self, form_class: type[forms.BaseForm] | None = None
+    ) -> forms.BaseForm:
+        form = super().get_form(form_class)
+        form.instance.user = self.request.user
+        return form
+
+
+class MacrocycleEditView(LoginRequiredMixin, FormContextMixin, UpdateView):
+    """Edit an existing macrocycle."""
+
+    model = Macrocycle
+    form_class = MacrocycleForm
+    template_name = "workouts/macrocycle_form.html"
+    pk_url_kwarg = "macro_pk"
+    view_type = ViewType.UPDATE
+
+    def get_queryset(self) -> QuerySet:
+        return super().get_queryset().filter(user=self.request.user)
+
+
+class MacrocycleDeleteView(
+    LoginRequiredMixin, NoCacheMixin, FormContextMixin, DeleteView
+):
+    """Delete confirmation for a macrocycle (cascades to meso/microcycles)."""
+
+    model = Macrocycle
+    template_name = "workouts/macrocycle_form.html"
+    pk_url_kwarg = "macro_pk"
+    view_type = ViewType.DELETE
+
+    def get_queryset(self) -> QuerySet:
+        return super().get_queryset().filter(user=self.request.user)
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        ctx = super().get_context_data(**kwargs)
+        ctx["form"] = MacrocycleForm(instance=self.object, read_only=True)
+        return ctx
+
+
+class MacrocycleChildMixin:
+    """Resolves parent macrocycle from URL kwargs and scopes querysets."""
+
+    def get_macrocycle(self) -> Macrocycle:
+        if not hasattr(self, "_macrocycle"):
+            self._macrocycle = get_object_or_404(
+                Macrocycle, pk=self.kwargs["macro_pk"], user=self.request.user
+            )
+        return self._macrocycle
+
+    def get_queryset(self) -> QuerySet:
+        return super().get_queryset().filter(macrocycle=self.get_macrocycle())
+
+    def get_parent_url(self) -> str:
+        return self.get_macrocycle().get_absolute_url()
+
+
+class MesocycleDetailView(
+    LoginRequiredMixin, NoCacheMixin, MacrocycleChildMixin, FormContextMixin, DetailView
+):
+    """Mesocycle detail with hydrated microcycle table."""
+
+    model = Mesocycle
+    template_name = "workouts/mesocycle_form.html"
+    pk_url_kwarg = "meso_pk"
+    view_type = ViewType.DETAIL
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        ctx = super().get_context_data(**kwargs)
+        ctx["form"] = MesocycleForm(instance=self.object, read_only=True)
+
+        macro = self.get_macrocycle()
+        macro.hydrate()
+        hydrated_meso = next(
+            (m for m in macro.hydrated_mesocycles if m.pk == self.object.pk), None
+        )
+        ctx["microcycles"] = hydrated_meso.hydrated_microcycles if hydrated_meso else []
+        ctx["create_micro_url"] = reverse(
+            f"{APP_NAMESPACE}:create_microcycle",
+            kwargs={"macro_pk": macro.pk, "meso_pk": self.object.pk},
+        )
+        return ctx
+
+
+class MesocycleCreateView(
+    LoginRequiredMixin, MacrocycleChildMixin, FormContextMixin, CreateView
+):
+    """Create a mesocycle within a macrocycle."""
+
+    model = Mesocycle
+    form_class = MesocycleForm
+    template_name = "workouts/mesocycle_form.html"
+    view_type = ViewType.CREATE
+
+    def get_form(
+        self, form_class: type[forms.BaseForm] | None = None
+    ) -> forms.BaseForm:
+        form = super().get_form(form_class)
+        form.instance.macrocycle = self.get_macrocycle()
+        return form
+
+
+class MesocycleEditView(
+    LoginRequiredMixin, MacrocycleChildMixin, FormContextMixin, UpdateView
+):
+    """Edit a mesocycle."""
+
+    model = Mesocycle
+    form_class = MesocycleForm
+    template_name = "workouts/mesocycle_form.html"
+    pk_url_kwarg = "meso_pk"
+    view_type = ViewType.UPDATE
+
+
+class MesocycleDeleteView(
+    LoginRequiredMixin, NoCacheMixin, MacrocycleChildMixin, FormContextMixin, DeleteView
+):
+    """Delete confirmation for a mesocycle (cascades to microcycles, reorders siblings)."""
+
+    model = Mesocycle
+    template_name = "workouts/mesocycle_form.html"
+    pk_url_kwarg = "meso_pk"
+    view_type = ViewType.DELETE
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        ctx = super().get_context_data(**kwargs)
+        ctx["form"] = MesocycleForm(instance=self.object, read_only=True)
+        return ctx
+
+
+class MesocycleChildMixin:
+    """Resolves parent mesocycle from URL kwargs and scopes querysets."""
+
+    def get_mesocycle(self) -> Mesocycle:
+        if not hasattr(self, "_mesocycle"):
+            self._mesocycle = get_object_or_404(
+                Mesocycle,
+                macrocycle__pk=self.kwargs["macro_pk"],
+                macrocycle__user=self.request.user,
+                pk=self.kwargs["meso_pk"],
+            )
+        return self._mesocycle
+
+    def get_queryset(self) -> QuerySet:
+        return super().get_queryset().filter(mesocycle=self.get_mesocycle())
+
+    def get_parent_url(self) -> str:
+        return self.get_mesocycle().get_absolute_url()
+
+
+class MicrocycleDetailView(
+    LoginRequiredMixin, NoCacheMixin, MesocycleChildMixin, FormContextMixin, DetailView
+):
+    """Read-only microcycle detail."""
+
+    model = Microcycle
+    template_name = "workouts/microcycle_form.html"
+    pk_url_kwarg = "micro_pk"
+    view_type = ViewType.DETAIL
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        ctx = super().get_context_data(**kwargs)
+        ctx["form"] = MicrocycleForm(instance=self.object, read_only=True)
+        return ctx
+
+
+class MicrocycleCreateView(
+    LoginRequiredMixin, MesocycleChildMixin, FormContextMixin, CreateView
+):
+    """Create a microcycle within a mesocycle."""
+
+    model = Microcycle
+    form_class = MicrocycleForm
+    template_name = "workouts/microcycle_form.html"
+    view_type = ViewType.CREATE
+
+    def get_form(
+        self, form_class: type[forms.BaseForm] | None = None
+    ) -> forms.BaseForm:
+        form = super().get_form(form_class)
+        form.instance.mesocycle = self.get_mesocycle()
+        return form
+
+
+class MicrocycleEditView(
+    LoginRequiredMixin, MesocycleChildMixin, FormContextMixin, UpdateView
+):
+    """Edit a microcycle."""
+
+    model = Microcycle
+    form_class = MicrocycleForm
+    template_name = "workouts/microcycle_form.html"
+    pk_url_kwarg = "micro_pk"
+    view_type = ViewType.UPDATE
+
+
+class MicrocycleDeleteView(
+    LoginRequiredMixin, NoCacheMixin, MesocycleChildMixin, FormContextMixin, DeleteView
+):
+    """Delete confirmation for a microcycle (reorders siblings)."""
+
+    model = Microcycle
+    template_name = "workouts/microcycle_form.html"
+    pk_url_kwarg = "micro_pk"
+    view_type = ViewType.DELETE
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        ctx = super().get_context_data(**kwargs)
+        ctx["form"] = MicrocycleForm(instance=self.object, read_only=True)
+        return ctx

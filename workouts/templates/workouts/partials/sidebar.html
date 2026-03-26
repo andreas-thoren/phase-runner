@@ -1,0 +1,75 @@
+{% load static %}
+
+<aside id="sidebar-menu">
+  <div class="sidebar-mobile-header">
+    <span>Navigation</span>
+    <button data-sidebar-close aria-label="Close navigation">
+      {% include "workouts/partials/close.svg" %}
+    </button>
+  </div>
+
+  <nav>
+    {# Training Plans #}
+    <details{% if nav_section == "plans" %} open{% endif %}>
+      <summary>Training Plans</summary>
+      <ul>
+        <li>
+          <a href="{{ active_plan_detail_url|default:'#' }}"
+             {% if not active_plan_detail_url %}aria-disabled="true" class="disabled-link"{% endif %}
+             {% if nav_section == "plans" and nav_item == "active_plan" %}aria-current="page"{% endif %}>
+            Active Plan Details
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'workouts:macrocycle_list' %}"
+             {% if nav_section == "plans" and nav_item == "all_plans" %}aria-current="page"{% endif %}>
+            All Plans
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'workouts:create_macrocycle' %}" data-replace
+             {% if nav_section == "plans" and nav_item == "new_plan" %}aria-current="page"{% endif %}>
+            New Plan
+          </a>
+        </li>
+      </ul>
+    </details>
+
+    {# Workouts #}
+    <details{% if nav_section == "workouts" %} open{% endif %}>
+      <summary>Workouts</summary>
+      <ul>
+        <li>
+          <a href="{% url 'workouts:workout_list' %}"
+             {% if nav_section == "workouts" and nav_item == "all_workouts" %}aria-current="page"{% endif %}>
+            All Workouts
+          </a>
+        </li>
+        <li>
+          <a href="{% url 'workouts:running_list' %}"
+             {% if nav_section == "workouts" and nav_item == "running" %}aria-current="page"{% endif %}>
+            Running
+          </a>
+        </li>
+      </ul>
+    </details>
+
+    {# Create Workout #}
+    <details{% if nav_section == "create" %} open{% endif %}>
+      <summary>Create Workout</summary>
+      {% for label, parent_type, subtypes in grouped_subtypes %}
+        <span class="sidebar-type-label">{{ label }}</span>
+        <ul>
+          {% for st in subtypes %}
+            <li>
+              <a href="{% url 'workouts:create_workout' workout_type=parent_type %}?subtype={{ st.slug }}"
+                 {% if nav_section == "create" and nav_item == st.slug %}aria-current="page"{% endif %}>
+                {{ st.name }}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endfor %}
+    </details>
+  </nav>
+</aside>

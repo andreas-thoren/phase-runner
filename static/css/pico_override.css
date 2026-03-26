@@ -1,0 +1,8 @@
+:root {
+    --pico-line-height: 1.3;
+    /* Original: 1.5 */
+}
+
+.dropdown {
+    z-index: 200;
+}

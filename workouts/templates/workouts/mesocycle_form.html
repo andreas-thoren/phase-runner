@@ -1,0 +1,64 @@
+{% extends "workouts/form_base.html" %}
+{% load static %}
+
+{% block page_title %}Mesocycle {{ view_type }}{% endblock %}
+{% block heading %}Mesocycle {{ view_type }}{% endblock %}
+
+{% block styles %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'workouts/css/workouts.css' %}">
+{% endblock %}
+
+{% block scripts %}
+  {{ block.super }}
+  <script src="{% static 'workouts/js/clickable_rows.js' %}" defer></script>
+{% endblock %}
+
+{% block form_content %}
+  {% for field in form %}
+    {% include "workouts/partials/form_field.html" %}
+  {% endfor %}
+{% endblock %}
+
+{% block after_form %}
+  {% if view_type == "detail" %}
+    <hr>
+    <div class="list-toolbar">
+      <h2>Microcycles</h2>
+      <a href="{{ create_micro_url }}" data-replace role="button" class="button-slim">Add microcycle</a>
+    </div>
+
+    {% if microcycles %}
+      <figure>
+        <table class="record-table">
+          <thead>
+            <tr>
+              <th>Type</th>
+              <th>Start</th>
+              <th>End</th>
+              <th>Runs</th>
+              <th>Distance (km)</th>
+              <th>Long run (km)</th>
+              <th>Comment</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for micro in microcycles %}
+              <tr id="row-{{ micro.pk }}" data-href="{{ micro.get_absolute_url }}" class="workout-row" tabindex="0">
+                <td data-label="Type">{{ micro.get_micro_type_display }}</td>
+                <td data-label="Start">{{ micro.start_date|date:"Y-m-d"|default:"—" }}</td>
+                <td data-label="End">{{ micro.end_date|date:"Y-m-d"|default:"—" }}</td>
+                <td data-label="Runs">{{ micro.planned_num_runs|default:"—" }}</td>
+                <td data-label="Distance (km)">{% if micro.planned_distance %}{{ micro.planned_distance_km }}{% else %}—{% endif %}</td>
+                <td data-label="Long run (km)">{% if micro.planned_long_run_distance %}{{ micro.planned_long_run_distance_km }}{% else %}—{% endif %}</td>
+                <td data-label="Comment">{{ micro.comment|default:"—" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </figure>
+    {% else %}
+      <p>No microcycles yet.</p>
+    {% endif %}
+  {% endif %}
+{% endblock %}

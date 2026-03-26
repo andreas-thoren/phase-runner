@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ object.name }} — Summary{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{% static 'workouts/css/workouts.css' %}">
+{% endblock %}
+
+{% block scripts %}
+  <script src="{% static 'workouts/js/summary_nav.js' %}" defer></script>
+{% endblock %}
+
+{% block main %}
+  <h1>{{ object.name }}</h1>
+
+  {% if rows %}
+    <figure class="overflow-auto">
+      <table class="summary-table">
+        <thead>
+          <tr>
+            <th rowspan="2"></th>
+            <th class="th-group-planned" colspan="5">Planned</th>
+            <th class="th-group-actual" colspan="7">Actual</th>
+          </tr>
+          <tr>
+            <th class="text-start">Start date</th>
+            <th class="text-start">Type</th>
+            <th>Planned runs</th>
+            <th>Goal - Run dst</th>
+            <th>Goal - Long run</th>
+            <th>Runs</th>
+            <th>Run dst</th>
+            <th>Long run</th>
+            <th>Run load</th>
+            <th>Nr X</th>
+            <th>Nr str</th>
+            <th>Tot load</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr{% if row.meso_first_row %} class="meso-group-start"{% endif %}>
+              {% if row.meso_first_row %}
+                <th rowspan="{{ row.meso_rowspan }}" class="meso-header" id="meso-{{ row.meso_pk }}"><a href="{{ row.meso_url }}">{{ row.meso_display }}</a></th>
+              {% endif %}
+              <td class="text-start zone-planned" id="micro-{{ row.micro_pk }}" data-href="{{ row.micro_url }}" data-label="Start date" tabindex="0">{{ row.start_date|date:"Y-m-d" }}</td>
+              <td class="text-start zone-planned" data-href="{{ row.micro_url }}" data-label="Type">{{ row.micro_type_display }}</td>
+              <td class="zone-planned" data-href="{{ row.micro_url }}" data-label="Planned runs">{% if row.planned_num_runs %}{{ row.planned_num_runs }}{% endif %}</td>
+              <td class="zone-planned" data-href="{{ row.micro_url }}" data-label="Goal dst">{% if row.planned_distance_km %}{{ row.planned_distance_km|floatformat:"-1" }}{% endif %}</td>
+              <td class="zone-planned" data-href="{{ row.micro_url }}" data-label="Goal long">{% if row.planned_long_run_km %}{{ row.planned_long_run_km|floatformat:"-1" }}{% endif %}</td>
+              <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Runs" tabindex="0">{% if row.runs %}{{ row.runs }}{% endif %}</td>
+              <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Run dst">{% if row.run_distance %}{{ row.run_distance|floatformat:"-1" }}{% endif %}</td>
+              <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Long run">{% if row.long_run_distance %}{{ row.long_run_distance|floatformat:"-1" }}{% endif %}</td>
+              <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Run load">{% if row.run_load %}{{ row.run_load }}{% endif %}</td>
+              <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Nr X">{% if row.cross_sessions %}{{ row.cross_sessions }}{% endif %}</td>
+              <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Nr str">{% if row.strength_sessions %}{{ row.strength_sessions }}{% endif %}</td>
+              <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Tot load">{% if row.total_load %}{{ row.total_load }}{% endif %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </figure>
+  {% else %}
+    <p>No microcycles in this plan yet.</p>
+  {% endif %}
+{% endblock %}

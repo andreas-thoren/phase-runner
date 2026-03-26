@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}
+  {% block page_title %}{% endblock %}
+{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{% static 'workouts/css/form_styles.css' %}">
+{% endblock %}
+
+{% block scripts %}
+  <script src="{% static 'workouts/js/form_handler.js' %}" defer></script>
+{% endblock %}
+
+{% block app_class %}narrow-page{% endblock %}
+
+{% block main %}
+  <div class="heading-row">
+    <h1 id="detail-heading">{% block heading %}{% endblock %}</h1>
+    {% block after_heading %}{% endblock %}
+  </div>
+
+  {% block below_heading %}{% endblock %}
+
+  {% if view_type == "detail" %}
+    <div class="form-actions">
+      {% block form_actions_start %}{% endblock %}
+      <a class="icon-btn secondary" href="{{ edit_url }}" data-replace aria-label="Edit" title="Edit">
+        {% include "workouts/partials/pen.svg" %}
+      </a>
+      <a class="icon-btn secondary" href="{{ delete_url }}" data-replace aria-label="Delete" title="Delete">
+        {% include "workouts/partials/trash.svg" %}
+      </a>
+    </div>
+  {% endif %}
+
+  <form id="main-form" method="post">
+    {% if view_type == "delete" or not read_only %}{% csrf_token %}{% endif %}
+
+    {% block form_content %}{% endblock %}
+
+    {% block button_row %}
+    {% if view_type != "detail" %}
+    <div class="button-row">
+      {% if cancel_url %}
+        <a class="secondary" href="{{ cancel_url }}" data-replace role="button" aria-label="Cancel" title="Cancel">Cancel</a>
+      {% else %}
+        <a class="secondary" data-back role="button" aria-label="Cancel" title="Cancel">Cancel</a>
+      {% endif %}
+      {% if view_type == "delete" %}
+        <button id="delete-btn" type="submit">Delete</button>
+      {% else %}
+        <button type="submit">{{ submit_label|default:"Save" }}</button>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% endblock %}
+  </form>
+
+  {% block after_form %}{% endblock %}
+{% endblock %}

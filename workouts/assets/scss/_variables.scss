@@ -1,0 +1,11 @@
+$btn-width-sm: 8rem;
+$btn-width-lg: 12rem;
+$content-width: 1536px;
+$sidebar-width: 208px;
+$sidebar-gap: 80px;
+$app-padding: 64px;
+$sidebar-breakpoint-lg: $content-width + $sidebar-width + $sidebar-gap + $app-padding;
+$header-height: 90px;
+$header-margin-bottom: 60px;
+$form-max-width: 1024px;
+$form-page-max-width: $form-max-width + $sidebar-width + $sidebar-gap + $app-padding;

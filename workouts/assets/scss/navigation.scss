@@ -1,0 +1,243 @@
+@use 'variables' as v;
+
+// ─── Desktop layout ────────────────────────────────────────────────
+@media (min-width: v.$sidebar-breakpoint-lg) {
+  main:has(#sidebar-menu) {
+    display: grid;
+    grid-template-columns: v.$sidebar-width 1fr;
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      "menu breadcrumb"
+      "menu body";
+    column-gap: v.$sidebar-gap;
+  }
+
+  #sidebar-breadcrumb {
+    grid-area: breadcrumb;
+
+    .breadcrumb-hamburger {
+      display: none;
+    }
+
+    // Remove Pico separator and margin after hidden hamburger
+    li.breadcrumb-hamburger + li::before {
+      content: none;
+    }
+
+    li.breadcrumb-hamburger + li {
+      margin-left: 0;
+      padding-left: 0;
+    }
+  }
+
+  #sidebar-menu {
+    grid-area: menu;
+
+    nav {
+      position: sticky;
+      top: 1rem;
+      max-height: calc(100vh - 2rem);
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+  }
+
+  .main-content {
+    grid-area: body;
+    min-width: 0;
+  }
+}
+
+// ─── Shared icon-button reset (hamburger, close) ─────────────────────
+#sidebar-menu,
+#sidebar-breadcrumb {
+  button {
+    background: none;
+    border: none;
+    padding: 0.25rem;
+    cursor: pointer;
+    color: var(--pico-secondary);
+    width: auto;
+    margin: 0;
+  }
+}
+
+// ─── Sidebar shared styles ─────────────────────────────────────────
+#sidebar-menu {
+  padding: var(--pico-nav-element-spacing-vertical) 0;
+
+  .sidebar-mobile-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+
+    span {
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
+  }
+
+  nav details {
+    border-bottom: none;
+    margin-bottom: 0;
+
+    summary {
+      font-weight: 600;
+      font-size: 0.9rem;
+      padding: 0.5rem 0;
+      color: var(--pico-color);
+    }
+
+    &:first-of-type > summary {
+      padding-top: 0;
+    }
+
+    &[open] > summary {
+      color: var(--pico-primary);
+    }
+  }
+
+  nav ul {
+    padding: 0 0 0.5rem 0;
+    margin: 0;
+    border-left: 1px solid var(--pico-muted-border-color);
+
+    a {
+      display: block;
+      padding: 0.5rem 0 0.5rem 0.75rem;
+      font-size: 0.85rem;
+      color: var(--pico-muted-color);
+      text-decoration: none;
+      border-left: 2px solid transparent;
+      border-radius: 0;
+      margin-left: -1px;
+      background: none;
+      transition: color 0.15s, border-color 0.15s;
+      --pico-text-decoration: none;
+
+      &:hover {
+        color: var(--pico-color);
+      }
+
+      &[aria-current="page"] {
+        color: var(--pico-primary);
+        border-left-color: var(--pico-primary);
+        font-weight: 500;
+      }
+
+      &.disabled-link {
+        opacity: 0.4;
+        pointer-events: none;
+      }
+    }
+  }
+
+  .sidebar-type-label {
+    display: block;
+    padding: 0.5rem 0 0.25rem 0.75rem;
+    margin-bottom: 0.35rem;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--pico-muted-color);
+  }
+
+  // Extra spacing and indent for type groups in Create Workout
+  .sidebar-type-label + ul {
+    margin-bottom: 0.5rem;
+    padding-left: 0.5rem;
+  }
+}
+
+// ─── Desktop: hide mobile header ────────────────────────────────────
+@media (min-width: v.$sidebar-breakpoint-lg) {
+  #sidebar-menu .sidebar-mobile-header {
+    display: none;
+  }
+}
+
+// ─── Mobile layout ──────────────────────────────────────────────────
+@media (max-width: #{v.$sidebar-breakpoint-lg - 1}) {
+  #sidebar-menu {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    transform: translateX(calc(100% + var(--pico-spacing, 1rem)));
+    transition: transform 0.3s ease;
+    pointer-events: none;
+
+    &::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: var(--pico-background-color);
+    }
+
+    // Position content above the pseudo-element
+    > * {
+      position: relative;
+    }
+
+    &.is-open {
+      transform: translateX(0);
+      pointer-events: auto;
+      padding: 1.5rem;
+      overflow-y: auto;
+    }
+  }
+
+  html:has(#sidebar-menu.is-open) {
+    overflow: hidden;
+  }
+}
+
+// ─── Breadcrumb bar ─────────────────────────────────────────────────
+#sidebar-breadcrumb {
+  padding-bottom: 0.5rem;
+  margin-bottom: 1rem;
+  background: var(--pico-background-color);
+  transition: box-shadow 0.2s, border-color 0.2s;
+  border-bottom: 1px solid transparent;
+
+  &.is-sticky {
+    border-bottom-color: var(--pico-muted-border-color);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.06);
+  }
+
+  ul {
+    padding: 0;
+    margin: 0;
+    font-size: 0.85rem;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+
+    li {
+      &:last-child {
+        color: var(--pico-muted-color);
+      }
+    }
+
+    li.breadcrumb-hamburger {
+      padding-left: 0;
+
+      button[data-sidebar-open] {
+        padding-left: 0;
+      }
+
+      &::after {
+        content: none;
+      }
+    }
+  }
+}
+
+// ─── Mobile: breadcrumb sticky + full-width ─────────────────────────
+@media (max-width: #{v.$sidebar-breakpoint-lg - 1}) {
+  #sidebar-breadcrumb {
+    position: sticky;
+    top: -1px;
+    z-index: 50;
+  }
+}

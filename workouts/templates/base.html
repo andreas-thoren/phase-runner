@@ -1,0 +1,79 @@
+{% load static %}
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <title>{% block title %}{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/pico.min.css' %}">
+  <link rel="stylesheet" href="{% static 'css/pico_override.css' %}">
+  <link rel="stylesheet" href="{% static 'workouts/css/style.css' %}">
+  <link rel="stylesheet" href="{% static 'workouts/css/navigation.css' %}">
+  {% block styles %}{% endblock %}
+  <script src="{% static 'workouts/js/main.js' %}" defer></script>
+  {% block scripts %}{% endblock %}
+</head>
+
+<body>
+  <div class="app {% block app_class %}{% endblock %}">
+
+    <!-- Header -->
+    <header class="header">
+      <nav>
+        <ul>
+          <li>
+            <a href="{% url 'workouts:index' %}">
+               PhaseRunner
+              <strong class="header-svg">
+                {% include "workouts/partials/dumbbell.svg" %}
+              </strong>
+            </a>
+          </li>
+        </ul>
+        <ul>
+          {% if user.is_authenticated %}
+            <li>
+              <details class="dropdown account-dropdown">
+                <summary class="account-toggle" aria-label="Account menu">
+                  {% include "workouts/partials/account.svg" %}
+                </summary>
+                <ul dir="rtl">
+                  <li><span class="account-username">{{ user.username }}</span></li>
+                  <li>
+                    <form id="logout-form" method="post" action="{% url 'logout' %}" class="logout-form">
+                      {% csrf_token %}
+                    </form>
+                    <a href="{% url 'login' %}" data-logout>Log out</a>
+                  </li>
+                </ul>
+              </details>
+            </li>
+          {% else %}
+            <li><a href="{% url 'login' %}">Login</a></li>
+          {% endif %}
+        </ul>
+      </nav>
+    </header>
+
+    <!-- Main content -->
+    <main>
+      {% if user.is_authenticated %}
+        {% include "workouts/partials/breadcrumb.html" %}
+        {% include "workouts/partials/sidebar.html" %}
+      {% endif %}
+      <div class="main-content">
+        {% block main %}{% endblock %}
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+      <p>&copy; 2025 Andreas Thor&eacute;n</p>
+    </footer>
+
+  </div>
+</body>
+</html>

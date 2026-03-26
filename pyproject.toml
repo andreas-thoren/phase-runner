@@ -1,0 +1,24 @@
+[project]
+name = "phase-runner"
+version = "0.1.0"
+description = "PhaseRunner — Django web app for tracking workouts and planning training periodization"
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "Andreas Thorsen" }]
+requires-python = ">=3.11"
+dependencies = [
+    "dj-database-url>=3.1.2",
+    "django",
+    "gunicorn>=25.2.0",
+    "psycopg[binary]>=3.3.3",
+    "whitenoise>=6.12.0",
+]
+
+[dependency-groups]
+dev = [
+    "black",
+    "pylint",
+    "pylint-django",
+    "ipython",
+    "django-stubs>=5.2.9",
+]

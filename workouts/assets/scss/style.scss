@@ -1,0 +1,110 @@
+@use 'variables' as v;
+
+.app {
+  display: flex;
+  flex-direction: column;
+  margin: auto;
+  padding: 0 calc(#{v.$app-padding} / 2) 0 calc(#{v.$app-padding} / 2);
+  min-width: 320px;
+  max-width: v.$content-width + v.$app-padding;
+  min-height: 100vh;
+
+  &.narrow-page {
+    max-width: v.$form-max-width + v.$app-padding;
+  }
+
+  // Shift container left so right dead-space grows 2:1 vs left
+  @media (min-width: v.$sidebar-breakpoint-lg) {
+    &:has(#sidebar-menu) {
+      max-width: v.$content-width + v.$sidebar-width + v.$sidebar-gap + v.$app-padding;
+      margin-left: calc((100vw - #{v.$content-width + v.$sidebar-width + v.$sidebar-gap + v.$app-padding}) / 3);
+      margin-right: auto;
+    }
+
+    &.narrow-page:has(#sidebar-menu) {
+      max-width: v.$form-page-max-width;
+      margin-left: calc((100vw - #{v.$form-page-max-width}) / 3);
+    }
+  }
+}
+
+.header {
+  height: v.$header-height;
+  padding-top: 0.5rem;
+  margin-bottom: v.$header-margin-bottom;
+}
+
+.header-svg {
+  color: hsl(195, 85%, 41%);
+}
+
+.logout-form {
+  margin: 0;
+}
+
+details.account-dropdown {
+  > summary:not([role]) {
+    background-color: transparent;
+    border: none;
+    padding: 0;
+    color: var(--pico-secondary);
+
+    &::after {
+      display: none;
+    }
+
+    &:hover,
+    &:focus {
+      background-color: transparent;
+      color: var(--pico-secondary-hover);
+    }
+
+    svg {
+      height: 1.5rem;
+      width: 1.5rem;
+      vertical-align: middle;
+    }
+  }
+
+  ul li {
+    direction: ltr;
+  }
+
+  .account-username {
+    font-size: 0.85rem;
+    color: var(--pico-muted-color);
+  }
+}
+
+footer {
+  margin-top: 4rem;
+  padding: 1.5rem 0 1rem 0;
+  border-top: 1px dotted var(--pico-form-element-border-color);
+}
+
+.button-slim {
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
+}
+
+.button-row {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2rem;
+  margin-top: 2rem;
+
+  a,
+  span {
+    margin-bottom: var(--pico-spacing);
+    flex: 0 1 v.$btn-width-sm;
+  }
+
+  span {
+    visibility: hidden;
+  }
+
+  button {
+    flex: 0 1 v.$btn-width-lg;
+  }
+}

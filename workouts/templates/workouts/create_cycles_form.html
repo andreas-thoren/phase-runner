@@ -1,0 +1,20 @@
+{% extends "workouts/form_base.html" %}
+
+{% block page_title %}Generate Cycles{% endblock %}
+{% block heading %}Generate Cycles{% endblock %}
+
+{% block form_content %}
+  {% if has_mesocycles %}
+    <p>This plan already has mesocycles. You cannot generate cycles for a plan that already has mesocycles.</p>
+  {% else %}
+    {% for field in form %}
+      {% include "workouts/partials/form_field.html" %}
+    {% endfor %}
+  {% endif %}
+{% endblock %}
+
+{% block button_row %}
+  {% if not has_mesocycles %}
+    {{ block.super }}
+  {% endif %}
+{% endblock %}

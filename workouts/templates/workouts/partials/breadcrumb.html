@@ -1,0 +1,18 @@
+{% if breadcrumbs %}
+<nav id="sidebar-breadcrumb" aria-label="breadcrumb">
+  <ul>
+    <li class="breadcrumb-hamburger">
+      <button data-sidebar-open aria-label="Open navigation">
+        {% include "workouts/partials/hamburger.svg" %}
+      </button>
+    </li>
+    {% for crumb in breadcrumbs %}
+      {% if crumb.url %}
+        <li title="{{ crumb.label }}"><a href="{{ crumb.url }}">{{ crumb.label|truncatechars:25 }}</a></li>
+      {% else %}
+        <li title="{{ crumb.label }}">{{ crumb.label|truncatechars:25 }}</li>
+      {% endif %}
+    {% endfor %}
+  </ul>
+</nav>
+{% endif %}

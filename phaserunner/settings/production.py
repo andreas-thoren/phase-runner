@@ -1,0 +1,45 @@
+"""Production settings — PostgreSQL, whitenoise, env-based secrets."""
+
+import os
+
+import dj_database_url
+
+from .base import *  # noqa: F401, F403
+
+SECRET_KEY = os.environ["SECRET_KEY"]
+
+DEBUG = False
+
+ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "").split(",")
+
+# Database — Dokku sets DATABASE_URL via the postgres plugin
+DATABASES = {"default": dj_database_url.config(conn_max_age=600)}
+
+# Static files — whitenoise serves them from STATIC_ROOT
+STATIC_ROOT = BASE_DIR / "staticfiles"
+MIDDLEWARE.insert(  # noqa: F405
+    MIDDLEWARE.index("django.middleware.common.CommonMiddleware"),  # noqa: F405
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+)
+STORAGES = {
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
+    },
+}
+
+# Email — console for now, swap to SMTP when ready
+EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
+
+# Reverse proxy — Dokku's nginx terminates SSL and forwards HTTP to gunicorn
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+CSRF_TRUSTED_ORIGINS = [
+    f"https://{host}" for host in ALLOWED_HOSTS if host  # noqa: F405
+]
+
+# Security hardening
+CSRF_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = True
+SECURE_SSL_REDIRECT = True
+SECURE_HSTS_SECONDS = 31536000
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True

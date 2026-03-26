@@ -1,0 +1,59 @@
+{% extends "workouts/form_base.html" %}
+{% load static %}
+
+{% block page_title %}My workout detail page{% endblock %}
+{% block heading %}Workout {{ view_type }}{% endblock %}
+
+{% block scripts %}
+  {{ block.super }}
+  {% if gui_schemas_json %}
+    <script defer src="{% static 'workouts/js/gui_fields.js' %}"></script>
+  {% endif %}
+{% endblock %}
+
+{% block form_content %}
+  {% if workout_form.instance.subtype %}
+    <div class="form-group">
+      <label>Activity</label>
+      <input type="text" value="{{ workout_form.instance.subtype.name }}" disabled>
+    </div>
+  {% endif %}
+
+  {% for field in workout_form %}
+    {% include "workouts/partials/form_field.html" %}
+  {% endfor %}
+
+  {% if detail_form %}
+    <hr>
+    {% for field in detail_form %}
+      {% include "workouts/partials/form_field.html" %}
+    {% endfor %}
+  {% endif %}
+
+  {% if gui_schemas_json and not read_only %}
+    <hr>
+    <div class="form-group">
+      <label for="gui-field-dropdown">Add field</label>
+      <div class="form-group-controls">
+        <select id="gui-field-dropdown">
+          <option value="">— Select field —</option>
+        </select>
+        <button type="button" id="gui-add-btn" class="gui-icon-btn gui-add-btn">+</button>
+      </div>
+    </div>
+    <div id="gui-fields-container"
+         data-gui-schemas='{{ gui_schemas_json }}'
+         data-gui-fields='{{ gui_fields_json }}'
+         data-subtype-pk="{{ workout_form.instance.subtype_id|default:"" }}"></div>
+  {% endif %}
+
+  {% if gui_fields_display %}
+    <hr>
+    {% for gf in gui_fields_display %}
+      <div class="form-group">
+        <label>{{ gf.label }}</label>
+        <input type="text" value="{{ gf.value }}" disabled>
+      </div>
+    {% endfor %}
+  {% endif %}
+{% endblock %}
