@@ -17,11 +17,13 @@ Including another URLconf
 
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
+from django.http import HttpResponse
 from django.urls import path, include
 
 from workouts.views import LoginView
 
 urlpatterns = [
+    path("healthcheck/", lambda request: HttpResponse("ok")),
     path("login/", LoginView.as_view(), name="login"),
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
     path(

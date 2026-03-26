@@ -18,7 +18,7 @@ DATABASES = {"default": dj_database_url.config(conn_max_age=600)}
 # Static files — whitenoise serves them from STATIC_ROOT
 STATIC_ROOT = BASE_DIR / "staticfiles"
 MIDDLEWARE.insert(  # noqa: F405
-    MIDDLEWARE.index("django.middleware.common.CommonMiddleware"),  # noqa: F405
+    MIDDLEWARE.index("django.middleware.security.SecurityMiddleware") + 1,  # noqa: F405
     "whitenoise.middleware.WhiteNoiseMiddleware",
 )
 STORAGES = {
