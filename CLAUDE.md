@@ -34,9 +34,8 @@ uv run python manage.py create_test_workouts
 uv run python manage.py rebuild_db
 uv run python manage.py rebuild_db --create-test-data  # also creates test workouts
 
-# Regenerate requirements.txt (required after adding/removing dependencies)
-# Dokku's buildpack needs this file — uv.lock alone is not recognized
-uv export --no-hashes > requirements.txt
+# Deploy to production
+git push dokku main
 ```
 
 ## Architecture
@@ -158,8 +157,11 @@ Single Django app (`workouts`) with one `Workout` model and optional detail mode
 ### Deployment
 
 - **Hetzner VPS + Dokku** (PaaS). Deploy via `git push dokku main`.
-- **Domain**: `phaserunner.app` managed via **Cloudflare** with DNS proxy enabled (orange cloud).
-- **SSL**: Let's Encrypt on Dokku for origin certificate; Cloudflare handles edge SSL.
+- **Domain**: `phaserunner.app` managed via **Cloudflare** with DNS proxy enabled (orange cloud). `.app` domains are HSTS-preloaded (HTTPS-only in browsers).
+- **SSL**: Let's Encrypt on Dokku for origin certificate; Cloudflare handles edge SSL (proxy status: orange cloud). SSL must be set up before the site is accessible because `.app` domains reject HTTP.
+- **Buildpack**: Heroku Python buildpack detects `uv.lock` natively — no `requirements.txt` needed. A `.python-version` file (minor version only, e.g. `3.13`) is required.
+- **SSH**: `/etc/ssh/sshd_config` must include `AllowUsers deploy dokku` — the `dokku` user handles `git push` authentication.
+- **Healthcheck**: `/healthcheck/` is exempted from `SECURE_SSL_REDIRECT` via `SECURE_REDIRECT_EXEMPT` in production settings, and `localhost` is in `ALLOWED_HOSTS`. These fixes are unverified — the deploy that succeeded had checks disabled. Both are harmless to keep; need to verify on next deploy with checks enabled.
 - Detailed setup steps in `dev_documents/django_hertzner_tuturial.md` and `dev_documents/DEPLOYMENT.md`.
 
 ## Code Style
