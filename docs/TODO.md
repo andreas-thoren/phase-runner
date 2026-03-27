@@ -1,4 +1,5 @@
 ## TODO:s
+- Fix zero downtime app.
 - Create API for uploading workouts from cli.
 - Add export option for user data
 - Maybe create some default periodization schemes that users can choose from when creating a new plan.
