@@ -155,6 +155,13 @@ Single Django app (`workouts`) with one `Workout` model and optional detail mode
 - **No inline JS**: all JavaScript must live in dedicated `.js` files under `workouts/static/workouts/js/`. No `<script>` blocks or inline event handlers (`onclick`, etc.) in templates. To pass Django template data to JS, use `data-*` attributes on HTML elements that the JS file reads.
 - **Load with `defer`**: script tags go in the `<head>` (or a `{% block scripts %}`) with the `defer` attribute. Do not use `DOMContentLoaded` wrappers — `defer` already guarantees the DOM is ready before execution.
 
+### Deployment
+
+- **Hetzner VPS + Dokku** (PaaS). Deploy via `git push dokku main`.
+- **Domain**: `phaserunner.app` managed via **Cloudflare** with DNS proxy enabled (orange cloud).
+- **SSL**: Let's Encrypt on Dokku for origin certificate; Cloudflare handles edge SSL.
+- Detailed setup steps in `dev_documents/django_hertzner_tuturial.md` and `dev_documents/DEPLOYMENT.md`.
+
 ## Code Style
 
 - Max line length: 100 (pylint config)
