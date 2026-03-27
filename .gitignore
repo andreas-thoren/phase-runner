@@ -83,7 +83,7 @@ profile_default/
 ipython_config.py
 
 # pyenv / uv
-.python-version
+# .python-version — needed by Dokku buildpack, do not ignore
 
 # Claude Code
 .claude/
