@@ -1,4 +1,5 @@
 ## TODO:s
+- Add favicon
 - Add option for users to change password, email and other account settings.
 - Add export option for user data
 - Improve visuals for small screens. Especially important for summary view. Maybe split form horizonally planned to left and actual executed to the right.
