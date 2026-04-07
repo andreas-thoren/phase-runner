@@ -2,6 +2,8 @@
 
 A Django web app for tracking workouts and planning training periodization.
 
+**Live at [phaserunner.app](https://phaserunner.app)** — currently invite-only. Contact [@andreas-thoren](https://github.com/andreas-thoren) to request access.
+
 Log workouts across three types — **aerobic**, **strength**, and **generic** — each with a mandatory activity (e.g. Running, Cycling, Swimming) that provides flexible, schema-driven fields. Plan training blocks with a macrocycle → mesocycle → microcycle hierarchy, and compare planned goals against actual results in a summary view.
 
 ## Tech Stack
@@ -107,7 +109,7 @@ See [docs/schema_diagrams.md](docs/schema_diagrams.md) for visual database diagr
 
 ## Dev
 
-- [TODO](docs/TODO.md) — possible future features
+- [Issues](https://github.com/andreas-thoren/phase-runner/issues) — bugs, feature requests, and planned work
 
 ## License
 
