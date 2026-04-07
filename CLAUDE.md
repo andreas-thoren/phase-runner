@@ -156,7 +156,7 @@ Single Django app (`workouts`) with one `Workout` model and optional detail mode
 
 ### Deployment
 
-- **Hetzner VPS + Dokku** (PaaS). Deploy via `git push dokku main`.
+- **Hetzner VPS + Dokku** (PaaS). Deploy via `git push dokku main`. The `Procfile` includes a release task that runs `migrate --noinput` automatically on every deploy — no manual migration needed.
 - **Domain**: `phaserunner.app` managed via **Cloudflare** with DNS proxy enabled (orange cloud). `.app` domains are HSTS-preloaded (HTTPS-only in browsers).
 - **SSL**: Let's Encrypt on Dokku for origin certificate; Cloudflare handles edge SSL (proxy status: orange cloud). SSL must be set up before the site is accessible because `.app` domains reject HTTP.
 - **Buildpack**: Heroku Python buildpack detects `uv.lock` natively — no `requirements.txt` needed. A `.python-version` file (minor version only, e.g. `3.13`) is required.
