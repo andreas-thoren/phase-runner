@@ -291,7 +291,13 @@ class LoginView(auth_views.LoginView):
     """PRG login — redirects back with a message on invalid credentials."""
 
     def form_invalid(self, form: forms.Form) -> HttpResponseRedirect:
-        messages.error(self.request, "Invalid username or password.")
+        if getattr(self.request, "axes_locked_out", False):
+            messages.error(
+                self.request,
+                "Too many failed login attempts. Please try again later.",
+            )
+        else:
+            messages.error(self.request, "Invalid username or password.")
         return redirect("login")
 
 

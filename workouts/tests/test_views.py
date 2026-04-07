@@ -1,7 +1,8 @@
 from datetime import timedelta
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import SimpleTestCase, TestCase
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 
@@ -1295,3 +1296,59 @@ class IndexViewTest(AuthenticatedTestMixin, TestCase):
         ActiveMacrocycle.objects.filter(user=self.user).delete()
         response = self.client.get(self.url)
         self.assertRedirects(response, reverse("workouts:macrocycle_list"))
+
+
+@override_settings(AXES_FAILURE_LIMIT=3, AXES_COOLOFF_TIME=1)
+class LoginRateLimitTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        User = get_user_model()
+        cls.user = User.objects.create_user(
+            username="testuser", email="test@example.com", password="testpassword"
+        )
+        cls.url = reverse("login")
+
+    def setUp(self):
+        from axes.utils import reset
+
+        reset()
+
+    def test_login_succeeds_with_correct_credentials(self):
+        response = self.client.post(
+            self.url, {"username": "testuser", "password": "testpassword"}, follow=True
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.wsgi_request.user.is_authenticated)
+
+    def test_invalid_login_shows_error_message(self):
+        response = self.client.post(
+            self.url, {"username": "testuser", "password": "wrong"}, follow=True
+        )
+        messages = list(response.context["messages"])
+        self.assertEqual(len(messages), 1)
+        self.assertEqual(str(messages[0]), "Invalid username or password.")
+
+    def test_lockout_after_max_failed_attempts(self):
+        for _ in range(settings.AXES_FAILURE_LIMIT):
+            self.client.post(
+                self.url, {"username": "testuser", "password": "wrong"}, follow=True
+            )
+        response = self.client.post(
+            self.url, {"username": "testuser", "password": "wrong"}, follow=True
+        )
+        messages = list(response.context["messages"])
+        self.assertTrue(
+            any("Too many failed login attempts" in str(m) for m in messages)
+        )
+
+    def test_lockout_prevents_valid_login(self):
+        for _ in range(settings.AXES_FAILURE_LIMIT):
+            self.client.post(
+                self.url, {"username": "testuser", "password": "wrong"}, follow=True
+            )
+        response = self.client.post(
+            self.url,
+            {"username": "testuser", "password": "testpassword"},
+            follow=True,
+        )
+        self.assertFalse(response.wsgi_request.user.is_authenticated)
