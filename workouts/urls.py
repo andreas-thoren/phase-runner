@@ -24,7 +24,7 @@ urlpatterns = [
     path("workouts/", views.WorkoutListView.as_view(), name="workout_list"),
     path("running/", views.RunningListView.as_view(), name="running_list"),
     path(
-        "workouts/add/<str:workout_type>/",
+        "workouts/add/<str:subtype>/",
         views.WorkoutCreateView.as_view(),
         name="create_workout",
     ),

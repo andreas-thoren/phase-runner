@@ -7,10 +7,9 @@ from typing import Any
 from django.contrib.auth import get_user_model
 from django.core.management.base import BaseCommand
 from django.utils import timezone
-from workouts.enums import WorkoutStatus
+from workouts.enums import SUBTYPE_TYPE_MAP, WorkoutStatus, WorkoutSubtype, WorkoutType
 from workouts.models import (
     Workout,
-    WorkoutSubtype,
     AerobicDetails,
     StrengthDetails,
     GenericDetails,
@@ -35,9 +34,15 @@ class Command(BaseCommand):
                 username="test", email="test@example.com", password="password"
             )
 
-        aerobic_subtypes = list(WorkoutSubtype.objects.filter(parent_type="aerobic"))
-        strength_subtypes = list(WorkoutSubtype.objects.filter(parent_type="strength"))
-        generic_subtypes = list(WorkoutSubtype.objects.filter(parent_type="generic"))
+        aerobic_subtypes = [
+            st for st in WorkoutSubtype if SUBTYPE_TYPE_MAP[st] == WorkoutType.AEROBIC
+        ]
+        strength_subtypes = [
+            st for st in WorkoutSubtype if SUBTYPE_TYPE_MAP[st] == WorkoutType.STRENGTH
+        ]
+        generic_subtypes = [
+            st for st in WorkoutSubtype if SUBTYPE_TYPE_MAP[st] == WorkoutType.GENERIC
+        ]
 
         aerobic_names = ["Morning Run", "Trail Run", "Cycling", "Swimming", "Easy Jog"]
         strength_names = ["Upper Body", "Leg Day", "Full Body", "Core Session"]
@@ -52,7 +57,6 @@ class Command(BaseCommand):
                 workout_statuses,
                 one_year_ago,
                 now,
-                workout_type="aerobic",
                 subtype=subtype,
             )
             AerobicDetails.objects.create(
@@ -71,7 +75,6 @@ class Command(BaseCommand):
                 workout_statuses,
                 one_year_ago,
                 now,
-                workout_type="strength",
                 subtype=subtype,
             )
             StrengthDetails.objects.create(
@@ -140,7 +143,6 @@ class Command(BaseCommand):
         statuses: list[str],
         start: datetime,
         end: datetime,
-        workout_type: str = "generic",
         subtype: WorkoutSubtype | None = None,
     ) -> Workout:
         random_timestamp = random.uniform(start.timestamp(), end.timestamp())
@@ -153,6 +155,5 @@ class Command(BaseCommand):
             name=name,
             start_time=random_datetime,
             workout_status=random.choice(statuses),
-            workout_type=workout_type,
-            subtype=subtype,
+            subtype=subtype.value if subtype else WorkoutSubtype.MOBILITY.value,
         )

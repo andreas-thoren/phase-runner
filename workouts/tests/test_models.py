@@ -5,12 +5,11 @@ from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.test import TestCase
 
-from workouts.enums import WorkoutStatus
+from workouts.enums import SUBTYPE_TYPE_MAP, WorkoutStatus, WorkoutSubtype, WorkoutType
 from workouts.utils import create_default_cycles
 from workouts.models import (
     ActiveMacrocycle,
     Workout,
-    WorkoutSubtype,
     AerobicDetails,
     StrengthDetails,
     GenericDetails,
@@ -27,21 +26,11 @@ class WorkoutModelTest(TestCase):
         self.user = User.objects.create_user(
             username="testuser", email="test@example.com", password="testpassword"
         )
-        self.aerobic_subtype = WorkoutSubtype.objects.create(
-            name="Running", parent_type="aerobic"
-        )
-        self.strength_subtype = WorkoutSubtype.objects.create(
-            name="Strength", parent_type="strength"
-        )
-        self.generic_subtype = WorkoutSubtype.objects.create(
-            name="Mobility", parent_type="generic"
-        )
         self.workout = Workout.objects.create(
             user=self.user,
             name="Morning Run",
             workout_status=WorkoutStatus.COMPLETED,
-            workout_type="aerobic",
-            subtype=self.aerobic_subtype,
+            subtype=WorkoutSubtype.RUNNING,
         )
         self.aerobic_details = AerobicDetails.objects.create(
             workout=self.workout,
@@ -62,8 +51,7 @@ class WorkoutModelTest(TestCase):
         workout = Workout.objects.create(
             user=self.user,
             name="Leg Day",
-            workout_type="strength",
-            subtype=self.strength_subtype,
+            subtype=WorkoutSubtype.STRENGTH,
         )
         StrengthDetails.objects.create(workout=workout, num_sets=5, total_weight=1000)
         detail = workout.get_detail()
@@ -74,8 +62,7 @@ class WorkoutModelTest(TestCase):
         workout = Workout.objects.create(
             user=self.user,
             name="Yoga",
-            workout_type="generic",
-            subtype=self.generic_subtype,
+            subtype=WorkoutSubtype.MOBILITY,
         )
         GenericDetails.objects.create(
             workout=workout,
@@ -90,8 +77,7 @@ class WorkoutModelTest(TestCase):
         workout = Workout.objects.create(
             user=self.user,
             name="No detail",
-            workout_type="generic",
-            subtype=self.generic_subtype,
+            subtype=WorkoutSubtype.MOBILITY,
         )
         self.assertIsNone(workout.get_detail())
 
@@ -117,8 +103,7 @@ class WorkoutModelTest(TestCase):
         workout = Workout.objects.create(
             user=self.user,
             name="Generic",
-            workout_type="generic",
-            subtype=self.generic_subtype,
+            subtype=WorkoutSubtype.MOBILITY,
         )
         with self.assertRaises(ValidationError):
             AerobicDetails.objects.create(
@@ -130,12 +115,18 @@ class WorkoutModelTest(TestCase):
         self.assertIn("strength", DetailBase._detail_registry)
         self.assertIn("generic", DetailBase._detail_registry)
 
+    def test_workout_type_property(self):
+        self.assertEqual(self.workout.workout_type, WorkoutType.AEROBIC)
+        strength = Workout.objects.create(
+            user=self.user, name="Lift", subtype=WorkoutSubtype.STRENGTH
+        )
+        self.assertEqual(strength.workout_type, WorkoutType.STRENGTH)
+
     def test_gui_fields_property(self):
         workout = Workout.objects.create(
             user=self.user,
             name="With GUI",
-            workout_type="generic",
-            subtype=self.generic_subtype,
+            subtype=WorkoutSubtype.MOBILITY,
         )
         GenericDetails.objects.create(
             workout=workout,
@@ -147,56 +138,44 @@ class WorkoutModelTest(TestCase):
         workout = Workout.objects.create(
             user=self.user,
             name="No detail",
-            workout_type="generic",
-            subtype=self.generic_subtype,
+            subtype=WorkoutSubtype.MOBILITY,
         )
         self.assertEqual(workout.gui_fields, {})
 
 
-class WorkoutSubtypeTest(TestCase):
+class WorkoutSubtypeEnumTest(TestCase):
     def setUp(self):
         User = get_user_model()
         self.user = User.objects.create_user(
             username="testuser", email="test@example.com", password="testpassword"
         )
 
-    def test_create_subtype(self):
-        subtype = WorkoutSubtype.objects.create(
-            name="Running",
-            parent_type="aerobic",
-        )
-        self.assertEqual(str(subtype), "Running (aerobic)")
+    def test_subtype_type_mapping(self):
+        self.assertEqual(WorkoutSubtype.RUNNING.workout_type, WorkoutType.AEROBIC)
+        self.assertEqual(WorkoutSubtype.STRENGTH.workout_type, WorkoutType.STRENGTH)
+        self.assertEqual(WorkoutSubtype.MOBILITY.workout_type, WorkoutType.GENERIC)
 
-    def test_workout_with_matching_subtype(self):
-        subtype = WorkoutSubtype.objects.create(name="Running", parent_type="aerobic")
-        workout = Workout(
-            user=self.user, name="Test", workout_type="aerobic", subtype=subtype
-        )
-        workout.full_clean()
+    def test_subtype_label(self):
+        self.assertEqual(WorkoutSubtype.RUNNING.label, "Running")
+        self.assertEqual(WorkoutSubtype.CYCLING.label, "Cycling")
 
-    def test_workout_with_mismatched_subtype_raises(self):
-        subtype = WorkoutSubtype.objects.create(name="Running", parent_type="aerobic")
-        workout = Workout(
-            user=self.user, name="Test", workout_type="strength", subtype=subtype
-        )
-        with self.assertRaises(ValidationError):
-            workout.full_clean()
+    def test_subtype_gui_schema(self):
+        schema = WorkoutSubtype.RUNNING.gui_schema
+        self.assertIn("avg_hr", schema)
+        self.assertIn("rpe", schema)
+
+    def test_all_subtypes_have_mapping(self):
+        for st in WorkoutSubtype:
+            self.assertIn(st, SUBTYPE_TYPE_MAP)
 
     def test_workout_without_subtype_raises(self):
-        workout = Workout(user=self.user, name="Test", workout_type="generic")
+        workout = Workout(user=self.user, name="Test")
         with self.assertRaises(ValidationError):
             workout.full_clean()
 
     def test_load_garmin_in_gui_fields(self):
-        subtype = WorkoutSubtype.objects.create(
-            name="Mobility",
-            parent_type="generic",
-        )
         workout = Workout.objects.create(
-            user=self.user,
-            name="Test",
-            workout_type="generic",
-            subtype=subtype,
+            user=self.user, name="Test", subtype=WorkoutSubtype.MOBILITY
         )
         detail = GenericDetails.objects.create(
             workout=workout,
@@ -206,12 +185,8 @@ class WorkoutSubtypeTest(TestCase):
         self.assertEqual(detail.additional_data["gui_fields"]["load_garmin"], 75)
 
     def test_gui_fields_subset_of_schema_is_valid(self):
-        subtype = WorkoutSubtype.objects.create(
-            name="Running",
-            parent_type="aerobic",
-        )
         workout = Workout.objects.create(
-            user=self.user, name="Run", workout_type="aerobic", subtype=subtype
+            user=self.user, name="Run", subtype=WorkoutSubtype.RUNNING
         )
         AerobicDetails.objects.create(
             workout=workout,
@@ -219,12 +194,8 @@ class WorkoutSubtypeTest(TestCase):
         )
 
     def test_gui_fields_unknown_key_raises(self):
-        subtype = WorkoutSubtype.objects.create(
-            name="Running",
-            parent_type="aerobic",
-        )
         workout = Workout.objects.create(
-            user=self.user, name="Run", workout_type="aerobic", subtype=subtype
+            user=self.user, name="Run", subtype=WorkoutSubtype.RUNNING
         )
         with self.assertRaises(ValidationError):
             AerobicDetails.objects.create(
@@ -233,12 +204,8 @@ class WorkoutSubtypeTest(TestCase):
             )
 
     def test_gui_fields_empty_is_valid(self):
-        subtype = WorkoutSubtype.objects.create(
-            name="Running",
-            parent_type="aerobic",
-        )
         workout = Workout.objects.create(
-            user=self.user, name="Run", workout_type="aerobic", subtype=subtype
+            user=self.user, name="Run", subtype=WorkoutSubtype.RUNNING
         )
         AerobicDetails.objects.create(workout=workout)
 
@@ -473,28 +440,6 @@ class HydrationTest(TestCase):
         self.assertEqual(meso.duration_days, 0)
         self.assertEqual(meso.start_date, date(2026, 3, 1))
         self.assertEqual(meso.end_date, date(2026, 3, 1))
-
-
-class SlugFieldMixinTest(TestCase):
-    """Tests for auto-created and auto-updated slugs."""
-
-    def test_slug_unique_collision(self):
-        WorkoutSubtype.objects.create(name="In Progress", parent_type="generic")
-        s2 = WorkoutSubtype.objects.create(name="In--Progress", parent_type="aerobic")
-        # Both slugify to "in-progress", second gets "-1" suffix
-        self.assertEqual(s2.slug, "in-progress-1")
-
-    def test_subtype_slug(self):
-        subtype = WorkoutSubtype.objects.create(
-            name="Trail Running", parent_type="aerobic"
-        )
-        self.assertEqual(subtype.slug, "trail-running")
-
-    def test_subtype_slug_updates(self):
-        subtype = WorkoutSubtype.objects.create(name="Draft", parent_type="generic")
-        subtype.name = "Final"
-        subtype.save()
-        self.assertEqual(subtype.slug, "final")
 
 
 class OrderMixinTest(TestCase):

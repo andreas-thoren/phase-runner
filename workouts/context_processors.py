@@ -18,14 +18,13 @@ from dataclasses import dataclass
 from django.http import HttpRequest
 from django.urls import resolve, reverse, Resolver404
 
-from .enums import WorkoutType
+from .enums import SUBTYPE_TYPE_MAP, WorkoutSubtype, WorkoutType
 from .models import (
     ActiveMacrocycle,
     Macrocycle,
     Mesocycle,
     Microcycle,
     Workout,
-    WorkoutSubtype,
 )
 
 _TYPE_LABELS = {
@@ -214,12 +213,12 @@ def _workout_crumbs(
         ]
 
     if url_name == "create_workout":
-        subtype_slug = request.GET.get("subtype", "")
+        subtype_value = kwargs.get("subtype", "")
         label = "New Workout"
-        if subtype_slug:
+        if subtype_value:
             try:
-                label = f"New {WorkoutSubtype.objects.get(slug=subtype_slug).name}"
-            except WorkoutSubtype.DoesNotExist:
+                label = f"New {WorkoutSubtype(subtype_value).label}"
+            except ValueError:
                 pass
         return [BreadcrumbItem("Workouts", workouts_url), BreadcrumbItem(label)]
 
@@ -246,16 +245,14 @@ def grouped_subtypes(request: HttpRequest) -> dict:
     """Return workout subtypes grouped by parent type for the sidebar dropdown."""
     if not request.user.is_authenticated:
         return {"grouped_subtypes": []}
-    subtypes_by_type = {}
-    all_subtypes = WorkoutSubtype.objects.order_by("parent_type", "name")
-
-    for subtype in all_subtypes:
-        subtypes_by_type.setdefault(subtype.parent_type, []).append(subtype)
+    subtypes_by_type: dict[WorkoutType, list[WorkoutSubtype]] = {}
+    for st in WorkoutSubtype:
+        subtypes_by_type.setdefault(SUBTYPE_TYPE_MAP[st], []).append(st)
 
     groups = [
-        (_TYPE_LABELS.get(wt), wt.value, subtypes_by_type[wt.value])
+        (_TYPE_LABELS.get(wt), wt.value, subtypes_by_type[wt])
         for wt in WorkoutType
-        if wt.value in subtypes_by_type
+        if wt in subtypes_by_type
     ]
 
     return {"grouped_subtypes": groups}
@@ -300,11 +297,11 @@ def sidebar_navigation(request: HttpRequest) -> dict:
         if url_name in _URL_SIDEBAR_MAP:
             nav_section, nav_item = _URL_SIDEBAR_MAP[url_name]
 
-            # For create workout, detect the subtype from query params
+            # For create workout, detect the subtype from URL kwargs
             if url_name == "create_workout":
-                subtype_slug = request.GET.get("subtype", "")
-                if subtype_slug:
-                    nav_item = subtype_slug
+                subtype_value = match.kwargs.get("subtype", "")
+                if subtype_value:
+                    nav_item = subtype_value
 
             # Highlight "Active Plan Details" when viewing the active macrocycle
             if (

@@ -22,7 +22,6 @@ from typing import Any
 from django import forms
 from .models import (
     Workout,
-    WorkoutSubtype,
     AerobicDetails,
     StrengthDetails,
     GenericDetails,
@@ -30,7 +29,7 @@ from .models import (
     Mesocycle,
     Microcycle,
 )
-from .enums import WorkoutStatus, WorkoutType
+from .enums import WorkoutStatus, WorkoutSubtype, WorkoutType
 from .utils import m_to_km, km_to_m
 
 
@@ -230,9 +229,7 @@ class WorkoutFilterForm(forms.Form):
         choices=[("", "All statuses")] + WorkoutStatus.choices(),
         required=False,
     )
-    activity = forms.ModelChoiceField(
-        queryset=WorkoutSubtype.objects.order_by("name"),
+    activity = forms.ChoiceField(
+        choices=[("", "All activities")] + WorkoutSubtype.choices(),
         required=False,
-        empty_label="All activities",
-        to_field_name="slug",
     )

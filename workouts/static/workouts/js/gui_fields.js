@@ -3,11 +3,11 @@ const container = document.getElementById("gui-fields-container");
 if (container) {
   const guiSchemas = JSON.parse(container.dataset.guiSchemas || "{}");
   const existingGuiFields = JSON.parse(container.dataset.guiFields || "{}");
-  const subtypePk = container.dataset.subtypePk || null;
+  const subtypeValue = container.dataset.subtypeValue || null;
   const dropdown = document.getElementById("gui-field-dropdown");
 
   function getSchema() {
-    return subtypePk ? guiSchemas[String(subtypePk)] || {} : {};
+    return subtypeValue ? guiSchemas[subtypeValue] || {} : {};
   }
 
   function getAddedKeys() {

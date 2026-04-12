@@ -96,7 +96,7 @@ from django.urls import reverse
 
 from .constants import APP_NAMESPACE
 from .utils import create_default_cycles, m_to_km
-from .enums import WorkoutType, ViewType
+from .enums import WorkoutType, WorkoutSubtype, ViewType
 from .forms import (
     CreateCyclesForm,
     WorkoutForm,
@@ -108,7 +108,6 @@ from .forms import (
 )
 from .models import (
     Workout,
-    WorkoutSubtype,
     DetailBase,
     ActiveMacrocycle,
     Macrocycle,
@@ -118,10 +117,7 @@ from .models import (
 
 
 def _gui_schemas_json() -> str:
-    schemas = {}
-    for st in WorkoutSubtype.objects.all():
-        schemas[st.pk] = st.gui_schema
-    return json.dumps(schemas)
+    return json.dumps({st.value: st.gui_schema for st in WorkoutSubtype})
 
 
 def _gui_fields_from_detail(workout: Workout) -> dict:
@@ -135,7 +131,10 @@ def _gui_fields_display(workout: Workout) -> list[dict]:
     gui_fields = _gui_fields_from_detail(workout)
     if not gui_fields or not workout.subtype:
         return []
-    schema = workout.subtype.gui_schema or {}
+    try:
+        schema = WorkoutSubtype(workout.subtype).gui_schema
+    except ValueError:
+        schema = {}
     return [
         {"label": schema.get(key, {}).get("label", key), "value": value}
         for key, value in gui_fields.items()
@@ -152,13 +151,14 @@ def _collect_gui_fields(post_data: dict, subtype: WorkoutSubtype | None) -> dict
     gui_fields = {}
     if not subtype or not subtype.gui_schema:
         return gui_fields
+    schema = subtype.gui_schema
     for key in post_data:
         if key.startswith("gui-"):
             field_name = key[4:]
             value = post_data[key].strip()
             if not value:
                 continue
-            schema_entry = subtype.gui_schema.get(field_name, {})
+            schema_entry = schema.get(field_name, {})
             if schema_entry.get("type") == "number":
                 try:
                     value = float(value)
@@ -244,7 +244,7 @@ class BaseWorkoutListView(LoginRequiredMixin, NoCacheMixin, PaginationMixin, Lis
     paginate_by = 15
 
     def get_base_queryset(self) -> QuerySet:
-        related = ["subtype"] + [
+        related = [
             model.get_related_name() for model in DetailBase._detail_registry.values()
         ]
         return (
@@ -339,8 +339,8 @@ class RunningListView(BaseWorkoutListView):
     def get_base_queryset(self) -> QuerySet:
         return (
             Workout.objects.filter(user=self.request.user)
-            .select_related("subtype", "aerobic_details")
-            .filter(subtype__name="Running")
+            .select_related("aerobic_details")
+            .filter(subtype=WorkoutSubtype.RUNNING)
             .order_by("-start_time")
         )
 
@@ -392,14 +392,14 @@ class WorkoutMutateMixin:
 
     def get_workout_type(self) -> WorkoutType:
         if getattr(self, "object", None) and self.object.pk:
-            return self.object.workout_type
-        wt = self.kwargs.get("workout_type")
-        if wt is None:
+            return WorkoutType(self.object.workout_type)
+        subtype_value = self.kwargs.get("subtype")
+        if subtype_value is None:
             return WorkoutType.GENERIC
         try:
-            return WorkoutType(wt)
+            return WorkoutSubtype(subtype_value).workout_type
         except ValueError as exc:
-            raise Http404("Invalid workout type") from exc
+            raise Http404("Invalid subtype") from exc
 
     def _get_existing_detail(self) -> DetailBase | None:
         workout = getattr(self, "object", None)
@@ -446,7 +446,11 @@ class WorkoutMutateMixin:
                     self.get_context_data(form=form, detail_form=detail_form)
                 )
 
-        gui_fields = _collect_gui_fields(self.request.POST, form.instance.subtype)
+        try:
+            subtype_enum = WorkoutSubtype(form.instance.subtype)
+        except ValueError:
+            subtype_enum = None
+        gui_fields = _collect_gui_fields(self.request.POST, subtype_enum)
 
         with transaction.atomic():
             response = super().form_valid(form)
@@ -482,18 +486,13 @@ class WorkoutCreateView(
         self, form_class: type[forms.BaseForm] | None = None
     ) -> forms.BaseForm:
         form = super().get_form(form_class)
-        form.instance.workout_type = self.get_workout_type()
-        form.instance.user = self.request.user
-        subtype_slug = self.request.GET.get("subtype")
-        if not subtype_slug:
-            raise Http404("Subtype is required")
+        subtype_value = self.kwargs["subtype"]
         try:
-            subtype = WorkoutSubtype.objects.get(slug=subtype_slug)
-        except WorkoutSubtype.DoesNotExist as exc:
+            WorkoutSubtype(subtype_value)
+        except ValueError as exc:
             raise Http404("Invalid subtype") from exc
-        if subtype.parent_type != form.instance.workout_type:
-            raise Http404("Subtype does not match workout type")
-        form.instance.subtype = subtype
+        form.instance.subtype = subtype_value
+        form.instance.user = self.request.user
         return form
 
 
@@ -673,14 +672,12 @@ def _aggregate_workouts(
     overall_start: date, overall_end: date, micro_entries: list[dict], user
 ) -> dict[int, dict[str, int]]:
     result = defaultdict(_empty_actuals)
-    workouts = (
-        Workout.objects.select_related("subtype")
-        .prefetch_related("aerobic_details", "strength_details", "generic_details")
-        .filter(
-            user=user,
-            start_time__date__gte=overall_start,
-            start_time__date__lte=overall_end,
-        )
+    workouts = Workout.objects.prefetch_related(
+        "aerobic_details", "strength_details", "generic_details"
+    ).filter(
+        user=user,
+        start_time__date__gte=overall_start,
+        start_time__date__lte=overall_end,
     )
 
     buckets = [(e["start"], e["end"], e["pk"]) for e in micro_entries]
@@ -700,7 +697,7 @@ def _aggregate_workouts(
 
         actuals["total_load"] += load
 
-        if w.subtype.name == "Running":
+        if w.subtype == WorkoutSubtype.RUNNING:
             actuals["runs"] += 1
             actuals["run_load"] += load
             distance = 0

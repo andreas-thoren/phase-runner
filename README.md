@@ -22,9 +22,6 @@ uv sync
 # Run migrations
 uv run python manage.py migrate
 
-# Load initial fixture data (activity types and subtypes)
-uv run python manage.py loaddata workouts/fixtures/initial_data.json
-
 # Start dev server
 uv run python manage.py runserver
 ```
@@ -44,23 +41,9 @@ uv run black .
 uv run pylint workouts/
 ```
 
-### Fixtures
-
-Load predefined lookup data (workout subtypes and their GUI schemas):
-
-```bash
-uv run python manage.py loaddata workouts/fixtures/initial_data.json
-```
-
-After modifying lookup tables, dump only the subtype model:
-
-```bash
-uv run python manage.py dumpdata workouts.workoutsubtype --indent 2 --natural-foreign --natural-primary > workouts/fixtures/initial_data.json
-```
-
 ### Rebuilding the Database
 
-Drop the database, recreate migrations, and reload fixtures:
+Drop the database, recreate migrations, and rebuild:
 
 ```bash
 uv run python manage.py rebuild_db

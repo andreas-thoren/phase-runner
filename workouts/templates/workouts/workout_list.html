@@ -24,7 +24,7 @@
   {% for wrk in workouts %}
     <tr id="row-{{ wrk.pk }}" data-href="{{ wrk.get_absolute_url }}" class="workout-row" tabindex="0">
       <td data-label="Date">{{ wrk.start_time|date:"Y-m-d" }}</td>
-      <td data-label="Activity">{{ wrk.subtype.name|default:"—" }}</td>
+      <td data-label="Activity">{{ wrk.get_subtype_display|default:"—" }}</td>
       <td data-label="Name">{{ wrk.name }}</td>
       <td data-label="Status">{{ wrk.get_workout_status_display }}</td>
     </tr>

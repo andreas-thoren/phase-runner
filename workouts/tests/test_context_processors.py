@@ -5,7 +5,8 @@ from django.test import TestCase
 from django.urls import reverse
 
 from workouts.context_processors import BreadcrumbItem, _build_breadcrumbs
-from workouts.models import Macrocycle, Mesocycle, Microcycle, Workout, WorkoutSubtype
+from workouts.enums import WorkoutSubtype
+from workouts.models import Macrocycle, Mesocycle, Microcycle, Workout
 
 
 class BuildBreadcrumbsTestMixin:
@@ -26,14 +27,10 @@ class BuildBreadcrumbsTestMixin:
         cls.micro = Microcycle.objects.create(
             mesocycle=cls.meso, micro_type="load", order=1
         )
-        cls.subtype = WorkoutSubtype.objects.create(
-            name="Running", parent_type="aerobic"
-        )
         cls.workout = Workout.objects.create(
             user=cls.user,
             name="Morning Run",
-            workout_type="aerobic",
-            subtype=cls.subtype,
+            subtype=WorkoutSubtype.RUNNING,
         )
 
 
@@ -300,10 +297,7 @@ class BreadcrumbContextTest(BuildBreadcrumbsTestMixin, TestCase):
         self.assertEqual(crumbs[2].label, "Summary")
 
     def test_create_workout_with_subtype(self):
-        url = (
-            reverse("workouts:create_workout", kwargs={"workout_type": "aerobic"})
-            + f"?subtype={self.subtype.slug}"
-        )
+        url = reverse("workouts:create_workout", kwargs={"subtype": "running"})
         crumbs = self._get_breadcrumbs(url)
         self.assertEqual(len(crumbs), 2)
         self.assertEqual(crumbs[1].label, "New Running")

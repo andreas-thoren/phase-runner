@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import date, timedelta
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -6,14 +6,10 @@ from django.test import SimpleTestCase, TestCase, override_settings
 from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 
-from datetime import date
-
-from workouts.enums import WorkoutStatus
+from workouts.enums import WorkoutStatus, WorkoutSubtype
 from workouts.models import (
     Workout,
-    WorkoutSubtype,
     AerobicDetails,
-    StrengthDetails,
     GenericDetails,
     ActiveMacrocycle,
     Macrocycle,
@@ -37,16 +33,12 @@ class WorkoutListViewTest(AuthenticatedTestMixin, TestCase):
         cls.user = User.objects.create_user(
             username="testuser", email="test@example.com", password="testpassword"
         )
-        cls.subtype = WorkoutSubtype.objects.create(
-            name="Mobility", parent_type="generic"
-        )
         cls.workouts = [
             Workout.objects.create(
                 user=cls.user,
                 name=f"Workout {i}",
                 workout_status=WorkoutStatus.COMPLETED,
-                workout_type="generic",
-                subtype=cls.subtype,
+                subtype=WorkoutSubtype.MOBILITY,
             )
             for i in range(3)
         ]
@@ -76,8 +68,7 @@ class WorkoutListViewTest(AuthenticatedTestMixin, TestCase):
             Workout.objects.create(
                 user=self.user,
                 name=f"Extra {i}",
-                workout_type="generic",
-                subtype=self.subtype,
+                subtype=WorkoutSubtype.MOBILITY,
             )
         response = self.client.get(self.url)
         self.assertEqual(len(response.context["workouts"]), 15)
@@ -94,35 +85,26 @@ class WorkoutListFilterTest(AuthenticatedTestMixin, TestCase):
         cls.user = User.objects.create_user(
             username="filteruser", email="filter@example.com", password="testpassword"
         )
-        cls.running = WorkoutSubtype.objects.create(
-            name="Running", parent_type="aerobic"
-        )
-        cls.cycling = WorkoutSubtype.objects.create(
-            name="Cycling", parent_type="aerobic"
-        )
         cls.url = reverse("workouts:workout_list")
 
         cls.w1 = Workout.objects.create(
             user=cls.user,
             name="Morning Run",
-            workout_type="aerobic",
-            subtype=cls.running,
+            subtype=WorkoutSubtype.RUNNING,
             workout_status=WorkoutStatus.COMPLETED,
             start_time=timezone.make_aware(timezone.datetime(2026, 1, 10, 8, 0)),
         )
         cls.w2 = Workout.objects.create(
             user=cls.user,
             name="Evening Ride",
-            workout_type="aerobic",
-            subtype=cls.cycling,
+            subtype=WorkoutSubtype.CYCLING,
             workout_status=WorkoutStatus.PLANNED,
             start_time=timezone.make_aware(timezone.datetime(2026, 2, 15, 18, 0)),
         )
         cls.w3 = Workout.objects.create(
             user=cls.user,
             name="Long Run",
-            workout_type="aerobic",
-            subtype=cls.running,
+            subtype=WorkoutSubtype.RUNNING,
             workout_status=WorkoutStatus.COMPLETED,
             start_time=timezone.make_aware(timezone.datetime(2026, 3, 5, 7, 0)),
         )
@@ -158,7 +140,7 @@ class WorkoutListFilterTest(AuthenticatedTestMixin, TestCase):
         self.assertEqual(names, {"Morning Run", "Long Run"})
 
     def test_filter_by_activity(self):
-        response = self.client.get(self.url, {"activity": self.cycling.slug})
+        response = self.client.get(self.url, {"activity": WorkoutSubtype.CYCLING.value})
         names = {w.name for w in response.context["workouts"]}
         self.assertEqual(names, {"Evening Ride"})
 
@@ -168,14 +150,14 @@ class WorkoutListFilterTest(AuthenticatedTestMixin, TestCase):
             {
                 "date_from": "2026-01-01",
                 "status": WorkoutStatus.COMPLETED,
-                "activity": self.running.slug,
+                "activity": WorkoutSubtype.RUNNING.value,
             },
         )
         names = {w.name for w in response.context["workouts"]}
         self.assertEqual(names, {"Morning Run", "Long Run"})
 
     def test_clear_link_shown_when_filtered(self):
-        response = self.client.get(self.url, {"activity": self.running.pk})
+        response = self.client.get(self.url, {"activity": WorkoutSubtype.RUNNING.value})
         self.assertContains(response, "Clear")
 
     def test_clear_button_disabled_when_no_filters(self):
@@ -194,17 +176,10 @@ class WorkoutDetailViewTest(AuthenticatedTestMixin, TestCase):
         cls.user = User.objects.create_user(
             username="testuser", email="test@example.com", password="testpassword"
         )
-        cls.aerobic_subtype = WorkoutSubtype.objects.create(
-            name="Running", parent_type="aerobic"
-        )
-        cls.generic_subtype = WorkoutSubtype.objects.create(
-            name="Mobility", parent_type="generic"
-        )
         cls.workout = Workout.objects.create(
             user=cls.user,
             name="Test Run",
-            workout_type="aerobic",
-            subtype=cls.aerobic_subtype,
+            subtype=WorkoutSubtype.RUNNING,
         )
         cls.aerobic = AerobicDetails.objects.create(
             workout=cls.workout, duration=timedelta(minutes=30), distance=5000
@@ -226,8 +201,7 @@ class WorkoutDetailViewTest(AuthenticatedTestMixin, TestCase):
         generic = Workout.objects.create(
             user=self.user,
             name="Generic",
-            workout_type="generic",
-            subtype=self.generic_subtype,
+            subtype=WorkoutSubtype.MOBILITY,
         )
         url = reverse("workouts:workout_detail", kwargs={"pk": generic.pk})
         response = self.client.get(url)
@@ -246,46 +220,32 @@ class WorkoutCreateViewTest(AuthenticatedTestMixin, TestCase):
         cls.user = User.objects.create_user(
             username="testuser", email="test@example.com", password="testpassword"
         )
-        cls.aerobic_subtype = WorkoutSubtype.objects.create(
-            name="Running", parent_type="aerobic"
-        )
-        cls.strength_subtype = WorkoutSubtype.objects.create(
-            name="Strength", parent_type="strength"
-        )
-        cls.generic_subtype = WorkoutSubtype.objects.create(
-            name="Mobility", parent_type="generic"
-        )
 
     def test_create_page_loads(self):
-        url = reverse("workouts:create_workout", kwargs={"workout_type": "aerobic"})
-        response = self.client.get(f"{url}?subtype={self.aerobic_subtype.slug}")
+        url = reverse("workouts:create_workout", kwargs={"subtype": "running"})
+        response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertIsNotNone(response.context.get("detail_form"))
 
-    def test_invalid_workout_type_returns_404(self):
-        url = reverse("workouts:create_workout", kwargs={"workout_type": "bogus"})
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 404)
-
-    def test_missing_subtype_returns_404(self):
-        url = reverse("workouts:create_workout", kwargs={"workout_type": "aerobic"})
+    def test_invalid_subtype_returns_404(self):
+        url = reverse("workouts:create_workout", kwargs={"subtype": "bogus"})
         response = self.client.get(url)
         self.assertEqual(response.status_code, 404)
 
     def test_create_workout_with_subtype(self):
-        url = reverse("workouts:create_workout", kwargs={"workout_type": "generic"})
+        url = reverse("workouts:create_workout", kwargs={"subtype": "mobility"})
         data = {
             "name": "New Workout",
             "start_time": "2026-03-07 10:00:00",
             "workout_status": "planned",
         }
-        response = self.client.post(f"{url}?subtype={self.generic_subtype.slug}", data)
+        response = self.client.post(url, data)
         self.assertEqual(response.status_code, 302)
         workout = Workout.objects.get(name="New Workout")
-        self.assertEqual(workout.subtype, self.generic_subtype)
+        self.assertEqual(workout.subtype, WorkoutSubtype.MOBILITY)
 
     def test_create_strength_workout_with_detail(self):
-        url = reverse("workouts:create_workout", kwargs={"workout_type": "strength"})
+        url = reverse("workouts:create_workout", kwargs={"subtype": "strength"})
         data = {
             "name": "Leg Day",
             "start_time": "2026-03-07 10:00:00",
@@ -293,33 +253,23 @@ class WorkoutCreateViewTest(AuthenticatedTestMixin, TestCase):
             "detail-num_sets": "5",
             "detail-total_weight": "200",
         }
-        response = self.client.post(f"{url}?subtype={self.strength_subtype.slug}", data)
+        response = self.client.post(url, data)
         self.assertEqual(response.status_code, 302)
         workout = Workout.objects.get(name="Leg Day")
         self.assertEqual(workout.workout_type, "strength")
-        self.assertEqual(workout.subtype, self.strength_subtype)
+        self.assertEqual(workout.subtype, WorkoutSubtype.STRENGTH)
         detail = workout.get_detail()
         self.assertIsNotNone(detail)
         self.assertEqual(detail.num_sets, 5)
 
-    def test_create_with_nonexistent_subtype_returns_404(self):
-        url = reverse("workouts:create_workout", kwargs={"workout_type": "aerobic"})
-        response = self.client.get(f"{url}?subtype=nonexistent-slug")
-        self.assertEqual(response.status_code, 404)
-
-    def test_create_with_mismatched_subtype_returns_404(self):
-        url = reverse("workouts:create_workout", kwargs={"workout_type": "aerobic"})
-        response = self.client.get(f"{url}?subtype={self.strength_subtype.slug}")
-        self.assertEqual(response.status_code, 404)
-
     def test_create_with_empty_detail_skips_detail_row(self):
-        url = reverse("workouts:create_workout", kwargs={"workout_type": "aerobic"})
+        url = reverse("workouts:create_workout", kwargs={"subtype": "running"})
         data = {
             "name": "Empty Aerobic",
             "start_time": "2026-03-07 10:00:00",
             "workout_status": "planned",
         }
-        response = self.client.post(f"{url}?subtype={self.aerobic_subtype.slug}", data)
+        response = self.client.post(url, data)
         self.assertEqual(response.status_code, 302)
         workout = Workout.objects.get(name="Empty Aerobic")
         self.assertIsNone(workout.get_detail())
@@ -333,20 +283,13 @@ class WorkoutEditViewTest(AuthenticatedTestMixin, TestCase):
         cls.user = User.objects.create_user(
             username="testuser", email="test@example.com", password="testpassword"
         )
-        cls.aerobic_subtype = WorkoutSubtype.objects.create(
-            name="Running", parent_type="aerobic"
-        )
-        cls.generic_subtype = WorkoutSubtype.objects.create(
-            name="Mobility", parent_type="generic"
-        )
 
     def setUp(self):
         super().setUp()
         self.workout = Workout.objects.create(
             user=self.user,
             name="Original",
-            workout_type="aerobic",
-            subtype=self.aerobic_subtype,
+            subtype=WorkoutSubtype.RUNNING,
         )
         self.aerobic = AerobicDetails.objects.create(
             workout=self.workout, duration=timedelta(minutes=30)
@@ -383,7 +326,7 @@ class WorkoutEditViewTest(AuthenticatedTestMixin, TestCase):
         self.assertEqual(response.status_code, 302)
         self.workout.refresh_from_db()
         self.assertEqual(self.workout.name, "Renamed")
-        self.assertEqual(self.workout.subtype, self.aerobic_subtype)
+        self.assertEqual(self.workout.subtype, WorkoutSubtype.RUNNING)
 
     def test_edit_clear_all_detail_fields_deletes_detail(self):
         url = reverse("workouts:edit_workout", kwargs={"pk": self.workout.pk})
@@ -402,8 +345,7 @@ class WorkoutEditViewTest(AuthenticatedTestMixin, TestCase):
         workout = Workout.objects.create(
             user=self.user,
             name="No Detail",
-            workout_type="generic",
-            subtype=self.generic_subtype,
+            subtype=WorkoutSubtype.MOBILITY,
         )
         url = reverse("workouts:edit_workout", kwargs={"pk": workout.pk})
         data = {
@@ -423,8 +365,7 @@ class WorkoutEditViewTest(AuthenticatedTestMixin, TestCase):
         workout = Workout.objects.create(
             user=self.user,
             name="Still Empty",
-            workout_type="generic",
-            subtype=self.generic_subtype,
+            subtype=WorkoutSubtype.MOBILITY,
         )
         url = reverse("workouts:edit_workout", kwargs={"pk": workout.pk})
         data = {
@@ -445,17 +386,13 @@ class WorkoutDeleteViewTest(AuthenticatedTestMixin, TestCase):
         cls.user = User.objects.create_user(
             username="testuser", email="test@example.com", password="testpassword"
         )
-        cls.subtype = WorkoutSubtype.objects.create(
-            name="Mobility", parent_type="generic"
-        )
 
     def setUp(self):
         super().setUp()
         self.workout = Workout.objects.create(
             user=self.user,
             name="To Delete",
-            workout_type="generic",
-            subtype=self.subtype,
+            subtype=WorkoutSubtype.MOBILITY,
         )
 
     def test_delete_page_loads(self):
@@ -1046,23 +983,11 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
         # meso2: 1 microcycle
         cls.micro3 = Microcycle.objects.create(mesocycle=cls.meso2, duration_days=7)
 
-        # Subtypes
-        cls.running = WorkoutSubtype.objects.create(
-            name="Running", parent_type="aerobic"
-        )
-        cls.cycling = WorkoutSubtype.objects.create(
-            name="Cycling", parent_type="aerobic"
-        )
-        cls.strength_sub = WorkoutSubtype.objects.create(
-            name="Strength", parent_type="strength"
-        )
-
         # Workouts in micro1's date range (2026-01-05 to 2026-01-11)
         cls.run1 = Workout.objects.create(
             user=cls.user,
             name="Run 1",
-            workout_type="aerobic",
-            subtype=cls.running,
+            subtype=WorkoutSubtype.RUNNING,
             start_time=timezone.make_aware(timezone.datetime(2026, 1, 6, 8, 0)),
         )
         AerobicDetails.objects.create(
@@ -1074,8 +999,7 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
         cls.run2 = Workout.objects.create(
             user=cls.user,
             name="Run 2",
-            workout_type="aerobic",
-            subtype=cls.running,
+            subtype=WorkoutSubtype.RUNNING,
             start_time=timezone.make_aware(timezone.datetime(2026, 1, 8, 8, 0)),
         )
         AerobicDetails.objects.create(
@@ -1087,16 +1011,14 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
         cls.cross = Workout.objects.create(
             user=cls.user,
             name="Bike",
-            workout_type="aerobic",
-            subtype=cls.cycling,
+            subtype=WorkoutSubtype.CYCLING,
             start_time=timezone.make_aware(timezone.datetime(2026, 1, 7, 8, 0)),
         )
 
         cls.strength = Workout.objects.create(
             user=cls.user,
             name="Gym",
-            workout_type="strength",
-            subtype=cls.strength_sub,
+            subtype=WorkoutSubtype.STRENGTH,
             start_time=timezone.make_aware(timezone.datetime(2026, 1, 9, 8, 0)),
         )
 

@@ -21,16 +21,10 @@ uv run pylint workouts/
 # Format
 uv run black .
 
-# Load fixture data (required after fresh migrate)
-uv run python manage.py loaddata workouts/fixtures/initial_data.json
-
-# Dump fixture data (after changing lookup tables)
-uv run python manage.py dumpdata workouts --indent 2 --natural-foreign --natural-primary > workouts/fixtures/initial_data.json
-
-# Create 3000 test workouts (requires fixtures loaded first)
+# Create 3000 test workouts
 uv run python manage.py create_test_workouts
 
-# Rebuild DB from scratch (drop db + migrations, recreate, load fixtures)
+# Rebuild DB from scratch (drop db + migrations, recreate)
 uv run python manage.py rebuild_db
 uv run python manage.py rebuild_db --create-test-data  # also creates test workouts
 
@@ -42,14 +36,6 @@ git push dokku main
 
 Single Django app (`workouts`) with one `Workout` model and optional detail models (OneToOne) for type-specific data.
 
-### SlugFieldMixin
-
-- Abstract model mixin adding an auto-created, unique `slug` field (`editable=False`).
-- Slug is regenerated on every `save()`/`clean()` from the field named by `_slug_source_field` (default `"name"`). Override `get_slug()` for custom logic. Changing the source field automatically updates the slug.
-- Collision handling: appends `-1`, `-2`, etc. via `_unique_slug()`.
-- Used by: `WorkoutSubtype`.
-- Fixtures must include explicit `slug` values since `loaddata` bypasses `save()`.
-
 ### OrderMixin
 
 - Abstract model mixin that ensures gap-free ordering among siblings on delete.
@@ -59,14 +45,13 @@ Single Django app (`workouts`) with one `Workout` model and optional detail mode
 
 ### Model Design
 
-- **`WorkoutSubtype`**: named subtype (e.g. Running, Cycling) linked to a parent `WorkoutType`. Has a `gui_schema` property that reads from the `GUI_SCHEMAS` Python constant (keyed by slug), defining dynamic UI inputs (key → `{type, label}`). Protected from deletion while workouts reference it (`on_delete=PROTECT`). Has `natural_key()` (`name`, `parent_type`) so fixtures use natural keys instead of hardcoded PKs.
-- **`Workout`**: core model — user, name, start_time, description, workout_status (CharField keyed to `WorkoutStatus` enum, default `PLANNED`), workout_type (no default), subtype (mandatory FK → WorkoutSubtype). Subtype is set at creation and not editable afterwards. `clean()` validates subtype's `parent_type` matches `workout_type`. `gui_fields` property reads dynamic field values from the detail's `additional_data["gui_fields"]`.
-- **`DetailBase`** (abstract): shared detail fields (duration, additional_data). Auto-registers concrete subclasses via `__init_subclass__` into `DetailBase._detail_registry`, keyed by `WorkoutType` enum. `get_related_name()` introspects the OneToOne `related_name` for dynamic `select_related` and reverse accessor lookups. `clean()` validates that the detail's `_workout_type` matches `workout.workout_type` and that `additional_data["gui_fields"]` keys are a subset of the subtype's `gui_schema`.
+- **`Workout`**: core model — user, name, start_time, description, workout_status (CharField keyed to `WorkoutStatus` enum, default `PLANNED`), subtype (CharField with `WorkoutSubtype.choices()`). Subtype is set at creation and not editable afterwards. `workout_type` is a computed `@property` that derives the parent type via `SUBTYPE_TYPE_MAP`. `gui_fields` property reads dynamic field values from the detail's `additional_data["gui_fields"]`.
+- **`DetailBase`** (abstract): shared detail fields (duration, additional_data). Auto-registers concrete subclasses via `__init_subclass__` into `DetailBase._detail_registry`, keyed by `WorkoutType` enum. `get_related_name()` introspects the OneToOne `related_name` for dynamic `select_related` and reverse accessor lookups. `clean()` validates that the detail's `_workout_type` matches `workout.workout_type` and that `additional_data["gui_fields"]` keys are a subset of the subtype's `gui_schema` (looked up via `WorkoutSubtype` enum).
 - **`AerobicDetails`**: OneToOne → Workout. `distance` is a `PositiveIntegerField` storing meters (same convention as `Microcycle.planned_distance`). `distance_km` property converts to km for display. `speed` (km/h), `pace` (seconds/km), and `pace_display` (`M:SS min/km`) are computed from the meters value. The form (`AerobicDetailsForm`) accepts km input and converts to/from meters.
 - **`StrengthDetails`**: OneToOne → Workout. Adds num_sets, total_weight.
-- **`GenericDetails`**: OneToOne → Workout. No extra fields beyond DetailBase (duration, additional_data).
+- **`GenericDetails`**: OneToOne → Workout. No extra fields beyond DetailBase (duration and additional_data).
 - `DetailBase.save()` always calls `full_clean()`, enforcing model validation on every save.
-- **GUI fields**: dynamic subtype-specific fields stored in `additional_data["gui_fields"]`. Schema defined in the `GUI_SCHEMAS` constant in `models.py`, keyed by subtype slug. Accessed via `WorkoutSubtype.gui_schema` property. Create/edit views render a dropdown to add fields; detail views display them read-only. `load_garmin` (Garmin training load) is a gui field present on all subtypes; the summary view reads it from gui_fields for load aggregation.
+- **GUI fields**: dynamic subtype-specific fields stored in `additional_data["gui_fields"]`. Schema defined in `GUI_SCHEMAS` dict in `enums.py`, accessed via `WorkoutSubtype.gui_schema` property. Create/edit views render a dropdown to add fields; detail views display them read-only. `load_garmin` (Garmin training load) is a gui field present on all subtypes; the summary view reads it from gui_fields for load aggregation.
 
 ### Periodization Models
 
@@ -109,7 +94,7 @@ Single Django app (`workouts`) with one `Workout` model and optional detail mode
 - **`MesocycleDetailView`/`MesocycleCreateView`/`MesocycleEditView`/`MesocycleDeleteView`**: CRUD views for Mesocycle using `MesocycleForm` + `MacrocycleChildMixin`. Share `mesocycle_form.html` template. Create sets `macrocycle` FK from URL; edit/delete scope queryset by parent macrocycle. Detail view hydrates the macrocycle and renders a microcycle table (master-detail) via `{% block after_form %}`.
 - **`MicrocycleDetailView`/`MicrocycleCreateView`/`MicrocycleEditView`/`MicrocycleDeleteView`**: CRUD views for Microcycle using `MicrocycleForm` + `MesocycleChildMixin`. Share `microcycle_form.html` template. Lookup by PK (`pk_url_kwarg = "micro_pk"`). Create sets `mesocycle` FK from URL; all redirects go to parent mesocycle detail.
 - **`WorkoutMutateMixin`**: shared base for `WorkoutCreateView` and `WorkoutEditView`. Provides unified `get_workout_type()` (from existing object or URL kwarg), `get_context_data()` (detail form, gui schemas/fields), and `form_valid()` (detail create/update/delete + gui_fields storage). Only stores `gui_fields` in `additional_data` when non-empty.
-- **`WorkoutCreateView`**: extends `WorkoutMutateMixin`. Renders `WorkoutForm` + detail form based on `workout_type` URL kwarg. Requires `?subtype=<slug>` query param (set by navbar dropdown); 404 if missing or mismatched. Subtype is not a form field — it's set on the instance in `get_form()`.
+- **`WorkoutCreateView`**: extends `WorkoutMutateMixin`. URL pattern: `workouts/add/<str:subtype>/`. Renders `WorkoutForm` + detail form based on the subtype URL kwarg (workout type derived via `WorkoutSubtype.workout_type` property). 404 if subtype is invalid. Subtype is not a form field — it's set on the instance in `get_form()`.
 - **`WorkoutEditView`**: extends `WorkoutMutateMixin`. All context and save logic inherited from the mixin. If all detail fields and gui_fields are cleared, the detail row is deleted. If no detail exists but fields are filled in, a new detail row is created.
 - **`WorkoutDetailView`/`WorkoutDeleteView`**: render workout + detail forms read-only, branching on `view_type` context variable.
 - `list_base.html` is shared across all list views via template blocks (`page_title`, `heading`, `toolbar`, `table_head`, `table_body`, `empty_message`). Includes table and pagination markup. Loads `clickable_rows.js` via `{% block scripts %}`; child templates that need additional scripts use `{{ block.super }}`.
@@ -127,6 +112,7 @@ Single Django app (`workouts`) with one `Workout` model and optional detail mode
 
 - All domain enums inherit from `ChoicesEnum` (a `StrEnum` subclass providing a Django-compatible `choices()` classmethod).
 - `WorkoutType`: `AEROBIC`, `STRENGTH`, `GENERIC` — identifies workout types.
+- `WorkoutSubtype`: `RUNNING`, `CYCLING`, `SWIMMING`, `SKIING`, `STRENGTH`, `MOBILITY` — workout activities. Each member has `workout_type`, `gui_schema`, and `label` properties. `SUBTYPE_TYPE_MAP` maps each subtype to its parent `WorkoutType`. `GUI_SCHEMAS` dict holds per-subtype dynamic field definitions.
 - `WorkoutStatus`: `PLANNED`, `COMPLETED`, `CANCELLED`, `POSTPONED` — workout lifecycle states.
 - `MesocycleType`: `BASE`, `PREP`, `BUILD`, `SHARPEN`, `SPECIFIC`, `PEAK`, `TRANSITION` — mesocycle training phases.
 - `MicrocycleType`: `INTRO`, `LOAD`, `OVERLOAD`, `CONSOLIDATE`, `DELOAD`, `TAPER`, `RACE` — microcycle load profiles.

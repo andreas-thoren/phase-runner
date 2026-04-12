@@ -1,4 +1,4 @@
-"""Management command to drop the database, recreate migrations, and reload fixtures."""
+"""Management command to drop the database, recreate migrations, and rebuild."""
 
 from argparse import ArgumentParser
 from pathlib import Path
@@ -12,14 +12,14 @@ import workouts
 
 
 class Command(BaseCommand):
-    help = "Drop DB, recreate migrations, migrate, and load fixtures."
+    help = "Drop DB, recreate migrations, and migrate."
 
     def add_arguments(self, parser: ArgumentParser) -> None:
         parser.add_argument(
             "--create-test-data",
             action="store_true",
             default=False,
-            help="Also run create_test_workouts after loading fixtures.",
+            help="Also run create_test_workouts after migrating.",
         )
 
     def handle(self, *args: Any, **options: Any) -> None:
@@ -47,11 +47,7 @@ class Command(BaseCommand):
         self.stdout.write("Running migrate...")
         call_command("migrate")
 
-        # 5. Load fixtures
-        self.stdout.write("Loading fixtures...")
-        call_command("loaddata", "workouts/fixtures/initial_data.json")
-
-        # 6. Optionally create test data
+        # 5. Optionally create test data
         if options["create_test_data"]:
             self.stdout.write("Creating test data...")
             call_command("create_test_workouts")

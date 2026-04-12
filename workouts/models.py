@@ -1,31 +1,25 @@
 """
 Models for the workouts app.
 
-Workout is the single core model with a mandatory WorkoutSubtype FK
-(e.g. Running, Cycling). Optional detail models (OneToOne) add
-type-specific fields. The detail type is identified by a WorkoutType
-enum on a simple base class that auto-registers subclasses.
-
-WorkoutSubtype provides a flexible subtype system with JSON-defined UI
-schemas (gui_schema), keyed to a parent WorkoutType. Every workout
-must have a subtype; the subtype determines the workout_type and is
-immutable after creation.
+Workout is the core model with a mandatory subtype (WorkoutSubtype enum).
+Optional detail models (OneToOne) add type-specific fields. The detail
+type is identified by a WorkoutType enum on a simple base class that
+auto-registers subclasses. The workout_type is derived from the subtype
+via SUBTYPE_TYPE_MAP.
 
 Periodization models (Macrocycle → Mesocycle → Microcycle) represent
 training plan structure. Dates are computed bottom-up from Microcycle
 duration_days — use Macrocycle.hydrate() before accessing start/end dates.
 
 Mixins:
-    SlugFieldMixin      — abstract mixin adding auto-created unique slug
     OrderMixin          — abstract mixin ensuring gap-free ordering on delete
 
 Models:
-    WorkoutSubtype      — subtype with gui_schema (e.g. Running under Aerobic)
-    Workout             — user, name, start_time, description, status, type, subtype
-    DetailBase          — abstract base with auto-registration + shared fields (duration, load)
+    Workout             — user, name, start_time, description, status, subtype
+    DetailBase          — abstract base with auto-registration + shared fields (duration)
     AerobicDetails      — concrete, OneToOne → Workout, adds distance + speed/pace
     StrengthDetails     — concrete, OneToOne → Workout
-    GenericDetails      — concrete, OneToOne → Workout (duration/load only)
+    GenericDetails      — concrete, OneToOne → Workout (duration only)
     Macrocycle          — top-level training block (start_date + computed end_date)
     Mesocycle           — ordered phase within a macrocycle (base, build, peak, …)
     Microcycle          — ordered cycle within a mesocycle (duration_days is source of truth)
@@ -37,56 +31,25 @@ from datetime import date
 from typing import Any
 
 from django.contrib.auth import get_user_model
-from django.utils.text import slugify
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.db.models import Max, Prefetch
 from django.urls import reverse
 from django.utils import timezone
 
-from .enums import MesocycleType, MicrocycleType, WorkoutStatus, WorkoutType
+from .enums import (
+    SUBTYPE_TYPE_MAP,
+    MesocycleType,
+    MicrocycleType,
+    WorkoutStatus,
+    WorkoutSubtype,
+    WorkoutType,
+)
 from .utils import GreaterThanDurationValidator, HydratedProperty, m_to_km
 
 # ==============================================================================
 # MIXINS
 # ==============================================================================
-
-
-class SlugFieldMixin(models.Model):
-    """Mixin that adds an auto-created, unique slug field.
-
-    Override ``_slug_source_field`` to slugify a field other than ``name``,
-    or override ``get_slug()`` for fully custom logic.
-    """
-
-    _slug_source_field = "name"
-
-    slug = models.SlugField(max_length=255, unique=True, editable=False)
-
-    def get_slug(self) -> str:
-        value = getattr(self, self._slug_source_field)
-        return slugify(value, allow_unicode=False)
-
-    def _unique_slug(self) -> str:
-        base = self.get_slug()
-        slug = base
-        qs = type(self).objects.exclude(pk=self.pk)
-        counter = 1
-        while qs.filter(slug=slug).exists():
-            slug = f"{base}-{counter}"
-            counter += 1
-        return slug
-
-    def clean(self) -> None:
-        super().clean()
-        self.slug = self._unique_slug()
-
-    def save(self, *args: Any, **kwargs: Any) -> None:
-        self.slug = self._unique_slug()
-        super().save(*args, **kwargs)
-
-    class Meta:
-        abstract = True
 
 
 class OrderMixin(models.Model):
@@ -132,101 +95,6 @@ class OrderMixin(models.Model):
 
 
 # ==============================================================================
-# LOOKUP MODELS
-# ==============================================================================
-
-
-class WorkoutSubtypeManager(models.Manager):
-    """Custom manager enabling natural key lookups for fixture loading."""
-
-    def get_by_natural_key(self, name: str, parent_type: str) -> "WorkoutSubtype":
-        return self.get(name=name, parent_type=parent_type)
-
-
-GUI_SCHEMAS: dict[str, dict] = {
-    "running": {
-        "load_garmin": {"type": "number", "label": "Load (Garmin)"},
-        "avg_hr": {"type": "number", "label": "Avg HR"},
-        "max_hr": {"type": "number", "label": "Max HR"},
-        "cadence": {"type": "number", "label": "Cadence"},
-        "z1_pct": {"type": "number", "label": "Zone 1 %"},
-        "z2_pct": {"type": "number", "label": "Zone 2 %"},
-        "z3_pct": {"type": "number", "label": "Zone 3 %"},
-        "z4_pct": {"type": "number", "label": "Zone 4 %"},
-        "z5_pct": {"type": "number", "label": "Zone 5 %"},
-        "rpe": {"type": "number", "label": "RPE"},
-    },
-    "cycling": {
-        "load_garmin": {"type": "number", "label": "Load (Garmin)"},
-        "avg_hr": {"type": "number", "label": "Avg HR"},
-        "max_hr": {"type": "number", "label": "Max HR"},
-        "cadence": {"type": "number", "label": "Cadence"},
-        "avg_power": {"type": "number", "label": "Avg Power (W)"},
-        "rpe": {"type": "number", "label": "RPE"},
-    },
-    "swimming": {
-        "load_garmin": {"type": "number", "label": "Load (Garmin)"},
-        "avg_hr": {"type": "number", "label": "Avg HR"},
-        "max_hr": {"type": "number", "label": "Max HR"},
-        "stroke_rate": {"type": "number", "label": "Stroke Rate"},
-        "laps": {"type": "number", "label": "Laps"},
-        "pool_length_m": {"type": "number", "label": "Pool Length (m)"},
-        "rpe": {"type": "number", "label": "RPE"},
-    },
-    "skiing": {
-        "load_garmin": {"type": "number", "label": "Load (Garmin)"},
-        "avg_hr": {"type": "number", "label": "Avg HR"},
-        "max_hr": {"type": "number", "label": "Max HR"},
-        "elevation_m": {"type": "number", "label": "Elevation (m)"},
-        "rpe": {"type": "number", "label": "RPE"},
-    },
-    "strength": {
-        "load_garmin": {"type": "number", "label": "Load (Garmin)"},
-        "avg_hr": {"type": "number", "label": "Avg HR"},
-        "max_hr": {"type": "number", "label": "Max HR"},
-        "exercises": {"type": "number", "label": "Exercises"},
-        "rpe": {"type": "number", "label": "RPE"},
-    },
-    "mobility": {
-        "load_garmin": {"type": "number", "label": "Load (Garmin)"},
-        "avg_hr": {"type": "number", "label": "Avg HR"},
-        "max_hr": {"type": "number", "label": "Max HR"},
-        "rpe": {"type": "number", "label": "RPE"},
-    },
-}
-
-
-class WorkoutSubtype(SlugFieldMixin, models.Model):
-    """Named activity subtype (e.g. Running, Cycling)."""
-
-    objects = WorkoutSubtypeManager()
-
-    name = models.CharField(max_length=100)
-    parent_type = models.CharField(
-        max_length=20,
-        choices=WorkoutType.choices(),
-    )
-
-    @property
-    def gui_schema(self) -> dict:
-        return GUI_SCHEMAS.get(self.slug, {})
-
-    def natural_key(self) -> tuple[str, str]:
-        return (self.name, self.parent_type)
-
-    def __str__(self) -> str:
-        return f"{self.name} ({self.parent_type})"
-
-    class Meta:
-        verbose_name_plural = "Workout subtypes"
-        constraints = [
-            models.UniqueConstraint(
-                fields=["name", "parent_type"], name="uq_subtype_name_parent"
-            ),
-        ]
-
-
-# ==============================================================================
 # WORKOUT
 # ==============================================================================
 
@@ -243,11 +111,11 @@ class Workout(models.Model):
         choices=WorkoutStatus.choices(),
         default=WorkoutStatus.PLANNED,
     )
-    workout_type = models.CharField(
-        max_length=20,
-        choices=WorkoutType.choices(),
-    )
-    subtype = models.ForeignKey(WorkoutSubtype, on_delete=models.PROTECT)
+    subtype = models.CharField(max_length=30, choices=WorkoutSubtype.choices())
+
+    @property
+    def workout_type(self) -> str:
+        return SUBTYPE_TYPE_MAP[WorkoutSubtype(self.subtype)].value
 
     def get_absolute_url(self) -> str:
         return reverse("workouts:workout_detail", kwargs={"pk": self.pk})
@@ -261,18 +129,6 @@ class Workout(models.Model):
             return getattr(self, model.get_related_name())
         except model.DoesNotExist:
             return None
-
-    def clean(self) -> None:
-        super().clean()
-        if self.subtype_id and self.workout_type != self.subtype.parent_type:
-            raise ValidationError(
-                {
-                    "subtype": (
-                        f"Type '{self.workout_type}' does not match "
-                        f"subtype '{self.subtype.name}'."
-                    )
-                }
-            )
 
     @property
     def gui_fields(self) -> dict:
@@ -332,19 +188,26 @@ class DetailBase(models.Model):
         return cls._meta.get_field("workout").remote_field.related_name  # type: ignore[union-attr,return-value]
 
     def _validate_gui_fields(self) -> None:
-        subtype = getattr(self.workout, "subtype", None)
-        if not subtype or not subtype.gui_schema:
+        subtype_value = getattr(self.workout, "subtype", None)
+        if not subtype_value:
+            return
+        try:
+            subtype_enum = WorkoutSubtype(subtype_value)
+        except ValueError:
+            return
+        schema = subtype_enum.gui_schema
+        if not schema:
             return
         gui_fields = self.additional_data.get("gui_fields", {})
         if not isinstance(gui_fields, dict):
             raise ValidationError({"additional_data": "gui_fields must be a dict."})
-        unknown = set(gui_fields) - set(subtype.gui_schema)
+        unknown = set(gui_fields) - set(schema)
         if unknown:
             raise ValidationError(
                 {
                     "additional_data": (
                         f"gui_fields contains keys not in subtype "
-                        f"'{subtype.name}' schema: {', '.join(sorted(unknown))}"
+                        f"'{subtype_enum.label}' schema: {', '.join(sorted(unknown))}"
                     )
                 }
             )

@@ -62,9 +62,9 @@
         <ul>
           {% for st in subtypes %}
             <li>
-              <a href="{% url 'workouts:create_workout' workout_type=parent_type %}?subtype={{ st.slug }}"
-                 {% if nav_section == "create" and nav_item == st.slug %}aria-current="page"{% endif %}>
-                {{ st.name }}
+              <a href="{% url 'workouts:create_workout' subtype=st.value %}"
+                 {% if nav_section == "create" and nav_item == st.value %}aria-current="page"{% endif %}>
+                {{ st.label }}
               </a>
             </li>
           {% endfor %}

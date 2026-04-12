@@ -19,6 +19,90 @@ class WorkoutType(ChoicesEnum):
 
 
 @unique
+class WorkoutSubtype(ChoicesEnum):
+    RUNNING = "running"
+    CYCLING = "cycling"
+    SWIMMING = "swimming"
+    SKIING = "skiing"
+    STRENGTH = "strength"
+    MOBILITY = "mobility"
+
+    @property
+    def workout_type(self) -> WorkoutType:
+        return SUBTYPE_TYPE_MAP[self]
+
+    @property
+    def gui_schema(self) -> dict:
+        return GUI_SCHEMAS.get(self, {})
+
+    @property
+    def label(self) -> str:
+        return self.value.capitalize()
+
+
+SUBTYPE_TYPE_MAP: dict[WorkoutSubtype, WorkoutType] = {
+    WorkoutSubtype.RUNNING: WorkoutType.AEROBIC,
+    WorkoutSubtype.CYCLING: WorkoutType.AEROBIC,
+    WorkoutSubtype.SWIMMING: WorkoutType.AEROBIC,
+    WorkoutSubtype.SKIING: WorkoutType.AEROBIC,
+    WorkoutSubtype.STRENGTH: WorkoutType.STRENGTH,
+    WorkoutSubtype.MOBILITY: WorkoutType.GENERIC,
+}
+
+GUI_SCHEMAS: dict[WorkoutSubtype, dict] = {
+    WorkoutSubtype.RUNNING: {
+        "load_garmin": {"type": "number", "label": "Load (Garmin)"},
+        "avg_hr": {"type": "number", "label": "Avg HR"},
+        "max_hr": {"type": "number", "label": "Max HR"},
+        "cadence": {"type": "number", "label": "Cadence"},
+        "z1_pct": {"type": "number", "label": "Zone 1 %"},
+        "z2_pct": {"type": "number", "label": "Zone 2 %"},
+        "z3_pct": {"type": "number", "label": "Zone 3 %"},
+        "z4_pct": {"type": "number", "label": "Zone 4 %"},
+        "z5_pct": {"type": "number", "label": "Zone 5 %"},
+        "rpe": {"type": "number", "label": "RPE"},
+    },
+    WorkoutSubtype.CYCLING: {
+        "load_garmin": {"type": "number", "label": "Load (Garmin)"},
+        "avg_hr": {"type": "number", "label": "Avg HR"},
+        "max_hr": {"type": "number", "label": "Max HR"},
+        "cadence": {"type": "number", "label": "Cadence"},
+        "avg_power": {"type": "number", "label": "Avg Power (W)"},
+        "rpe": {"type": "number", "label": "RPE"},
+    },
+    WorkoutSubtype.SWIMMING: {
+        "load_garmin": {"type": "number", "label": "Load (Garmin)"},
+        "avg_hr": {"type": "number", "label": "Avg HR"},
+        "max_hr": {"type": "number", "label": "Max HR"},
+        "stroke_rate": {"type": "number", "label": "Stroke Rate"},
+        "laps": {"type": "number", "label": "Laps"},
+        "pool_length_m": {"type": "number", "label": "Pool Length (m)"},
+        "rpe": {"type": "number", "label": "RPE"},
+    },
+    WorkoutSubtype.SKIING: {
+        "load_garmin": {"type": "number", "label": "Load (Garmin)"},
+        "avg_hr": {"type": "number", "label": "Avg HR"},
+        "max_hr": {"type": "number", "label": "Max HR"},
+        "elevation_m": {"type": "number", "label": "Elevation (m)"},
+        "rpe": {"type": "number", "label": "RPE"},
+    },
+    WorkoutSubtype.STRENGTH: {
+        "load_garmin": {"type": "number", "label": "Load (Garmin)"},
+        "avg_hr": {"type": "number", "label": "Avg HR"},
+        "max_hr": {"type": "number", "label": "Max HR"},
+        "exercises": {"type": "number", "label": "Exercises"},
+        "rpe": {"type": "number", "label": "RPE"},
+    },
+    WorkoutSubtype.MOBILITY: {
+        "load_garmin": {"type": "number", "label": "Load (Garmin)"},
+        "avg_hr": {"type": "number", "label": "Avg HR"},
+        "max_hr": {"type": "number", "label": "Max HR"},
+        "rpe": {"type": "number", "label": "RPE"},
+    },
+}
+
+
+@unique
 class MesocycleType(ChoicesEnum):
     BASE = "base"
     PREP = "prep"

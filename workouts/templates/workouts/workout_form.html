@@ -15,7 +15,7 @@
   {% if workout_form.instance.subtype %}
     <div class="form-group">
       <label>Activity</label>
-      <input type="text" value="{{ workout_form.instance.subtype.name }}" disabled>
+      <input type="text" value="{{ workout_form.instance.get_subtype_display }}" disabled>
     </div>
   {% endif %}
 
@@ -44,7 +44,7 @@
     <div id="gui-fields-container"
          data-gui-schemas='{{ gui_schemas_json }}'
          data-gui-fields='{{ gui_fields_json }}'
-         data-subtype-pk="{{ workout_form.instance.subtype_id|default:"" }}"></div>
+         data-subtype-value="{{ workout_form.instance.subtype|default:"" }}"></div>
   {% endif %}
 
   {% if gui_fields_display %}
