@@ -6,6 +6,10 @@
     "name": "Running",
     "parent_type": "aerobic",
     "gui_schema": {
+      "load_garmin": {
+        "type": "number",
+        "label": "Load (Garmin)"
+      },
       "avg_hr": {
         "type": "number",
         "label": "Avg HR"
@@ -52,6 +56,10 @@
     "name": "Cycling",
     "parent_type": "aerobic",
     "gui_schema": {
+      "load_garmin": {
+        "type": "number",
+        "label": "Load (Garmin)"
+      },
       "avg_hr": {
         "type": "number",
         "label": "Avg HR"
@@ -82,6 +90,10 @@
     "name": "Swimming",
     "parent_type": "aerobic",
     "gui_schema": {
+      "load_garmin": {
+        "type": "number",
+        "label": "Load (Garmin)"
+      },
       "avg_hr": {
         "type": "number",
         "label": "Avg HR"
@@ -116,6 +128,10 @@
     "name": "Skiing",
     "parent_type": "aerobic",
     "gui_schema": {
+      "load_garmin": {
+        "type": "number",
+        "label": "Load (Garmin)"
+      },
       "avg_hr": {
         "type": "number",
         "label": "Avg HR"
@@ -142,6 +158,10 @@
     "name": "Strength",
     "parent_type": "strength",
     "gui_schema": {
+      "load_garmin": {
+        "type": "number",
+        "label": "Load (Garmin)"
+      },
       "avg_hr": {
         "type": "number",
         "label": "Avg HR"
@@ -168,6 +188,10 @@
     "name": "Mobility",
     "parent_type": "generic",
     "gui_schema": {
+      "load_garmin": {
+        "type": "number",
+        "label": "Load (Garmin)"
+      },
       "avg_hr": {
         "type": "number",
         "label": "Avg HR"

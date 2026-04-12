@@ -266,7 +266,6 @@ class DetailBase(models.Model):
         validators=[GreaterThanDurationValidator(timedelta(seconds=0))],
     )
     additional_data = models.JSONField(default=dict, blank=True)
-    load = models.PositiveIntegerField(null=True, blank=True)
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)

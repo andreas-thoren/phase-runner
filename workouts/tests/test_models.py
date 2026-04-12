@@ -188,28 +188,24 @@ class WorkoutSubtypeTest(TestCase):
         with self.assertRaises(ValidationError):
             workout.full_clean()
 
-    def test_load_field_on_detail(self):
-        subtype = WorkoutSubtype.objects.create(name="Mobility", parent_type="generic")
+    def test_load_garmin_in_gui_fields(self):
+        subtype = WorkoutSubtype.objects.create(
+            name="Mobility",
+            parent_type="generic",
+            gui_schema={"load_garmin": {"type": "number", "label": "Load (Garmin)"}},
+        )
         workout = Workout.objects.create(
             user=self.user,
             name="Test",
             workout_type="generic",
             subtype=subtype,
         )
-        detail = GenericDetails.objects.create(workout=workout, load=75)
+        detail = GenericDetails.objects.create(
+            workout=workout,
+            additional_data={"gui_fields": {"load_garmin": 75}},
+        )
         detail.refresh_from_db()
-        self.assertEqual(detail.load, 75)
-
-    def test_load_negative_raises_on_detail(self):
-        subtype = WorkoutSubtype.objects.create(name="Mobility", parent_type="generic")
-        workout = Workout.objects.create(
-            user=self.user,
-            name="Test",
-            workout_type="generic",
-            subtype=subtype,
-        )
-        with self.assertRaises(ValidationError):
-            GenericDetails.objects.create(workout=workout, load=-1)
+        self.assertEqual(detail.additional_data["gui_fields"]["load_garmin"], 75)
 
     def test_gui_fields_subset_of_schema_is_valid(self):
         subtype = WorkoutSubtype.objects.create(

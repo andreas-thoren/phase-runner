@@ -59,7 +59,6 @@ class Command(BaseCommand):
                 workout=workout,
                 duration=timedelta(minutes=random.randint(10, 120)),
                 distance=random.randint(1000, 30000),
-                load=random.choice([None, random.randint(1, 100)]),
                 additional_data={"gui_fields": gui_fields} if gui_fields else {},
             )
 
@@ -80,7 +79,6 @@ class Command(BaseCommand):
                 duration=timedelta(minutes=random.randint(30, 90)),
                 num_sets=random.randint(5, 30),
                 total_weight=random.randint(500, 5000),
-                load=random.choice([None, random.randint(1, 100)]),
                 additional_data={"gui_fields": gui_fields} if gui_fields else {},
             )
 
@@ -98,7 +96,6 @@ class Command(BaseCommand):
             GenericDetails.objects.create(
                 workout=workout,
                 duration=timedelta(minutes=random.randint(15, 90)),
-                load=random.choice([None, random.randint(1, 100)]),
                 additional_data={"gui_fields": gui_fields} if gui_fields else {},
             )
 
@@ -108,7 +105,11 @@ class Command(BaseCommand):
             return {}
         fields = {}
         for key, schema in subtype.gui_schema.items():
-            if "pct" in key:
+            if key == "load_garmin":
+                if random.random() < 0.5:
+                    continue
+                fields[key] = random.randint(1, 100)
+            elif "pct" in key:
                 fields[key] = random.randint(0, 100)
             elif key == "rpe":
                 fields[key] = random.randint(1, 10)

@@ -1065,7 +1065,11 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
             subtype=cls.running,
             start_time=timezone.make_aware(timezone.datetime(2026, 1, 6, 8, 0)),
         )
-        AerobicDetails.objects.create(workout=cls.run1, distance=10000, load=100)
+        AerobicDetails.objects.create(
+            workout=cls.run1,
+            distance=10000,
+            additional_data={"gui_fields": {"load_garmin": 100}},
+        )
 
         cls.run2 = Workout.objects.create(
             user=cls.user,
@@ -1074,7 +1078,11 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
             subtype=cls.running,
             start_time=timezone.make_aware(timezone.datetime(2026, 1, 8, 8, 0)),
         )
-        AerobicDetails.objects.create(workout=cls.run2, distance=20000, load=130)
+        AerobicDetails.objects.create(
+            workout=cls.run2,
+            distance=20000,
+            additional_data={"gui_fields": {"load_garmin": 130}},
+        )
 
         cls.cross = Workout.objects.create(
             user=cls.user,

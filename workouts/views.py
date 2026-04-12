@@ -693,7 +693,10 @@ def _aggregate_workouts(
 
         actuals = result[micro_pk]
         detail = w.get_detail()
-        load = detail.load if detail and detail.load else 0
+        load = 0
+        if detail:
+            gui = (detail.additional_data or {}).get("gui_fields", {})
+            load = gui.get("load_garmin", 0) or 0
 
         actuals["total_load"] += load
 

@@ -95,23 +95,23 @@ class AerobicDetailsForm(KmFormMixin, ReadOnlyFormMixin, forms.ModelForm):
 
     class Meta:
         model = AerobicDetails
-        fields = ("duration", "distance", "load")
+        fields = ("duration", "distance")
 
 
 class StrengthDetailsForm(ReadOnlyFormMixin, forms.ModelForm):
-    """Strength detail form (duration, sets, weight, load)."""
+    """Strength detail form (duration, sets, weight)."""
 
     class Meta:
         model = StrengthDetails
-        fields = ("duration", "num_sets", "total_weight", "load")
+        fields = ("duration", "num_sets", "total_weight")
 
 
 class GenericDetailsForm(ReadOnlyFormMixin, forms.ModelForm):
-    """Generic detail form (duration and load only)."""
+    """Generic detail form (duration only)."""
 
     class Meta:
         model = GenericDetails
-        fields = ("duration", "load")
+        fields = ("duration",)
 
 
 DETAIL_FORMS: dict[WorkoutType, type[forms.ModelForm]] = {
