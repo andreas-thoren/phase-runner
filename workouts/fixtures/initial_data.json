@@ -4,49 +4,7 @@
   "fields": {
     "slug": "running",
     "name": "Running",
-    "parent_type": "aerobic",
-    "gui_schema": {
-      "load_garmin": {
-        "type": "number",
-        "label": "Load (Garmin)"
-      },
-      "avg_hr": {
-        "type": "number",
-        "label": "Avg HR"
-      },
-      "max_hr": {
-        "type": "number",
-        "label": "Max HR"
-      },
-      "cadence": {
-        "type": "number",
-        "label": "Cadence"
-      },
-      "z1_pct": {
-        "type": "number",
-        "label": "Zone 1 %"
-      },
-      "z2_pct": {
-        "type": "number",
-        "label": "Zone 2 %"
-      },
-      "z3_pct": {
-        "type": "number",
-        "label": "Zone 3 %"
-      },
-      "z4_pct": {
-        "type": "number",
-        "label": "Zone 4 %"
-      },
-      "z5_pct": {
-        "type": "number",
-        "label": "Zone 5 %"
-      },
-      "rpe": {
-        "type": "number",
-        "label": "RPE"
-      }
-    }
+    "parent_type": "aerobic"
   }
 },
 {
@@ -54,33 +12,7 @@
   "fields": {
     "slug": "cycling",
     "name": "Cycling",
-    "parent_type": "aerobic",
-    "gui_schema": {
-      "load_garmin": {
-        "type": "number",
-        "label": "Load (Garmin)"
-      },
-      "avg_hr": {
-        "type": "number",
-        "label": "Avg HR"
-      },
-      "max_hr": {
-        "type": "number",
-        "label": "Max HR"
-      },
-      "cadence": {
-        "type": "number",
-        "label": "Cadence"
-      },
-      "avg_power": {
-        "type": "number",
-        "label": "Avg Power (W)"
-      },
-      "rpe": {
-        "type": "number",
-        "label": "RPE"
-      }
-    }
+    "parent_type": "aerobic"
   }
 },
 {
@@ -88,37 +20,7 @@
   "fields": {
     "slug": "swimming",
     "name": "Swimming",
-    "parent_type": "aerobic",
-    "gui_schema": {
-      "load_garmin": {
-        "type": "number",
-        "label": "Load (Garmin)"
-      },
-      "avg_hr": {
-        "type": "number",
-        "label": "Avg HR"
-      },
-      "max_hr": {
-        "type": "number",
-        "label": "Max HR"
-      },
-      "stroke_rate": {
-        "type": "number",
-        "label": "Stroke Rate"
-      },
-      "laps": {
-        "type": "number",
-        "label": "Laps"
-      },
-      "pool_length_m": {
-        "type": "number",
-        "label": "Pool Length (m)"
-      },
-      "rpe": {
-        "type": "number",
-        "label": "RPE"
-      }
-    }
+    "parent_type": "aerobic"
   }
 },
 {
@@ -126,29 +28,7 @@
   "fields": {
     "slug": "skiing",
     "name": "Skiing",
-    "parent_type": "aerobic",
-    "gui_schema": {
-      "load_garmin": {
-        "type": "number",
-        "label": "Load (Garmin)"
-      },
-      "avg_hr": {
-        "type": "number",
-        "label": "Avg HR"
-      },
-      "max_hr": {
-        "type": "number",
-        "label": "Max HR"
-      },
-      "elevation_m": {
-        "type": "number",
-        "label": "Elevation (m)"
-      },
-      "rpe": {
-        "type": "number",
-        "label": "RPE"
-      }
-    }
+    "parent_type": "aerobic"
   }
 },
 {
@@ -156,29 +36,7 @@
   "fields": {
     "slug": "strength",
     "name": "Strength",
-    "parent_type": "strength",
-    "gui_schema": {
-      "load_garmin": {
-        "type": "number",
-        "label": "Load (Garmin)"
-      },
-      "avg_hr": {
-        "type": "number",
-        "label": "Avg HR"
-      },
-      "max_hr": {
-        "type": "number",
-        "label": "Max HR"
-      },
-      "exercises": {
-        "type": "number",
-        "label": "Exercises"
-      },
-      "rpe": {
-        "type": "number",
-        "label": "RPE"
-      }
-    }
+    "parent_type": "strength"
   }
 },
 {
@@ -186,25 +44,7 @@
   "fields": {
     "slug": "mobility",
     "name": "Mobility",
-    "parent_type": "generic",
-    "gui_schema": {
-      "load_garmin": {
-        "type": "number",
-        "label": "Load (Garmin)"
-      },
-      "avg_hr": {
-        "type": "number",
-        "label": "Avg HR"
-      },
-      "max_hr": {
-        "type": "number",
-        "label": "Max HR"
-      },
-      "rpe": {
-        "type": "number",
-        "label": "RPE"
-      }
-    }
+    "parent_type": "generic"
   }
 }
 ]

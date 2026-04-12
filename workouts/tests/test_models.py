@@ -164,7 +164,6 @@ class WorkoutSubtypeTest(TestCase):
         subtype = WorkoutSubtype.objects.create(
             name="Running",
             parent_type="aerobic",
-            gui_schema={"rpe": {"type": "number"}},
         )
         self.assertEqual(str(subtype), "Running (aerobic)")
 
@@ -192,7 +191,6 @@ class WorkoutSubtypeTest(TestCase):
         subtype = WorkoutSubtype.objects.create(
             name="Mobility",
             parent_type="generic",
-            gui_schema={"load_garmin": {"type": "number", "label": "Load (Garmin)"}},
         )
         workout = Workout.objects.create(
             user=self.user,
@@ -211,7 +209,6 @@ class WorkoutSubtypeTest(TestCase):
         subtype = WorkoutSubtype.objects.create(
             name="Running",
             parent_type="aerobic",
-            gui_schema={"rpe": {"type": "number"}, "z1_pct": {"type": "number"}},
         )
         workout = Workout.objects.create(
             user=self.user, name="Run", workout_type="aerobic", subtype=subtype
@@ -225,7 +222,6 @@ class WorkoutSubtypeTest(TestCase):
         subtype = WorkoutSubtype.objects.create(
             name="Running",
             parent_type="aerobic",
-            gui_schema={"rpe": {"type": "number"}},
         )
         workout = Workout.objects.create(
             user=self.user, name="Run", workout_type="aerobic", subtype=subtype
@@ -240,7 +236,6 @@ class WorkoutSubtypeTest(TestCase):
         subtype = WorkoutSubtype.objects.create(
             name="Running",
             parent_type="aerobic",
-            gui_schema={"rpe": {"type": "number"}},
         )
         workout = Workout.objects.create(
             user=self.user, name="Run", workout_type="aerobic", subtype=subtype

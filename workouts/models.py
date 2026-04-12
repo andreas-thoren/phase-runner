@@ -143,8 +143,61 @@ class WorkoutSubtypeManager(models.Manager):
         return self.get(name=name, parent_type=parent_type)
 
 
+GUI_SCHEMAS: dict[str, dict] = {
+    "running": {
+        "load_garmin": {"type": "number", "label": "Load (Garmin)"},
+        "avg_hr": {"type": "number", "label": "Avg HR"},
+        "max_hr": {"type": "number", "label": "Max HR"},
+        "cadence": {"type": "number", "label": "Cadence"},
+        "z1_pct": {"type": "number", "label": "Zone 1 %"},
+        "z2_pct": {"type": "number", "label": "Zone 2 %"},
+        "z3_pct": {"type": "number", "label": "Zone 3 %"},
+        "z4_pct": {"type": "number", "label": "Zone 4 %"},
+        "z5_pct": {"type": "number", "label": "Zone 5 %"},
+        "rpe": {"type": "number", "label": "RPE"},
+    },
+    "cycling": {
+        "load_garmin": {"type": "number", "label": "Load (Garmin)"},
+        "avg_hr": {"type": "number", "label": "Avg HR"},
+        "max_hr": {"type": "number", "label": "Max HR"},
+        "cadence": {"type": "number", "label": "Cadence"},
+        "avg_power": {"type": "number", "label": "Avg Power (W)"},
+        "rpe": {"type": "number", "label": "RPE"},
+    },
+    "swimming": {
+        "load_garmin": {"type": "number", "label": "Load (Garmin)"},
+        "avg_hr": {"type": "number", "label": "Avg HR"},
+        "max_hr": {"type": "number", "label": "Max HR"},
+        "stroke_rate": {"type": "number", "label": "Stroke Rate"},
+        "laps": {"type": "number", "label": "Laps"},
+        "pool_length_m": {"type": "number", "label": "Pool Length (m)"},
+        "rpe": {"type": "number", "label": "RPE"},
+    },
+    "skiing": {
+        "load_garmin": {"type": "number", "label": "Load (Garmin)"},
+        "avg_hr": {"type": "number", "label": "Avg HR"},
+        "max_hr": {"type": "number", "label": "Max HR"},
+        "elevation_m": {"type": "number", "label": "Elevation (m)"},
+        "rpe": {"type": "number", "label": "RPE"},
+    },
+    "strength": {
+        "load_garmin": {"type": "number", "label": "Load (Garmin)"},
+        "avg_hr": {"type": "number", "label": "Avg HR"},
+        "max_hr": {"type": "number", "label": "Max HR"},
+        "exercises": {"type": "number", "label": "Exercises"},
+        "rpe": {"type": "number", "label": "RPE"},
+    },
+    "mobility": {
+        "load_garmin": {"type": "number", "label": "Load (Garmin)"},
+        "avg_hr": {"type": "number", "label": "Avg HR"},
+        "max_hr": {"type": "number", "label": "Max HR"},
+        "rpe": {"type": "number", "label": "RPE"},
+    },
+}
+
+
 class WorkoutSubtype(SlugFieldMixin, models.Model):
-    """Named activity subtype (e.g. Running, Cycling) with a JSON-defined UI schema."""
+    """Named activity subtype (e.g. Running, Cycling)."""
 
     objects = WorkoutSubtypeManager()
 
@@ -153,11 +206,10 @@ class WorkoutSubtype(SlugFieldMixin, models.Model):
         max_length=20,
         choices=WorkoutType.choices(),
     )
-    gui_schema = models.JSONField(
-        default=dict,
-        blank=True,
-        help_text="Defines UI inputs (e.g., {'z1_pct': {'type': 'number', 'label': 'Zone 1 %'}})",
-    )
+
+    @property
+    def gui_schema(self) -> dict:
+        return GUI_SCHEMAS.get(self.slug, {})
 
     def natural_key(self) -> tuple[str, str]:
         return (self.name, self.parent_type)
