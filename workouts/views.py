@@ -78,6 +78,7 @@ from typing import Any
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth import views as auth_views
+from django.core.cache import cache
 from django import forms
 from django.db import transaction
 from django.db.models import QuerySet
@@ -291,6 +292,26 @@ class BaseWorkoutListView(LoginRequiredMixin, NoCacheMixin, PaginationMixin, Lis
         context["filter_querystring"] = qs
         context["page_prefix"] = f"{qs}&" if qs else ""
         return context
+
+
+class PasswordResetView(auth_views.PasswordResetView):
+    """Rate-limited password reset — max 3 requests/hour per IP."""
+
+    RATE_LIMIT = 3
+    COOLOFF_SECONDS = 3600
+
+    def form_valid(self, form: forms.Form) -> HttpResponse:
+        ip = self.request.META.get("REMOTE_ADDR", "")
+        cache_key = f"password_reset_{ip}"
+        attempts = cache.get(cache_key, 0)
+        if attempts >= self.RATE_LIMIT:
+            messages.error(
+                self.request,
+                "Too many password reset requests. Please try again later.",
+            )
+            return redirect("password_reset")
+        cache.set(cache_key, attempts + 1, self.COOLOFF_SECONDS)
+        return super().form_valid(form)
 
 
 class LoginView(auth_views.LoginView):

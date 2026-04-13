@@ -1270,6 +1270,38 @@ class IndexViewTest(AuthenticatedTestMixin, TestCase):
         self.assertRedirects(response, reverse("workouts:macrocycle_list"))
 
 
+@override_settings(
+    CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+)
+class PasswordResetRateLimitTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        User = get_user_model()
+        cls.user = User.objects.create_user(
+            username="testuser", email="reset@example.com", password="testpassword"
+        )
+        cls.url = reverse("password_reset")
+
+    def setUp(self):
+        from django.core.cache import cache
+
+        cache.clear()
+
+    def test_requests_within_limit_succeed(self):
+        for _ in range(3):
+            response = self.client.post(self.url, {"email": "reset@example.com"})
+            self.assertRedirects(response, reverse("password_reset_done"))
+
+    def test_request_over_limit_blocked(self):
+        for _ in range(3):
+            self.client.post(self.url, {"email": "reset@example.com"})
+        response = self.client.post(
+            self.url, {"email": "reset@example.com"}, follow=True
+        )
+        msgs = list(response.context["messages"])
+        self.assertTrue(any("Too many password reset requests" in str(m) for m in msgs))
+
+
 @override_settings(AXES_FAILURE_LIMIT=3, AXES_COOLOFF_TIME=1)
 class LoginRateLimitTest(TestCase):
     @classmethod

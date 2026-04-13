@@ -20,7 +20,7 @@ from django.contrib.auth import views as auth_views
 from django.http import HttpResponse
 from django.urls import path, include
 
-from workouts.views import LoginView
+from workouts.views import LoginView, PasswordResetView
 
 urlpatterns = [
     path("healthcheck/", lambda request: HttpResponse("ok")),
@@ -28,7 +28,7 @@ urlpatterns = [
     path("logout/", auth_views.LogoutView.as_view(), name="logout"),
     path(
         "password-reset/",
-        auth_views.PasswordResetView.as_view(),
+        PasswordResetView.as_view(),
         name="password_reset",
     ),
     path(

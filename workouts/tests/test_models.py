@@ -19,7 +19,6 @@ from workouts.models import (
     Microcycle,
 )
 
-
 User = get_user_model()
 
 

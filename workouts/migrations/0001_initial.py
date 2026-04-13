@@ -16,152 +16,486 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('auth', '0012_alter_user_first_name_max_length'),
+        ("auth", "0012_alter_user_first_name_max_length"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='User',
+            name="User",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('password', models.CharField(max_length=128, verbose_name='password')),
-                ('last_login', models.DateTimeField(blank=True, null=True, verbose_name='last login')),
-                ('is_superuser', models.BooleanField(default=False, help_text='Designates that this user has all permissions without explicitly assigning them.', verbose_name='superuser status')),
-                ('username', models.CharField(error_messages={'unique': 'A user with that username already exists.'}, help_text='Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.', max_length=150, unique=True, validators=[django.contrib.auth.validators.UnicodeUsernameValidator()], verbose_name='username')),
-                ('first_name', models.CharField(blank=True, max_length=150, verbose_name='first name')),
-                ('last_name', models.CharField(blank=True, max_length=150, verbose_name='last name')),
-                ('is_staff', models.BooleanField(default=False, help_text='Designates whether the user can log into this admin site.', verbose_name='staff status')),
-                ('is_active', models.BooleanField(default=True, help_text='Designates whether this user should be treated as active. Unselect this instead of deleting accounts.', verbose_name='active')),
-                ('date_joined', models.DateTimeField(default=django.utils.timezone.now, verbose_name='date joined')),
-                ('email', models.EmailField(max_length=254, unique=True)),
-                ('groups', models.ManyToManyField(blank=True, help_text='The groups this user belongs to. A user will get all permissions granted to each of their groups.', related_name='user_set', related_query_name='user', to='auth.group', verbose_name='groups')),
-                ('user_permissions', models.ManyToManyField(blank=True, help_text='Specific permissions for this user.', related_name='user_set', related_query_name='user', to='auth.permission', verbose_name='user permissions')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("password", models.CharField(max_length=128, verbose_name="password")),
+                (
+                    "last_login",
+                    models.DateTimeField(
+                        blank=True, null=True, verbose_name="last login"
+                    ),
+                ),
+                (
+                    "is_superuser",
+                    models.BooleanField(
+                        default=False,
+                        help_text="Designates that this user has all permissions without explicitly assigning them.",
+                        verbose_name="superuser status",
+                    ),
+                ),
+                (
+                    "username",
+                    models.CharField(
+                        error_messages={
+                            "unique": "A user with that username already exists."
+                        },
+                        help_text="Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.",
+                        max_length=150,
+                        unique=True,
+                        validators=[
+                            django.contrib.auth.validators.UnicodeUsernameValidator()
+                        ],
+                        verbose_name="username",
+                    ),
+                ),
+                (
+                    "first_name",
+                    models.CharField(
+                        blank=True, max_length=150, verbose_name="first name"
+                    ),
+                ),
+                (
+                    "last_name",
+                    models.CharField(
+                        blank=True, max_length=150, verbose_name="last name"
+                    ),
+                ),
+                (
+                    "is_staff",
+                    models.BooleanField(
+                        default=False,
+                        help_text="Designates whether the user can log into this admin site.",
+                        verbose_name="staff status",
+                    ),
+                ),
+                (
+                    "is_active",
+                    models.BooleanField(
+                        default=True,
+                        help_text="Designates whether this user should be treated as active. Unselect this instead of deleting accounts.",
+                        verbose_name="active",
+                    ),
+                ),
+                (
+                    "date_joined",
+                    models.DateTimeField(
+                        default=django.utils.timezone.now, verbose_name="date joined"
+                    ),
+                ),
+                ("email", models.EmailField(max_length=254, unique=True)),
+                (
+                    "groups",
+                    models.ManyToManyField(
+                        blank=True,
+                        help_text="The groups this user belongs to. A user will get all permissions granted to each of their groups.",
+                        related_name="user_set",
+                        related_query_name="user",
+                        to="auth.group",
+                        verbose_name="groups",
+                    ),
+                ),
+                (
+                    "user_permissions",
+                    models.ManyToManyField(
+                        blank=True,
+                        help_text="Specific permissions for this user.",
+                        related_name="user_set",
+                        related_query_name="user",
+                        to="auth.permission",
+                        verbose_name="user permissions",
+                    ),
+                ),
             ],
             options={
-                'verbose_name': 'user',
-                'verbose_name_plural': 'users',
-                'abstract': False,
+                "verbose_name": "user",
+                "verbose_name_plural": "users",
+                "abstract": False,
             },
             managers=[
-                ('objects', django.contrib.auth.models.UserManager()),
+                ("objects", django.contrib.auth.models.UserManager()),
             ],
         ),
         migrations.CreateModel(
-            name='Workout',
+            name="Workout",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255)),
-                ('start_time', models.DateTimeField(default=django.utils.timezone.now)),
-                ('description', models.CharField(blank=True, default='', max_length=255)),
-                ('workout_status', models.CharField(choices=[('planned', 'Planned'), ('completed', 'Completed'), ('cancelled', 'Cancelled'), ('postponed', 'Postponed')], default=workouts.enums.WorkoutStatus['PLANNED'], max_length=20)),
-                ('subtype', models.CharField(choices=[('running', 'Running'), ('cycling', 'Cycling'), ('swimming', 'Swimming'), ('skiing', 'Skiing'), ('strength', 'Strength'), ('mobility', 'Mobility')], max_length=30)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=255)),
+                ("start_time", models.DateTimeField(default=django.utils.timezone.now)),
+                (
+                    "description",
+                    models.CharField(blank=True, default="", max_length=255),
+                ),
+                (
+                    "workout_status",
+                    models.CharField(
+                        choices=[
+                            ("planned", "Planned"),
+                            ("completed", "Completed"),
+                            ("cancelled", "Cancelled"),
+                            ("postponed", "Postponed"),
+                        ],
+                        default=workouts.enums.WorkoutStatus["PLANNED"],
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "subtype",
+                    models.CharField(
+                        choices=[
+                            ("running", "Running"),
+                            ("cycling", "Cycling"),
+                            ("swimming", "Swimming"),
+                            ("skiing", "Skiing"),
+                            ("strength", "Strength"),
+                            ("mobility", "Mobility"),
+                        ],
+                        max_length=30,
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='AerobicDetails',
+            name="AerobicDetails",
             fields=[
-                ('duration', models.DurationField(blank=True, null=True, validators=[workouts.utils.GreaterThanDurationValidator(datetime.timedelta(0), message='Duration must be greater than 0:00:00.')])),
-                ('additional_data', models.JSONField(blank=True, default=dict)),
-                ('workout', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, primary_key=True, related_name='aerobic_details', serialize=False, to='workouts.workout')),
-                ('distance', models.PositiveIntegerField(blank=True, help_text='Distance in meters.', null=True)),
+                (
+                    "duration",
+                    models.DurationField(
+                        blank=True,
+                        null=True,
+                        validators=[
+                            workouts.utils.GreaterThanDurationValidator(
+                                datetime.timedelta(0),
+                                message="Duration must be greater than 0:00:00.",
+                            )
+                        ],
+                    ),
+                ),
+                ("additional_data", models.JSONField(blank=True, default=dict)),
+                (
+                    "workout",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        primary_key=True,
+                        related_name="aerobic_details",
+                        serialize=False,
+                        to="workouts.workout",
+                    ),
+                ),
+                (
+                    "distance",
+                    models.PositiveIntegerField(
+                        blank=True, help_text="Distance in meters.", null=True
+                    ),
+                ),
             ],
             options={
-                'verbose_name_plural': 'Aerobic details',
+                "verbose_name_plural": "Aerobic details",
             },
         ),
         migrations.CreateModel(
-            name='GenericDetails',
+            name="GenericDetails",
             fields=[
-                ('duration', models.DurationField(blank=True, null=True, validators=[workouts.utils.GreaterThanDurationValidator(datetime.timedelta(0), message='Duration must be greater than 0:00:00.')])),
-                ('additional_data', models.JSONField(blank=True, default=dict)),
-                ('workout', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, primary_key=True, related_name='generic_details', serialize=False, to='workouts.workout')),
+                (
+                    "duration",
+                    models.DurationField(
+                        blank=True,
+                        null=True,
+                        validators=[
+                            workouts.utils.GreaterThanDurationValidator(
+                                datetime.timedelta(0),
+                                message="Duration must be greater than 0:00:00.",
+                            )
+                        ],
+                    ),
+                ),
+                ("additional_data", models.JSONField(blank=True, default=dict)),
+                (
+                    "workout",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        primary_key=True,
+                        related_name="generic_details",
+                        serialize=False,
+                        to="workouts.workout",
+                    ),
+                ),
             ],
             options={
-                'verbose_name_plural': 'Generic details',
+                "verbose_name_plural": "Generic details",
             },
         ),
         migrations.CreateModel(
-            name='StrengthDetails',
+            name="StrengthDetails",
             fields=[
-                ('duration', models.DurationField(blank=True, null=True, validators=[workouts.utils.GreaterThanDurationValidator(datetime.timedelta(0), message='Duration must be greater than 0:00:00.')])),
-                ('additional_data', models.JSONField(blank=True, default=dict)),
-                ('workout', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, primary_key=True, related_name='strength_details', serialize=False, to='workouts.workout')),
-                ('num_sets', models.PositiveIntegerField(blank=True, null=True)),
-                ('total_weight', models.PositiveIntegerField(blank=True, help_text='Total weight in kg.', null=True)),
+                (
+                    "duration",
+                    models.DurationField(
+                        blank=True,
+                        null=True,
+                        validators=[
+                            workouts.utils.GreaterThanDurationValidator(
+                                datetime.timedelta(0),
+                                message="Duration must be greater than 0:00:00.",
+                            )
+                        ],
+                    ),
+                ),
+                ("additional_data", models.JSONField(blank=True, default=dict)),
+                (
+                    "workout",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        primary_key=True,
+                        related_name="strength_details",
+                        serialize=False,
+                        to="workouts.workout",
+                    ),
+                ),
+                ("num_sets", models.PositiveIntegerField(blank=True, null=True)),
+                (
+                    "total_weight",
+                    models.PositiveIntegerField(
+                        blank=True, help_text="Total weight in kg.", null=True
+                    ),
+                ),
             ],
             options={
-                'verbose_name_plural': 'Strength details',
+                "verbose_name_plural": "Strength details",
             },
         ),
         migrations.CreateModel(
-            name='Macrocycle',
+            name="Macrocycle",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255)),
-                ('start_date', models.DateField()),
-                ('description', models.CharField(blank=True, default='', max_length=255)),
-                ('primary_sport', models.CharField(choices=[('running', 'Running'), ('cycling', 'Cycling'), ('swimming', 'Swimming'), ('skiing', 'Skiing')], default=workouts.enums.WorkoutSubtype['RUNNING'], max_length=30)),
-                ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=255)),
+                ("start_date", models.DateField()),
+                (
+                    "description",
+                    models.CharField(blank=True, default="", max_length=255),
+                ),
+                (
+                    "primary_sport",
+                    models.CharField(
+                        choices=[
+                            ("running", "Running"),
+                            ("cycling", "Cycling"),
+                            ("swimming", "Swimming"),
+                            ("skiing", "Skiing"),
+                        ],
+                        default=workouts.enums.WorkoutSubtype["RUNNING"],
+                        max_length=30,
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
         ),
         migrations.CreateModel(
-            name='Mesocycle',
+            name="Mesocycle",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('order', models.PositiveSmallIntegerField(editable=False)),
-                ('meso_type', models.CharField(choices=[('base', 'Base'), ('prep', 'Prep'), ('build', 'Build'), ('sharpen', 'Sharpen'), ('specific', 'Specific'), ('peak', 'Peak'), ('transition', 'Transition')], max_length=20)),
-                ('comment', models.CharField(blank=True, default='', max_length=255)),
-                ('macrocycle', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='mesocycles', to='workouts.macrocycle')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("order", models.PositiveSmallIntegerField(editable=False)),
+                (
+                    "meso_type",
+                    models.CharField(
+                        choices=[
+                            ("base", "Base"),
+                            ("prep", "Prep"),
+                            ("build", "Build"),
+                            ("sharpen", "Sharpen"),
+                            ("specific", "Specific"),
+                            ("peak", "Peak"),
+                            ("transition", "Transition"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                ("comment", models.CharField(blank=True, default="", max_length=255)),
+                (
+                    "macrocycle",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="mesocycles",
+                        to="workouts.macrocycle",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['macrocycle', 'order'],
+                "ordering": ["macrocycle", "order"],
             },
         ),
         migrations.CreateModel(
-            name='Microcycle',
+            name="Microcycle",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('order', models.PositiveSmallIntegerField(editable=False)),
-                ('duration_days', models.PositiveSmallIntegerField(default=7)),
-                ('micro_type', models.CharField(choices=[('intro', 'Intro'), ('load', 'Load'), ('overload', 'Overload'), ('consolidate', 'Consolidate'), ('deload', 'Deload'), ('taper', 'Taper'), ('race', 'Race')], default=workouts.enums.MicrocycleType['LOAD'], max_length=20)),
-                ('comment', models.CharField(blank=True, default='', max_length=255)),
-                ('planned_sessions', models.PositiveIntegerField(blank=True, null=True)),
-                ('planned_distance', models.PositiveIntegerField(blank=True, help_text='Total planned distance in meters.', null=True)),
-                ('planned_long_distance', models.PositiveIntegerField(blank=True, help_text='Planned long session distance in meters.', null=True)),
-                ('planned_strength_sessions', models.PositiveIntegerField(blank=True, null=True)),
-                ('planned_cross_sessions', models.PositiveIntegerField(blank=True, null=True)),
-                ('mesocycle', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='microcycles', to='workouts.mesocycle')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("order", models.PositiveSmallIntegerField(editable=False)),
+                ("duration_days", models.PositiveSmallIntegerField(default=7)),
+                (
+                    "micro_type",
+                    models.CharField(
+                        choices=[
+                            ("intro", "Intro"),
+                            ("load", "Load"),
+                            ("overload", "Overload"),
+                            ("consolidate", "Consolidate"),
+                            ("deload", "Deload"),
+                            ("taper", "Taper"),
+                            ("race", "Race"),
+                        ],
+                        default=workouts.enums.MicrocycleType["LOAD"],
+                        max_length=20,
+                    ),
+                ),
+                ("comment", models.CharField(blank=True, default="", max_length=255)),
+                (
+                    "planned_sessions",
+                    models.PositiveIntegerField(blank=True, null=True),
+                ),
+                (
+                    "planned_distance",
+                    models.PositiveIntegerField(
+                        blank=True,
+                        help_text="Total planned distance in meters.",
+                        null=True,
+                    ),
+                ),
+                (
+                    "planned_long_distance",
+                    models.PositiveIntegerField(
+                        blank=True,
+                        help_text="Planned long session distance in meters.",
+                        null=True,
+                    ),
+                ),
+                (
+                    "planned_strength_sessions",
+                    models.PositiveIntegerField(blank=True, null=True),
+                ),
+                (
+                    "planned_cross_sessions",
+                    models.PositiveIntegerField(blank=True, null=True),
+                ),
+                (
+                    "mesocycle",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="microcycles",
+                        to="workouts.mesocycle",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['mesocycle', 'order'],
+                "ordering": ["mesocycle", "order"],
             },
         ),
         migrations.CreateModel(
-            name='ActiveMacrocycle',
+            name="ActiveMacrocycle",
             fields=[
-                ('user', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, primary_key=True, serialize=False, to=settings.AUTH_USER_MODEL)),
-                ('macrocycle', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='workouts.macrocycle')),
+                (
+                    "user",
+                    models.OneToOneField(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        primary_key=True,
+                        serialize=False,
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
+                (
+                    "macrocycle",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="workouts.macrocycle",
+                    ),
+                ),
             ],
         ),
         migrations.AddConstraint(
-            model_name='user',
-            constraint=models.CheckConstraint(condition=models.Q(('email', ''), _negated=True), name='user_email_required'),
+            model_name="user",
+            constraint=models.CheckConstraint(
+                condition=models.Q(("email", ""), _negated=True),
+                name="user_email_required",
+            ),
         ),
         migrations.AddIndex(
-            model_name='workout',
-            index=models.Index(fields=['user', '-start_time'], name='wrk_user_time_idx'),
+            model_name="workout",
+            index=models.Index(
+                fields=["user", "-start_time"], name="wrk_user_time_idx"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='macrocycle',
-            constraint=models.UniqueConstraint(fields=('user', 'name'), name='uq_macro_user_name'),
+            model_name="macrocycle",
+            constraint=models.UniqueConstraint(
+                fields=("user", "name"), name="uq_macro_user_name"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='mesocycle',
-            constraint=models.UniqueConstraint(fields=('macrocycle', 'order'), name='uq_meso_order'),
+            model_name="mesocycle",
+            constraint=models.UniqueConstraint(
+                fields=("macrocycle", "order"), name="uq_meso_order"
+            ),
         ),
         migrations.AddConstraint(
-            model_name='microcycle',
-            constraint=models.UniqueConstraint(fields=('mesocycle', 'order'), name='uq_micro_order'),
+            model_name="microcycle",
+            constraint=models.UniqueConstraint(
+                fields=("mesocycle", "order"), name="uq_micro_order"
+            ),
         ),
     ]
