@@ -20,6 +20,24 @@ from workouts.models import (
 )
 
 
+User = get_user_model()
+
+
+class UserModelTest(TestCase):
+    def test_create_without_email_rejected(self):
+        with self.assertRaises(IntegrityError):
+            User.objects.create_user(username="nomail", password="testpass")
+
+    def test_duplicate_email_rejected(self):
+        User.objects.create_user(
+            username="user1", email="same@example.com", password="testpass"
+        )
+        with self.assertRaises(IntegrityError):
+            User.objects.create_user(
+                username="user2", email="same@example.com", password="testpass"
+            )
+
+
 class WorkoutModelTest(TestCase):
     def setUp(self):
         User = get_user_model()
@@ -214,7 +232,7 @@ class MacrocycleTest(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = get_user_model().objects.create_user(
-            username="testuser", password="testpass"
+            username="testuser", email="test@example.com", password="testpass"
         )
 
     def test_create_macrocycle(self):
@@ -244,7 +262,7 @@ class MesocycleTest(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = get_user_model().objects.create_user(
-            username="testuser", password="testpass"
+            username="testuser", email="test@example.com", password="testpass"
         )
 
     def setUp(self):
@@ -301,7 +319,7 @@ class MicrocycleTest(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = get_user_model().objects.create_user(
-            username="testuser", password="testpass"
+            username="testuser", email="test@example.com", password="testpass"
         )
 
     def setUp(self):
@@ -375,7 +393,7 @@ class HydrationTest(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = get_user_model().objects.create_user(
-            username="testuser", password="testpass"
+            username="testuser", email="test@example.com", password="testpass"
         )
 
     def setUp(self):
@@ -448,7 +466,7 @@ class OrderMixinTest(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = get_user_model().objects.create_user(
-            username="testuser", password="testpass"
+            username="testuser", email="test@example.com", password="testpass"
         )
 
     def setUp(self):
@@ -525,7 +543,7 @@ class CreateDefaultCyclesTest(TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = get_user_model().objects.create_user(
-            username="testuser", password="testpass"
+            username="testuser", email="test@example.com", password="testpass"
         )
 
     def _macro(self, name: str = "Test") -> Macrocycle:
@@ -714,7 +732,9 @@ class CreateCyclesFormTest(TestCase):
 class ActiveMacrocycleTest(TestCase):
     def setUp(self):
         User = get_user_model()
-        self.user = User.objects.create_user(username="runner", password="test")
+        self.user = User.objects.create_user(
+            username="runner", email="runner@example.com", password="test"
+        )
         self.macro = Macrocycle.objects.create(
             user=self.user, name="Plan A", start_date=date(2026, 1, 1)
         )

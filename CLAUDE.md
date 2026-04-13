@@ -70,6 +70,7 @@ Single Django app (`workouts`) with one `Workout` model and optional detail mode
 
 ### Authentication
 
+- **Custom User model** (`workouts.User`, extends `AbstractUser`): email is unique and required (`blank=False, unique=True`). Set via `AUTH_USER_MODEL = "workouts.User"`. Always use `get_user_model()` to reference the User model.
 - **Django built-in auth** with `LoginRequiredMixin` on every view. Anonymous users are redirected to `/login/`.
 - **Invite-only**: no self-registration. Admin creates users via `/admin/`. Self-registration can be added later.
 - **Password reset**: Django's built-in 4-view flow (`/password-reset/` → email → `/reset/<uidb64>/<token>/` → done). Console email backend for dev (`EMAIL_BACKEND` in settings); swap to SMTP for production.

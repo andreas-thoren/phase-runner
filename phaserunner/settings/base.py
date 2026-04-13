@@ -100,6 +100,7 @@ STATICFILES_DIRS = [BASE_DIR / "static"]
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Authentication
+AUTH_USER_MODEL = "workouts.User"
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "workouts:index"
 LOGOUT_REDIRECT_URL = "login"

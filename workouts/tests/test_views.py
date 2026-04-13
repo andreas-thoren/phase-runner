@@ -412,7 +412,7 @@ class MacrocycleDetailMesocycleListTest(AuthenticatedTestMixin, TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = get_user_model().objects.create_user(
-            username="testuser", password="testpass"
+            username="testuser", email="test@example.com", password="testpass"
         )
         cls.macro = Macrocycle.objects.create(
             user=cls.user, name="Test Plan", start_date=date(2026, 1, 1)
@@ -457,7 +457,7 @@ class MacrocycleCreateDefaultCyclesViewTest(AuthenticatedTestMixin, TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = get_user_model().objects.create_user(
-            username="testuser", password="testpass"
+            username="testuser", email="test@example.com", password="testpass"
         )
         cls.macro = Macrocycle.objects.create(
             user=cls.user,
@@ -569,7 +569,7 @@ class MesocycleDetailMicrocycleListTest(AuthenticatedTestMixin, TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = get_user_model().objects.create_user(
-            username="testuser", password="testpass"
+            username="testuser", email="test@example.com", password="testpass"
         )
         cls.macro = Macrocycle.objects.create(
             user=cls.user, name="Test Plan", start_date=date(2026, 1, 1)
@@ -613,7 +613,7 @@ class MesocycleViewTest(AuthenticatedTestMixin, TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = get_user_model().objects.create_user(
-            username="testuser", password="testpass"
+            username="testuser", email="test@example.com", password="testpass"
         )
         cls.macro = Macrocycle.objects.create(
             user=cls.user, name="Test Plan", start_date=date(2026, 1, 1)
@@ -756,7 +756,7 @@ class MicrocycleViewTest(AuthenticatedTestMixin, TestCase):
     @classmethod
     def setUpTestData(cls):
         cls.user = get_user_model().objects.create_user(
-            username="testuser", password="testpass"
+            username="testuser", email="test@example.com", password="testpass"
         )
         cls.macro = Macrocycle.objects.create(
             user=cls.user, name="Test Plan", start_date=date(2026, 1, 1)

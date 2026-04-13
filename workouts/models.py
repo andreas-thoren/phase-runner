@@ -31,6 +31,7 @@ from datetime import date
 from typing import Any
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.db import models, transaction
 from django.db.models import Max, Prefetch
@@ -47,6 +48,25 @@ from .enums import (
     WorkoutType,
 )
 from .utils import GreaterThanDurationValidator, HydratedProperty, m_to_km
+
+# ==============================================================================
+# USER
+# ==============================================================================
+
+
+class User(AbstractUser):
+    """Custom user with unique, required email."""
+
+    email = models.EmailField(unique=True, blank=False)
+
+    class Meta(AbstractUser.Meta):
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(email=""),
+                name="user_email_required",
+            ),
+        ]
+
 
 # ==============================================================================
 # MIXINS
