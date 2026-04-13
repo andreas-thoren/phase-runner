@@ -96,7 +96,13 @@ from django.urls import reverse
 
 from .constants import APP_NAMESPACE
 from .utils import create_default_cycles, m_to_km
-from .enums import WorkoutType, WorkoutSubtype, ViewType
+from .enums import (
+    LONG_SESSION_LABELS,
+    SESSION_LABELS,
+    WorkoutType,
+    WorkoutSubtype,
+    ViewType,
+)
 from .forms import (
     CreateCyclesForm,
     WorkoutForm,
@@ -651,10 +657,10 @@ class ToggleActiveMacrocycleView(LoginRequiredMixin, View):
 
 def _empty_actuals() -> dict[str, int]:
     return {
-        "runs": 0,
-        "run_distance": 0,
-        "long_run_distance": 0,
-        "run_load": 0,
+        "sessions": 0,
+        "sport_distance": 0,
+        "long_distance": 0,
+        "sport_load": 0,
         "cross_sessions": 0,
         "strength_sessions": 0,
         "total_load": 0,
@@ -669,7 +675,11 @@ def _find_bucket(w_date: date, buckets: list[tuple[date, date, int]]) -> int | N
 
 
 def _aggregate_workouts(
-    overall_start: date, overall_end: date, micro_entries: list[dict], user
+    overall_start: date,
+    overall_end: date,
+    micro_entries: list[dict],
+    user,
+    primary_sport: str,
 ) -> dict[int, dict[str, int]]:
     result = defaultdict(_empty_actuals)
     workouts = Workout.objects.prefetch_related(
@@ -697,18 +707,18 @@ def _aggregate_workouts(
 
         actuals["total_load"] += load
 
-        if w.subtype == WorkoutSubtype.RUNNING:
-            actuals["runs"] += 1
-            actuals["run_load"] += load
+        if w.subtype == primary_sport:
+            actuals["sessions"] += 1
+            actuals["sport_load"] += load
             distance = 0
             try:
                 ad = w.aerobic_details
                 distance = ad.distance or 0
             except Workout.aerobic_details.RelatedObjectDoesNotExist:  # type: ignore[attr-defined]
                 pass
-            actuals["run_distance"] += distance
-            if distance > actuals["long_run_distance"]:
-                actuals["long_run_distance"] = distance
+            actuals["sport_distance"] += distance
+            if distance > actuals["long_distance"]:
+                actuals["long_distance"] = distance
         elif w.workout_type == WorkoutType.STRENGTH:
             actuals["strength_sessions"] += 1
         else:
@@ -731,7 +741,12 @@ class MacrocycleSummaryView(LoginRequiredMixin, NoCacheMixin, DetailView):
         ctx = super().get_context_data(**kwargs)
         macro = self.object
         macro.hydrate()
+        sport = WorkoutSubtype(macro.primary_sport)
         ctx["rows"] = self._build_summary_rows(macro)
+        ctx["col_sessions"] = SESSION_LABELS[sport]
+        ctx["col_distance"] = f"{sport.label} dst"
+        ctx["col_long"] = LONG_SESSION_LABELS[sport]
+        ctx["col_sport_load"] = f"{sport.label} load"
         return ctx
 
     def _build_summary_rows(self, macro: Macrocycle) -> list[dict]:
@@ -754,7 +769,11 @@ class MacrocycleSummaryView(LoginRequiredMixin, NoCacheMixin, DetailView):
         overall_start = micro_entries[0]["start"]
         overall_end = micro_entries[-1]["end"]
         actuals_by_micro = _aggregate_workouts(
-            overall_start, overall_end, micro_entries, self.request.user
+            overall_start,
+            overall_end,
+            micro_entries,
+            self.request.user,
+            macro.primary_sport,
         )
 
         workout_list_url = reverse(f"{APP_NAMESPACE}:workout_list")
@@ -782,14 +801,14 @@ class MacrocycleSummaryView(LoginRequiredMixin, NoCacheMixin, DetailView):
                             f"?date_from={date_from}&date_to={date_to}"
                         ),
                         "planned_distance_km": micro.planned_distance_km,
-                        "planned_long_run_km": micro.planned_long_run_distance_km,
-                        "planned_num_runs": micro.planned_num_runs,
-                        "run_distance": m_to_km(actuals["run_distance"]) or 0,
-                        "long_run_distance": m_to_km(actuals["long_run_distance"]) or 0,
+                        "planned_long_km": micro.planned_long_distance_km,
+                        "planned_sessions": micro.planned_sessions,
+                        "sport_distance": m_to_km(actuals["sport_distance"]) or 0,
+                        "long_distance": m_to_km(actuals["long_distance"]) or 0,
                         **{
                             k: v
                             for k, v in actuals.items()
-                            if k not in ("run_distance", "long_run_distance")
+                            if k not in ("sport_distance", "long_distance")
                         },
                     }
                 )

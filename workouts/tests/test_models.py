@@ -313,11 +313,11 @@ class MicrocycleTest(TestCase):
     def test_create_with_goals(self):
         micro = Microcycle.objects.create(
             mesocycle=self.meso,
-            planned_num_runs=4,
+            planned_sessions=4,
             planned_distance=40000,
-            planned_long_run_distance=18000,
+            planned_long_distance=18000,
         )
-        self.assertEqual(micro.planned_num_runs, 4)
+        self.assertEqual(micro.planned_sessions, 4)
 
     def test_auto_order(self):
         m1 = Microcycle.objects.create(mesocycle=self.meso)

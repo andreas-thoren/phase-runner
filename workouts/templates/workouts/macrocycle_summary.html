@@ -26,13 +26,13 @@
           <tr>
             <th class="text-start">Start date</th>
             <th class="text-start">Type</th>
-            <th>Planned runs</th>
-            <th>Goal - Run dst</th>
-            <th>Goal - Long run</th>
-            <th>Runs</th>
-            <th>Run dst</th>
-            <th>Long run</th>
-            <th>Run load</th>
+            <th>Planned {{ col_sessions|lower }}</th>
+            <th>Goal - {{ col_distance }}</th>
+            <th>Goal - {{ col_long }}</th>
+            <th>{{ col_sessions }}</th>
+            <th>{{ col_distance }}</th>
+            <th>{{ col_long }}</th>
+            <th>{{ col_sport_load }}</th>
             <th>Nr X</th>
             <th>Nr str</th>
             <th>Tot load</th>
@@ -46,13 +46,13 @@
               {% endif %}
               <td class="text-start zone-planned" id="micro-{{ row.micro_pk }}" data-href="{{ row.micro_url }}" data-label="Start date" tabindex="0">{{ row.start_date|date:"Y-m-d" }}</td>
               <td class="text-start zone-planned" data-href="{{ row.micro_url }}" data-label="Type">{{ row.micro_type_display }}</td>
-              <td class="zone-planned" data-href="{{ row.micro_url }}" data-label="Planned runs">{% if row.planned_num_runs %}{{ row.planned_num_runs }}{% endif %}</td>
+              <td class="zone-planned" data-href="{{ row.micro_url }}" data-label="Planned {{ col_sessions|lower }}">{% if row.planned_sessions %}{{ row.planned_sessions }}{% endif %}</td>
               <td class="zone-planned" data-href="{{ row.micro_url }}" data-label="Goal dst">{% if row.planned_distance_km %}{{ row.planned_distance_km|floatformat:"-1" }}{% endif %}</td>
-              <td class="zone-planned" data-href="{{ row.micro_url }}" data-label="Goal long">{% if row.planned_long_run_km %}{{ row.planned_long_run_km|floatformat:"-1" }}{% endif %}</td>
-              <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Runs" tabindex="0">{% if row.runs %}{{ row.runs }}{% endif %}</td>
-              <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Run dst">{% if row.run_distance %}{{ row.run_distance|floatformat:"-1" }}{% endif %}</td>
-              <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Long run">{% if row.long_run_distance %}{{ row.long_run_distance|floatformat:"-1" }}{% endif %}</td>
-              <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Run load">{% if row.run_load %}{{ row.run_load }}{% endif %}</td>
+              <td class="zone-planned" data-href="{{ row.micro_url }}" data-label="Goal long">{% if row.planned_long_km %}{{ row.planned_long_km|floatformat:"-1" }}{% endif %}</td>
+              <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="{{ col_sessions }}" tabindex="0">{% if row.sessions %}{{ row.sessions }}{% endif %}</td>
+              <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="{{ col_distance }}">{% if row.sport_distance %}{{ row.sport_distance|floatformat:"-1" }}{% endif %}</td>
+              <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="{{ col_long }}">{% if row.long_distance %}{{ row.long_distance|floatformat:"-1" }}{% endif %}</td>
+              <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="{{ col_sport_load }}">{% if row.sport_load %}{{ row.sport_load }}{% endif %}</td>
               <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Nr X">{% if row.cross_sessions %}{{ row.cross_sessions }}{% endif %}</td>
               <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Nr str">{% if row.strength_sessions %}{{ row.strength_sessions }}{% endif %}</td>
               <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Tot load">{% if row.total_load %}{{ row.total_load }}{% endif %}</td>

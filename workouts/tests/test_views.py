@@ -977,7 +977,7 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
             mesocycle=cls.meso1,
             duration_days=7,
             planned_distance=50000,
-            planned_long_run_distance=20000,
+            planned_long_distance=20000,
         )
         cls.micro2 = Microcycle.objects.create(mesocycle=cls.meso1, duration_days=7)
         # meso2: 1 microcycle
@@ -1043,7 +1043,7 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
         response = self.client.get(self.url)
         row = response.context["rows"][0]
         self.assertEqual(row["planned_distance_km"], 50.0)
-        self.assertEqual(row["planned_long_run_km"], 20.0)
+        self.assertEqual(row["planned_long_km"], 20.0)
 
     def test_meso_display(self):
         response = self.client.get(self.url)
@@ -1069,10 +1069,10 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
     def test_actual_aggregation(self):
         response = self.client.get(self.url)
         row = response.context["rows"][0]
-        self.assertEqual(row["runs"], 2)
-        self.assertEqual(row["run_distance"], 30.0)
-        self.assertEqual(row["long_run_distance"], 20.0)
-        self.assertEqual(row["run_load"], 230)
+        self.assertEqual(row["sessions"], 2)
+        self.assertEqual(row["sport_distance"], 30.0)
+        self.assertEqual(row["long_distance"], 20.0)
+        self.assertEqual(row["sport_load"], 230)
         self.assertEqual(row["cross_sessions"], 1)
         self.assertEqual(row["strength_sessions"], 1)
         self.assertEqual(row["total_load"], 230)
@@ -1082,8 +1082,8 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
         rows = response.context["rows"]
         for idx in [1, 2]:
             row = rows[idx]
-            self.assertEqual(row["runs"], 0)
-            self.assertEqual(row["run_distance"], 0)
+            self.assertEqual(row["sessions"], 0)
+            self.assertEqual(row["sport_distance"], 0)
             self.assertEqual(row["total_load"], 0)
 
     def test_404_nonexistent_macro(self):
@@ -1128,6 +1128,48 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
         response = self.client.get(self.url)
         self.assertContains(response, "zone-planned")
         self.assertContains(response, "zone-actual")
+
+    def test_dynamic_column_labels_running(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.context["col_sessions"], "Runs")
+        self.assertEqual(response.context["col_long"], "Long run")
+
+    def test_non_running_primary_sport_aggregation(self):
+        """Cycling macrocycle counts cycling as sessions, running as cross."""
+        macro = Macrocycle.objects.create(
+            user=self.user,
+            name="Cycling Plan",
+            start_date=date(2026, 3, 2),
+            primary_sport=WorkoutSubtype.CYCLING,
+        )
+        meso = Mesocycle.objects.create(macrocycle=macro, meso_type="base")
+        Microcycle.objects.create(mesocycle=meso, duration_days=7)
+
+        # Cycling workout (primary sport)
+        ride = Workout.objects.create(
+            user=self.user,
+            name="Ride",
+            subtype=WorkoutSubtype.CYCLING,
+            start_time=timezone.make_aware(timezone.datetime(2026, 3, 3, 8, 0)),
+        )
+        AerobicDetails.objects.create(workout=ride, distance=40000)
+
+        # Running workout (cross-training for this plan)
+        Workout.objects.create(
+            user=self.user,
+            name="Jog",
+            subtype=WorkoutSubtype.RUNNING,
+            start_time=timezone.make_aware(timezone.datetime(2026, 3, 4, 8, 0)),
+        )
+
+        url = reverse("workouts:macrocycle_summary", kwargs={"macro_pk": macro.pk})
+        response = self.client.get(url)
+        row = response.context["rows"][0]
+        self.assertEqual(row["sessions"], 1)
+        self.assertEqual(row["sport_distance"], 40.0)
+        self.assertEqual(row["cross_sessions"], 1)
+        self.assertEqual(response.context["col_sessions"], "Rides")
+        self.assertEqual(response.context["col_long"], "Long ride")
 
     def test_summary_link_on_detail_page(self):
         url = reverse(

@@ -49,6 +49,28 @@ SUBTYPE_TYPE_MAP: dict[WorkoutSubtype, WorkoutType] = {
     WorkoutSubtype.MOBILITY: WorkoutType.GENERIC,
 }
 
+AEROBIC_SUBTYPES: list[WorkoutSubtype] = [
+    st for st in WorkoutSubtype if SUBTYPE_TYPE_MAP[st] == WorkoutType.AEROBIC
+]
+
+AEROBIC_CHOICES: list[tuple[str, str]] = [
+    (st.value, st.label) for st in AEROBIC_SUBTYPES
+]
+
+SESSION_LABELS: dict[WorkoutSubtype, str] = {
+    WorkoutSubtype.RUNNING: "Runs",
+    WorkoutSubtype.CYCLING: "Rides",
+    WorkoutSubtype.SWIMMING: "Swims",
+    WorkoutSubtype.SKIING: "Ski sessions",
+}
+
+LONG_SESSION_LABELS: dict[WorkoutSubtype, str] = {
+    WorkoutSubtype.RUNNING: "Long run",
+    WorkoutSubtype.CYCLING: "Long ride",
+    WorkoutSubtype.SWIMMING: "Long swim",
+    WorkoutSubtype.SKIING: "Long ski",
+}
+
 GUI_SCHEMAS: dict[WorkoutSubtype, dict] = {
     WorkoutSubtype.RUNNING: {
         "load_garmin": {"type": "number", "label": "Load (Garmin)"},

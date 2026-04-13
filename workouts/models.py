@@ -38,6 +38,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from .enums import (
+    AEROBIC_CHOICES,
     SUBTYPE_TYPE_MAP,
     MesocycleType,
     MicrocycleType,
@@ -338,6 +339,11 @@ class Macrocycle(models.Model):
     name = models.CharField(max_length=255)
     start_date = models.DateField()
     description = models.CharField(max_length=255, default="", blank=True)
+    primary_sport = models.CharField(
+        max_length=30,
+        choices=AEROBIC_CHOICES,
+        default=WorkoutSubtype.RUNNING,
+    )
 
     class Meta:
         constraints = [
@@ -483,16 +489,16 @@ class Microcycle(OrderMixin, models.Model):
     )
 
     comment = models.CharField(max_length=255, default="", blank=True)
-    planned_num_runs = models.PositiveIntegerField(null=True, blank=True)
+    planned_sessions = models.PositiveIntegerField(null=True, blank=True)
     planned_distance = models.PositiveIntegerField(
         null=True,
         blank=True,
         help_text="Total planned distance in meters.",
     )
-    planned_long_run_distance = models.PositiveIntegerField(
+    planned_long_distance = models.PositiveIntegerField(
         null=True,
         blank=True,
-        help_text="Planned long run distance in meters.",
+        help_text="Planned long session distance in meters.",
     )
     planned_strength_sessions = models.PositiveIntegerField(null=True, blank=True)
     planned_cross_sessions = models.PositiveIntegerField(null=True, blank=True)
@@ -509,8 +515,8 @@ class Microcycle(OrderMixin, models.Model):
         return m_to_km(self.planned_distance)
 
     @property
-    def planned_long_run_distance_km(self) -> float | None:
-        return m_to_km(self.planned_long_run_distance)
+    def planned_long_distance_km(self) -> float | None:
+        return m_to_km(self.planned_long_distance)
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         if self._state.adding and self.order is None:

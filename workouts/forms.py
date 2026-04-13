@@ -121,12 +121,13 @@ DETAIL_FORMS: dict[WorkoutType, type[forms.ModelForm]] = {
 
 
 class MacrocycleForm(ReadOnlyFormMixin, forms.ModelForm):
-    """Macrocycle CRUD form (name, start date, description)."""
+    """Macrocycle CRUD form (name, primary sport, start date, description)."""
 
     class Meta:
         model = Macrocycle
         fields = (
             "name",
+            "primary_sport",
             "start_date",
             "description",
         )
@@ -134,6 +135,11 @@ class MacrocycleForm(ReadOnlyFormMixin, forms.ModelForm):
             "start_date": forms.DateInput(attrs={"type": "date"}),
             "description": forms.Textarea(attrs={"rows": 2, "cols": 25}),
         }
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        if self.instance.pk:
+            self.fields["primary_sport"].disabled = True
 
 
 class CreateCyclesForm(forms.Form):
@@ -190,10 +196,10 @@ class MesocycleForm(ReadOnlyFormMixin, forms.ModelForm):
 class MicrocycleForm(KmFormMixin, ReadOnlyFormMixin, forms.ModelForm):
     """Microcycle CRUD form with distance inputs in km (stored as meters)."""
 
-    _km_fields = ("planned_distance", "planned_long_run_distance")
+    _km_fields = ("planned_distance", "planned_long_distance")
     planned_distance = forms.FloatField(label="Planned distance (km)", required=False)
-    planned_long_run_distance = forms.FloatField(
-        label="Planned long run (km)", required=False
+    planned_long_distance = forms.FloatField(
+        label="Planned long session (km)", required=False
     )
 
     class Meta:
@@ -202,15 +208,15 @@ class MicrocycleForm(KmFormMixin, ReadOnlyFormMixin, forms.ModelForm):
             "micro_type",
             "duration_days",
             "comment",
-            "planned_num_runs",
+            "planned_sessions",
             "planned_distance",
-            "planned_long_run_distance",
+            "planned_long_distance",
             "planned_strength_sessions",
             "planned_cross_sessions",
         )
         labels = {
             "duration_days": "Duration (days)",
-            "planned_num_runs": "Planned runs",
+            "planned_sessions": "Planned sessions",
             "planned_strength_sessions": "Planned strength sessions",
             "planned_cross_sessions": "Planned X-sessions",
         }
