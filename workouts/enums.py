@@ -123,17 +123,19 @@ GUI_SCHEMAS: dict[WorkoutSubtype, dict] = {
     },
 }
 
+# Keys are camelCase strings returned by the Garmin FIT JS SDK
+# with convertTypesToStrings: true.
 FIT_SPORT_MAP: dict[str, WorkoutSubtype] = {
     "running": WorkoutSubtype.RUNNING,
-    "trail_running": WorkoutSubtype.RUNNING,
+    "trailRunning": WorkoutSubtype.RUNNING,
     "cycling": WorkoutSubtype.CYCLING,
-    "e_biking": WorkoutSubtype.CYCLING,
+    "eBiking": WorkoutSubtype.CYCLING,
     "swimming": WorkoutSubtype.SWIMMING,
-    "open_water_swimming": WorkoutSubtype.SWIMMING,
-    "cross_country_skiing": WorkoutSubtype.SKIING,
-    "alpine_skiing": WorkoutSubtype.SKIING,
+    "openWaterSwimming": WorkoutSubtype.SWIMMING,
+    "crossCountrySkiing": WorkoutSubtype.SKIING,
+    "alpineSkiing": WorkoutSubtype.SKIING,
     "training": WorkoutSubtype.STRENGTH,
-    "fitness_equipment": WorkoutSubtype.STRENGTH,
+    "fitnessEquipment": WorkoutSubtype.STRENGTH,
 }
 
 

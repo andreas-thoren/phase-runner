@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Upload Workouts{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{% static 'workouts/css/workouts.css' %}">
+{% endblock %}
+
+{% block scripts %}
+  <script type="module" src="{% static 'workouts/js/fit_upload.js' %}" defer></script>
+{% endblock %}
+
+{% block main %}
+  <h1>Upload .fit files</h1>
+
+  <div id="upload-container"
+       data-upload-url="{% url 'workouts:upload_workouts_api' %}"
+       data-csrf-token="{{ csrf_token }}"
+       data-sdk-url="{% static 'workouts/js/fit-sdk.js' %}">
+
+    <input type="file" id="fit-file-input" multiple accept=".fit">
+
+    <div id="parse-status" hidden></div>
+
+    <figure id="preview-figure" hidden>
+      <table class="record-table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Time</th>
+            <th>Activity</th>
+            <th>Name</th>
+            <th>Duration</th>
+            <th>Distance</th>
+            <th>Avg HR</th>
+          </tr>
+        </thead>
+        <tbody id="preview-body"></tbody>
+      </table>
+    </figure>
+
+    <div id="upload-actions" hidden>
+      <button type="button" id="upload-btn">Upload</button>
+    </div>
+
+    <div id="upload-results" hidden></div>
+  </div>
+{% endblock %}

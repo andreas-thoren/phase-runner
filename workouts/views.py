@@ -92,7 +92,7 @@ from django.http import (
 )
 from django.shortcuts import get_object_or_404, redirect
 from django.views import View
-from django.views.generic import DetailView, ListView
+from django.views.generic import DetailView, ListView, TemplateView
 from django.views.generic.edit import CreateView, FormView, UpdateView, DeleteView
 from django.urls import reverse
 
@@ -337,6 +337,12 @@ def _time_of_day(hour: int) -> str:
     if 17 <= hour < 21:
         return "Evening"
     return "Night"
+
+
+class UploadWorkoutsView(LoginRequiredMixin, TemplateView):
+    """Page for uploading .fit files — parsing happens client-side in JS."""
+
+    template_name = "workouts/upload_workouts.html"
 
 
 class UploadWorkoutsAPIView(LoginRequiredMixin, View):

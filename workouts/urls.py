@@ -43,7 +43,12 @@ urlpatterns = [
         views.WorkoutDeleteView.as_view(),
         name="delete_workout",
     ),
-    # --- Upload API ---
+    # --- Upload ---
+    path(
+        "workouts/upload/",
+        views.UploadWorkoutsView.as_view(),
+        name="upload_workouts",
+    ),
     path(
         "workouts/upload/api/",
         views.UploadWorkoutsAPIView.as_view(),
