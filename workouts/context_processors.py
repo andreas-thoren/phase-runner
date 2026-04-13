@@ -53,6 +53,7 @@ _URL_SIDEBAR_MAP: dict[str, tuple[str, str]] = {
     "delete_microcycle": ("plans", "all_plans"),
     "workout_list": ("workouts", "all_workouts"),
     "running_list": ("workouts", "running"),
+    "upload_workouts": ("workouts", "upload"),
     "workout_detail": ("workouts", "all_workouts"),
     "edit_workout": ("workouts", "all_workouts"),
     "delete_workout": ("workouts", "all_workouts"),
@@ -195,6 +196,9 @@ def _workout_crumbs(
 
     if url_name == "running_list":
         return [BreadcrumbItem("Running")]
+
+    if url_name == "upload_workouts":
+        return [BreadcrumbItem("Workouts", workouts_url), BreadcrumbItem("Upload")]
 
     pk = kwargs.get("pk")
     if pk and url_name in ("workout_detail", "edit_workout", "delete_workout"):

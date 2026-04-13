@@ -95,6 +95,16 @@
   }
 }
 
+// Upload page
+.upload-success { color: var(--pico-ins-color, #388e3c); }
+.upload-error { color: var(--pico-del-color, #c62828); }
+.upload-warning { color: var(--pico-mark-color, #d68000); }
+
+#upload-results,
+#parse-status {
+  margin-top: 1rem;
+}
+
 .summary-table {
   white-space: nowrap;
   font-size: 0.9em;

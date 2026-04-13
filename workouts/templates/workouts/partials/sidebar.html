@@ -51,6 +51,12 @@
             Running
           </a>
         </li>
+        <li>
+          <a href="{% url 'workouts:upload_workouts' %}"
+             {% if nav_section == "workouts" and nav_item == "upload" %}aria-current="page"{% endif %}>
+            Upload .fit
+          </a>
+        </li>
       </ul>
     </details>
 
