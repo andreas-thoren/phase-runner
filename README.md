@@ -73,6 +73,15 @@ uv run python manage.py runserver --settings=phaserunner.settings.sql_debug
 | `Ctrl+S` / `Cmd+S` | Create / Edit views | Save the form |
 | `E` | Detail views | Navigate to edit |
 
+### CSV Export
+
+Exported CSV files include a UTF-8 BOM and a `sep=,` hint line so Excel opens them correctly with comma-separated columns regardless of locale. If reading exported files in Python, use `encoding="utf-8-sig"` and `skiprows=1` to skip the delimiter hint:
+
+```python
+import pandas as pd
+df = pd.read_csv("workouts_2026-04-13.csv", encoding="utf-8-sig", skiprows=1)
+```
+
 ## Architecture
 
 See [docs/schema_diagrams.md](docs/schema_diagrams.md) for visual database diagrams.

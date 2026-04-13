@@ -54,6 +54,7 @@ _URL_SIDEBAR_MAP: dict[str, tuple[str, str]] = {
     "workout_list": ("workouts", "all_workouts"),
     "running_list": ("workouts", "running"),
     "upload_workouts": ("workouts", "upload"),
+    "export_workouts": ("workouts", "all_workouts"),
     "workout_detail": ("workouts", "all_workouts"),
     "edit_workout": ("workouts", "all_workouts"),
     "delete_workout": ("workouts", "all_workouts"),

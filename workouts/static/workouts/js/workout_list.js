@@ -30,4 +30,17 @@ if (filterClear) {
   });
 }
 
+// Export button — navigates to export URL with current filter params
+const exportBtn = document.getElementById("export-csv");
+if (exportBtn) {
+  exportBtn.addEventListener("click", () => {
+    const baseUrl = exportBtn.dataset.exportUrl;
+    const params = new URLSearchParams(window.location.search);
+    params.delete("show_filters");
+    params.delete("page");
+    const qs = params.toString();
+    window.location.href = qs ? `${baseUrl}?${qs}` : baseUrl;
+  });
+}
+
 // Clickable rows are handled by clickable_rows.js (loaded separately).

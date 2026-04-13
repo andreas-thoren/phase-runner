@@ -70,8 +70,10 @@ Adding new CRUD views
    (``models_and_kwargs`` for top-level, ``child_models_and_kwargs`` for children).
 """
 
+import csv
 import json
 from collections import defaultdict
+from collections.abc import Callable
 from datetime import date, datetime, timedelta
 from typing import Any
 
@@ -562,6 +564,174 @@ class RunningListView(BaseWorkoutListView):
             .filter(subtype=WorkoutSubtype.RUNNING)
             .order_by("-start_time")
         )
+
+
+# ── CSV Export ─────────────────────────────────────────────────────────
+
+_CSV_INJECTION_CHARS = {"=", "+", "-", "@", "\t", "\r"}
+
+
+def _sanitize_csv(value: str) -> str:
+    """Prefix dangerous leading characters to prevent CSV formula injection."""
+    if value and value[0] in _CSV_INJECTION_CHARS:
+        return f"'{value}"
+    return value
+
+
+def _fmt_duration(detail: Any) -> str:
+    if not detail or not detail.duration:
+        return ""
+    total = int(detail.duration.total_seconds())
+    h, remainder = divmod(total, 3600)
+    m, s = divmod(remainder, 60)
+    return f"{h}:{m:02d}:{s:02d}"
+
+
+def _build_csv_columns(
+    workouts: list,
+) -> list[tuple[str, Callable]]:
+    """Build dynamic CSV columns based on workout types/subtypes present."""
+    columns: list[tuple[str, Callable]] = [
+        ("Date", lambda w, d, g: w.start_time.strftime("%Y-%m-%d")),
+        ("Time", lambda w, d, g: w.start_time.strftime("%H:%M")),
+        ("Activity", lambda w, d, g: WorkoutSubtype(w.subtype).label),
+        ("Name", lambda w, d, g: w.name),
+        ("Status", lambda w, d, g: w.workout_status.capitalize()),
+        ("Description", lambda w, d, g: w.description or ""),
+        ("Duration", lambda w, d, g: _fmt_duration(d)),
+    ]
+
+    present_types: set[WorkoutType] = set()
+    present_subtypes: set[str] = set()
+    for w in workouts:
+        present_types.add(w.workout_type)
+        present_subtypes.add(w.subtype)
+
+    if WorkoutType.AEROBIC in present_types:
+        columns += [
+            (
+                "Distance (km)",
+                lambda w, d, g: (
+                    f"{d.distance_km:.2f}"
+                    if d and hasattr(d, "distance_km") and d.distance_km
+                    else ""
+                ),
+            ),
+            (
+                "Pace (min/km)",
+                lambda w, d, g: (
+                    d.pace_display if d and hasattr(d, "pace_display") else ""
+                ),
+            ),
+        ]
+    if WorkoutType.STRENGTH in present_types:
+        columns += [
+            (
+                "Sets",
+                lambda w, d, g: (
+                    str(d.num_sets)
+                    if d and hasattr(d, "num_sets") and d.num_sets is not None
+                    else ""
+                ),
+            ),
+            (
+                "Total Weight (kg)",
+                lambda w, d, g: (
+                    str(d.total_weight)
+                    if d and hasattr(d, "total_weight") and d.total_weight is not None
+                    else ""
+                ),
+            ),
+        ]
+
+    seen_keys: set[str] = set()
+    for st in WorkoutSubtype:
+        if st.value not in present_subtypes:
+            continue
+        for key, schema in GUI_SCHEMAS.get(st, {}).items():
+            if key not in seen_keys:
+                seen_keys.add(key)
+                label = schema["label"]
+                columns.append(
+                    (
+                        label,
+                        lambda w, d, g, k=key: (
+                            str(g.get(k, "")) if g.get(k) is not None else ""
+                        ),
+                    )
+                )
+
+    return columns
+
+
+class ExportWorkoutsView(LoginRequiredMixin, View):
+    """CSV export of user's workouts, with same filters as the workout list."""
+
+    http_method_names = ["get"]
+    RATE_LIMIT = 10
+    COOLOFF_SECONDS = 3600
+    MAX_ROWS = 5000
+
+    def get(self, request: HttpRequest) -> HttpResponse:
+        cache_key = f"workout_export_{request.user.pk}"
+        attempts = cache.get(cache_key, 0)
+        if attempts >= self.RATE_LIMIT:
+            return HttpResponse(
+                "Rate limit exceeded. Please try again later.", status=429
+            )
+
+        related = [
+            model.get_related_name() for model in DetailBase._detail_registry.values()
+        ]
+        qs = (
+            Workout.objects.filter(user=request.user)
+            .select_related(*related)
+            .order_by("-start_time")
+        )
+
+        filter_form = WorkoutFilterForm(request.GET or None)
+        if filter_form.is_valid():
+            date_from = filter_form.cleaned_data.get("date_from")
+            date_to = filter_form.cleaned_data.get("date_to")
+            status = filter_form.cleaned_data.get("status")
+            activity = filter_form.cleaned_data.get("activity")
+            if date_from:
+                qs = qs.filter(start_time__date__gte=date_from)
+            if date_to:
+                qs = qs.filter(start_time__date__lte=date_to)
+            if status:
+                qs = qs.filter(workout_status=status)
+            if activity:
+                qs = qs.filter(subtype=activity)
+
+        if qs.count() > self.MAX_ROWS:
+            return HttpResponse(
+                "Too many workouts to export. Use filters to narrow the selection.",
+                status=400,
+            )
+
+        cache.set(cache_key, attempts + 1, self.COOLOFF_SECONDS)
+
+        workouts = list(qs)
+        columns = _build_csv_columns(workouts)
+
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = (
+            f'attachment; filename="workouts_{date.today()}.csv"'
+        )
+        response.write("\ufeff")  # UTF-8 BOM for encoding detection
+        response.write("sep=,\r\n")  # Excel delimiter hint
+        writer = csv.writer(response)
+        writer.writerow([header for header, _ in columns])
+
+        for workout in workouts:
+            detail = workout.get_detail()
+            gui = workout.gui_fields
+            writer.writerow(
+                [_sanitize_csv(getter(workout, detail, gui)) for _, getter in columns]
+            )
+
+        return response
 
 
 class WorkoutReadonlyFormMixin:

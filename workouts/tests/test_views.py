@@ -1487,6 +1487,202 @@ class UploadWorkoutsAPITest(AuthenticatedTestMixin, TestCase):
 @override_settings(
     CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
 )
+class ExportWorkoutsTest(AuthenticatedTestMixin, TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        User = get_user_model()
+        cls.user = User.objects.create_user(
+            username="testuser", email="export@example.com", password="testpassword"
+        )
+        cls.other_user = User.objects.create_user(
+            username="otheruser", email="other@example.com", password="testpassword"
+        )
+        cls.url = reverse("workouts:export_workouts")
+
+    def setUp(self):
+        super().setUp()
+        from django.core.cache import cache
+
+        cache.clear()
+
+    def _create_workout(self, user=None, **kwargs):
+        defaults = {
+            "user": user or self.user,
+            "name": "Test workout",
+            "start_time": timezone.now(),
+            "workout_status": WorkoutStatus.COMPLETED,
+            "subtype": WorkoutSubtype.RUNNING,
+        }
+        defaults.update(kwargs)
+        return Workout.objects.create(**defaults)
+
+    def _parse_csv(self, response):
+        import csv
+        import io
+
+        content = response.content.decode("utf-8")
+        reader = csv.reader(io.StringIO(content))
+        return list(reader)
+
+    def test_login_required(self):
+        self.client.logout()
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 302)
+
+    def test_post_not_allowed(self):
+        response = self.client.post(self.url)
+        self.assertEqual(response.status_code, 405)
+
+    def test_empty_export(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv")
+        rows = self._parse_csv(response)
+        self.assertEqual(len(rows), 1)  # headers only
+        self.assertIn("Date", rows[0])
+
+    def test_export_with_workouts(self):
+        w = self._create_workout(name="Morning Run")
+        AerobicDetails.objects.create(
+            workout=w,
+            duration=timedelta(hours=1),
+            distance=10000,
+        )
+        response = self.client.get(self.url)
+        rows = self._parse_csv(response)
+        self.assertEqual(len(rows), 2)  # header + 1 data row
+        headers = rows[0]
+        data = rows[1]
+        self.assertEqual(data[headers.index("Name")], "Morning Run")
+        self.assertEqual(data[headers.index("Distance (km)")], "10.00")
+        self.assertEqual(data[headers.index("Activity")], "Running")
+
+    def test_filter_by_activity(self):
+        self._create_workout(subtype=WorkoutSubtype.RUNNING, name="Run")
+        self._create_workout(subtype=WorkoutSubtype.STRENGTH, name="Strength")
+        response = self.client.get(self.url, {"activity": "running"})
+        rows = self._parse_csv(response)
+        self.assertEqual(len(rows), 2)  # header + 1 running
+        self.assertEqual(rows[1][rows[0].index("Name")], "Run")
+
+    def test_filter_by_date_range(self):
+        self._create_workout(
+            start_time=timezone.make_aware(timezone.datetime(2026, 1, 1, 10, 0)),
+            name="Old",
+        )
+        self._create_workout(
+            start_time=timezone.make_aware(timezone.datetime(2026, 6, 1, 10, 0)),
+            name="New",
+        )
+        response = self.client.get(
+            self.url, {"date_from": "2026-05-01", "date_to": "2026-07-01"}
+        )
+        rows = self._parse_csv(response)
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[1][rows[0].index("Name")], "New")
+
+    def test_filter_by_status(self):
+        self._create_workout(workout_status=WorkoutStatus.COMPLETED, name="Done")
+        self._create_workout(workout_status=WorkoutStatus.PLANNED, name="Planned")
+        response = self.client.get(self.url, {"status": "completed"})
+        rows = self._parse_csv(response)
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[1][rows[0].index("Name")], "Done")
+
+    def test_user_isolation(self):
+        self._create_workout(user=self.user, name="My workout")
+        self._create_workout(user=self.other_user, name="Other workout")
+        response = self.client.get(self.url)
+        rows = self._parse_csv(response)
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(rows[1][rows[0].index("Name")], "My workout")
+
+    def test_rate_limiting(self):
+        for _ in range(10):
+            response = self.client.get(self.url)
+            self.assertEqual(response.status_code, 200)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 429)
+
+    def test_csv_filename_contains_date(self):
+        response = self.client.get(self.url)
+        today = date.today().isoformat()
+        self.assertIn(today, response["Content-Disposition"])
+
+    def test_aerobic_columns_present(self):
+        w = self._create_workout(subtype=WorkoutSubtype.RUNNING)
+        AerobicDetails.objects.create(workout=w, duration=timedelta(minutes=30))
+        response = self.client.get(self.url)
+        rows = self._parse_csv(response)
+        headers = rows[0]
+        self.assertIn("Distance (km)", headers)
+        self.assertIn("Pace (min/km)", headers)
+
+    def test_strength_columns_present(self):
+        w = self._create_workout(subtype=WorkoutSubtype.STRENGTH)
+        StrengthDetails.objects.create(workout=w, num_sets=5, total_weight=200)
+        response = self.client.get(self.url)
+        rows = self._parse_csv(response)
+        headers = rows[0]
+        self.assertIn("Sets", headers)
+        self.assertIn("Total Weight (kg)", headers)
+        data = rows[1]
+        self.assertEqual(data[headers.index("Sets")], "5")
+        self.assertEqual(data[headers.index("Total Weight (kg)")], "200")
+
+    def test_gui_fields_in_columns(self):
+        w = self._create_workout(subtype=WorkoutSubtype.RUNNING)
+        AerobicDetails.objects.create(
+            workout=w,
+            additional_data={"gui_fields": {"avg_hr": 150, "load_garmin": 350}},
+        )
+        response = self.client.get(self.url)
+        rows = self._parse_csv(response)
+        headers = rows[0]
+        self.assertIn("Avg HR", headers)
+        self.assertIn("Load (Garmin)", headers)
+        data = rows[1]
+        self.assertEqual(data[headers.index("Avg HR")], "150")
+        self.assertEqual(data[headers.index("Load (Garmin)")], "350")
+
+    def test_dynamic_columns_running_only(self):
+        """When only running workouts, cycling-specific columns should not appear."""
+        w = self._create_workout(subtype=WorkoutSubtype.RUNNING)
+        AerobicDetails.objects.create(workout=w)
+        response = self.client.get(self.url)
+        rows = self._parse_csv(response)
+        headers = rows[0]
+        self.assertNotIn("Avg Power (W)", headers)
+        self.assertNotIn("Sets", headers)
+
+    def test_dynamic_columns_mixed_subtypes(self):
+        """Mixed subtypes include columns from all present subtypes."""
+        w1 = self._create_workout(subtype=WorkoutSubtype.RUNNING, name="Run")
+        AerobicDetails.objects.create(workout=w1)
+        w2 = self._create_workout(subtype=WorkoutSubtype.STRENGTH, name="Lift")
+        StrengthDetails.objects.create(workout=w2)
+        response = self.client.get(self.url)
+        rows = self._parse_csv(response)
+        headers = rows[0]
+        # Should have both aerobic and strength columns
+        self.assertIn("Distance (km)", headers)
+        self.assertIn("Sets", headers)
+        # Should have gui fields from both subtypes
+        self.assertIn("Cadence", headers)
+        self.assertIn("Exercises", headers)
+
+    def test_csv_injection_sanitized(self):
+        """Values starting with formula characters are prefixed with a quote."""
+        self._create_workout(name='=CMD("calc")')
+        response = self.client.get(self.url)
+        rows = self._parse_csv(response)
+        name_val = rows[1][rows[0].index("Name")]
+        self.assertEqual(name_val, '\'=CMD("calc")')
+
+
+@override_settings(
+    CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+)
 class PasswordResetRateLimitTest(TestCase):
     @classmethod
     def setUpTestData(cls):
