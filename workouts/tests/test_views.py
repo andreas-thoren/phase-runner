@@ -1520,8 +1520,11 @@ class ExportWorkoutsTest(AuthenticatedTestMixin, TestCase):
         import csv
         import io
 
-        content = response.content.decode("utf-8")
-        reader = csv.reader(io.StringIO(content))
+        content = response.content.decode("utf-8-sig")  # strip BOM
+        lines = content.splitlines(keepends=True)
+        if lines and lines[0].startswith("sep="):
+            lines = lines[1:]  # skip Excel delimiter hint
+        reader = csv.reader(io.StringIO("".join(lines)))
         return list(reader)
 
     def test_login_required(self):
@@ -1536,7 +1539,7 @@ class ExportWorkoutsTest(AuthenticatedTestMixin, TestCase):
     def test_empty_export(self):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response["Content-Type"], "text/csv")
+        self.assertTrue(response["Content-Type"].startswith("text/csv"))
         rows = self._parse_csv(response)
         self.assertEqual(len(rows), 1)  # headers only
         self.assertIn("Date", rows[0])

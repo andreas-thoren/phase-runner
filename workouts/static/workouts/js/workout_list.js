@@ -38,6 +38,9 @@ if (exportBtn) {
     const params = new URLSearchParams(window.location.search);
     params.delete("show_filters");
     params.delete("page");
+    if (exportBtn.dataset.exportActivity) {
+      params.set("activity", exportBtn.dataset.exportActivity);
+    }
     const qs = params.toString();
     window.location.href = qs ? `${baseUrl}?${qs}` : baseUrl;
   });

@@ -10,7 +10,7 @@
 {% endblock %}
 
 {% block toolbar %}
-  {% include "workouts/partials/workout_filters.html" %}
+  {% include "workouts/partials/workout_filters.html" with export_activity="running" %}
 {% endblock %}
 
 {% block table_head %}
