@@ -43,6 +43,12 @@ urlpatterns = [
         views.WorkoutDeleteView.as_view(),
         name="delete_workout",
     ),
+    # --- Upload API ---
+    path(
+        "workouts/upload/api/",
+        views.UploadWorkoutsAPIView.as_view(),
+        name="upload_workouts_api",
+    ),
     # --- Macrocycle URLs ---
     path("plans/", views.MacrocycleListView.as_view(), name="macrocycle_list"),
     path(

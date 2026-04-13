@@ -72,7 +72,7 @@ Adding new CRUD views
 
 import json
 from collections import defaultdict
-from datetime import date
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from django.contrib import messages
@@ -88,6 +88,7 @@ from django.http import (
     HttpResponse,
     HttpResponseBase,
     HttpResponseRedirect,
+    JsonResponse,
 )
 from django.shortcuts import get_object_or_404, redirect
 from django.views import View
@@ -98,8 +99,10 @@ from django.urls import reverse
 from .constants import APP_NAMESPACE
 from .utils import create_default_cycles, m_to_km
 from .enums import (
+    GUI_SCHEMAS,
     LONG_SESSION_LABELS,
     SESSION_LABELS,
+    WorkoutStatus,
     WorkoutType,
     WorkoutSubtype,
     ViewType,
@@ -312,6 +315,189 @@ class PasswordResetView(auth_views.PasswordResetView):
             return redirect("password_reset")
         cache.set(cache_key, attempts + 1, self.COOLOFF_SECONDS)
         return super().form_valid(form)
+
+
+# ── Upload API ────────────────────────────────────────────────────────
+
+_UPLOAD_SPORT_LABELS: dict[WorkoutSubtype, str] = {
+    WorkoutSubtype.RUNNING: "Run",
+    WorkoutSubtype.CYCLING: "Ride",
+    WorkoutSubtype.SWIMMING: "Swim",
+    WorkoutSubtype.SKIING: "Ski",
+    WorkoutSubtype.STRENGTH: "Strength",
+    WorkoutSubtype.MOBILITY: "Mobility",
+}
+
+
+def _time_of_day(hour: int) -> str:
+    if 5 <= hour < 12:
+        return "Morning"
+    if 12 <= hour < 17:
+        return "Afternoon"
+    if 17 <= hour < 21:
+        return "Evening"
+    return "Night"
+
+
+class UploadWorkoutsAPIView(LoginRequiredMixin, View):
+    """POST-only JSON endpoint for bulk workout upload.
+
+    Accepts an array of workout objects, validates, deduplicates by
+    (user, start_time, subtype), and creates Workout + detail records.
+    Rate-limited to 10 requests/hour per user.
+    """
+
+    http_method_names = ["post"]
+    RATE_LIMIT = 10
+    COOLOFF_SECONDS = 3600
+    MAX_PER_REQUEST = 50
+
+    def _validate_item(  # pylint: disable=too-many-return-statements
+        self, item: dict, i: int, user: Any
+    ) -> dict | str:
+        """Validate a single upload item. Returns parsed dict or error string."""
+        if not isinstance(item, dict):
+            return f"Item {i}: not a JSON object."
+
+        subtype_value = item.get("subtype")
+        try:
+            subtype_enum = WorkoutSubtype(subtype_value)
+        except (ValueError, KeyError):
+            return f"Item {i}: invalid subtype '{subtype_value}'."
+
+        start_time_str = item.get("start_time")
+        if not start_time_str:
+            return f"Item {i}: start_time is required."
+        try:
+            start_time = datetime.fromisoformat(start_time_str.replace("Z", "+00:00"))
+        except (ValueError, AttributeError):
+            return f"Item {i}: invalid start_time '{start_time_str}'."
+
+        if Workout.objects.filter(
+            user=user, start_time=start_time, subtype=subtype_value
+        ).exists():
+            return {"_duplicate": f"{start_time_str} ({subtype_enum.label}): duplicate"}
+
+        gui_fields = item.get("gui_fields", {})
+        if not isinstance(gui_fields, dict):
+            return f"Item {i}: gui_fields must be a dict."
+        schema = GUI_SCHEMAS.get(subtype_enum, {})
+        unknown_keys = set(gui_fields) - set(schema)
+        if unknown_keys:
+            return f"Item {i}: unknown gui_fields: {', '.join(sorted(unknown_keys))}."
+
+        return {
+            "subtype_value": subtype_value,
+            "subtype_enum": subtype_enum,
+            "start_time": start_time,
+            "gui_fields": gui_fields,
+            "raw": item,
+        }
+
+    @staticmethod
+    def _create_workout(user: Any, parsed: dict) -> None:
+        """Create a Workout + detail row from validated data."""
+        subtype_enum = parsed["subtype_enum"]
+        subtype_value = parsed["subtype_value"]
+        start_time = parsed["start_time"]
+        gui_fields = parsed["gui_fields"]
+        item = parsed["raw"]
+        workout_type = WorkoutType(subtype_enum.workout_type)
+
+        name = (
+            f"{_time_of_day(start_time.hour)} "
+            f"{_UPLOAD_SPORT_LABELS.get(subtype_enum, 'Workout')}"
+        )
+        workout = Workout.objects.create(
+            user=user,
+            name=name,
+            start_time=start_time,
+            workout_status=WorkoutStatus.COMPLETED,
+            subtype=subtype_value,
+        )
+
+        detail_model = DetailBase._detail_registry.get(workout_type)
+        if not detail_model:
+            return
+        detail_kwargs: dict[str, Any] = {"workout": workout}
+
+        duration_seconds = item.get("duration_seconds")
+        if duration_seconds is not None:
+            try:
+                detail_kwargs["duration"] = timedelta(seconds=float(duration_seconds))
+            except (ValueError, TypeError):
+                pass
+
+        if workout_type == WorkoutType.AEROBIC:
+            distance_meters = item.get("distance_meters")
+            if distance_meters is not None:
+                try:
+                    detail_kwargs["distance"] = int(float(distance_meters))
+                except (ValueError, TypeError):
+                    pass
+
+        if gui_fields:
+            detail_kwargs["additional_data"] = {"gui_fields": gui_fields}
+
+        detail_model.objects.create(**detail_kwargs)
+
+    def post(
+        self, request: HttpRequest
+    ) -> JsonResponse:  # pylint: disable=too-many-branches
+        # Rate limit
+        cache_key = f"fit_upload_{request.user.pk}"
+        attempts = cache.get(cache_key, 0)
+        if attempts >= self.RATE_LIMIT:
+            return JsonResponse(
+                {"error": "Rate limit exceeded. Please try again later."}, status=429
+            )
+
+        try:
+            data = json.loads(request.body)
+        except (json.JSONDecodeError, ValueError):
+            return JsonResponse({"error": "Invalid JSON."}, status=400)
+
+        if not isinstance(data, list):
+            return JsonResponse({"error": "Expected a JSON array."}, status=400)
+
+        if len(data) > self.MAX_PER_REQUEST:
+            return JsonResponse(
+                {"error": f"Maximum {self.MAX_PER_REQUEST} workouts per request."},
+                status=400,
+            )
+
+        created = 0
+        skipped = 0
+        skipped_details: list[str] = []
+        errors: list[str] = []
+
+        for i, item in enumerate(data):
+            result = self._validate_item(item, i, request.user)
+            if isinstance(result, str):
+                errors.append(result)
+                continue
+            if "_duplicate" in result:
+                skipped += 1
+                skipped_details.append(result["_duplicate"])
+                continue
+
+            try:
+                with transaction.atomic():
+                    self._create_workout(request.user, result)
+                    created += 1
+            except Exception as exc:  # pylint: disable=broad-except
+                errors.append(f"Item {i}: {exc}")
+
+        cache.set(cache_key, attempts + 1, self.COOLOFF_SECONDS)
+
+        return JsonResponse(
+            {
+                "created": created,
+                "skipped": skipped,
+                "skipped_details": skipped_details,
+                "errors": errors,
+            }
+        )
 
 
 class LoginView(auth_views.LoginView):

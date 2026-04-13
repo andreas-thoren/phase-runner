@@ -1,3 +1,4 @@
+import json
 from datetime import date, timedelta
 
 from django.conf import settings
@@ -11,6 +12,7 @@ from workouts.models import (
     Workout,
     AerobicDetails,
     GenericDetails,
+    StrengthDetails,
     ActiveMacrocycle,
     Macrocycle,
     Mesocycle,
@@ -1268,6 +1270,218 @@ class IndexViewTest(AuthenticatedTestMixin, TestCase):
         ActiveMacrocycle.objects.filter(user=self.user).delete()
         response = self.client.get(self.url)
         self.assertRedirects(response, reverse("workouts:macrocycle_list"))
+
+
+@override_settings(
+    CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
+)
+class UploadWorkoutsAPITest(AuthenticatedTestMixin, TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        User = get_user_model()
+        cls.user = User.objects.create_user(
+            username="testuser", email="upload@example.com", password="testpassword"
+        )
+        cls.url = reverse("workouts:upload_workouts_api")
+
+    def setUp(self):
+        super().setUp()
+        from django.core.cache import cache
+
+        cache.clear()
+
+    def _post(self, data):
+        return self.client.post(
+            self.url,
+            json.dumps(data),
+            content_type="application/json",
+        )
+
+    def test_login_required(self):
+        self.client.logout()
+        response = self._post([])
+        self.assertEqual(response.status_code, 302)
+
+    def test_get_not_allowed(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 405)
+
+    def test_empty_array(self):
+        response = self._post([])
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body["created"], 0)
+        self.assertEqual(body["skipped"], 0)
+
+    def test_create_aerobic_workout(self):
+        data = [
+            {
+                "subtype": "running",
+                "start_time": "2026-04-10T08:30:00Z",
+                "duration_seconds": 3600,
+                "distance_meters": 12500,
+                "gui_fields": {"avg_hr": 145, "max_hr": 172},
+            }
+        ]
+        response = self._post(data)
+        body = response.json()
+        self.assertEqual(body["created"], 1)
+        self.assertEqual(body["errors"], [])
+
+        workout = Workout.objects.get(user=self.user, subtype="running")
+        self.assertEqual(workout.workout_status, WorkoutStatus.COMPLETED)
+        self.assertEqual(workout.name, "Morning Run")
+
+        detail = AerobicDetails.objects.get(workout=workout)
+        self.assertEqual(detail.duration, timedelta(seconds=3600))
+        self.assertEqual(detail.distance, 12500)
+        self.assertEqual(detail.additional_data["gui_fields"]["avg_hr"], 145)
+        self.assertEqual(detail.additional_data["gui_fields"]["max_hr"], 172)
+
+    def test_create_strength_workout(self):
+        data = [
+            {
+                "subtype": "strength",
+                "start_time": "2026-04-10T14:00:00Z",
+                "duration_seconds": 2700,
+                "gui_fields": {"avg_hr": 120},
+            }
+        ]
+        response = self._post(data)
+        body = response.json()
+        self.assertEqual(body["created"], 1)
+
+        workout = Workout.objects.get(user=self.user, subtype="strength")
+        self.assertEqual(workout.name, "Afternoon Strength")
+        detail = StrengthDetails.objects.get(workout=workout)
+        self.assertEqual(detail.duration, timedelta(seconds=2700))
+
+    def test_auto_name_time_of_day(self):
+        times_and_names = [
+            ("2026-04-10T06:00:00Z", "Morning Run"),
+            ("2026-04-10T13:00:00Z", "Afternoon Run"),
+            ("2026-04-10T19:00:00Z", "Evening Run"),
+            ("2026-04-10T23:00:00Z", "Night Run"),
+        ]
+        data = [{"subtype": "running", "start_time": t} for t, _ in times_and_names]
+        self._post(data)
+        for time_str, expected_name in times_and_names:
+            workout = Workout.objects.get(
+                user=self.user, start_time=time_str.replace("Z", "+00:00")
+            )
+            self.assertEqual(workout.name, expected_name)
+
+    def test_deduplication(self):
+        data = [
+            {"subtype": "running", "start_time": "2026-04-10T08:30:00Z"},
+        ]
+        self._post(data)
+        response = self._post(data)
+        body = response.json()
+        self.assertEqual(body["created"], 0)
+        self.assertEqual(body["skipped"], 1)
+        self.assertEqual(len(body["skipped_details"]), 1)
+        self.assertEqual(Workout.objects.filter(user=self.user).count(), 1)
+
+    def test_cross_user_no_dedup(self):
+        User = get_user_model()
+        other = User.objects.create_user(
+            username="other", email="other@example.com", password="testpassword"
+        )
+        Workout.objects.create(
+            user=other,
+            name="Other Run",
+            start_time="2026-04-10T08:30:00+00:00",
+            subtype="running",
+        )
+        data = [{"subtype": "running", "start_time": "2026-04-10T08:30:00Z"}]
+        response = self._post(data)
+        body = response.json()
+        self.assertEqual(body["created"], 1)
+        self.assertEqual(body["skipped"], 0)
+
+    def test_invalid_subtype(self):
+        data = [{"subtype": "basketball", "start_time": "2026-04-10T08:00:00Z"}]
+        response = self._post(data)
+        body = response.json()
+        self.assertEqual(body["created"], 0)
+        self.assertEqual(len(body["errors"]), 1)
+        self.assertIn("invalid subtype", body["errors"][0])
+
+    def test_missing_start_time(self):
+        data = [{"subtype": "running"}]
+        response = self._post(data)
+        body = response.json()
+        self.assertEqual(body["created"], 0)
+        self.assertEqual(len(body["errors"]), 1)
+        self.assertIn("start_time is required", body["errors"][0])
+
+    def test_invalid_json(self):
+        response = self.client.post(
+            self.url, "not json", content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Invalid JSON", response.json()["error"])
+
+    def test_not_array(self):
+        response = self._post({"subtype": "running"})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("array", response.json()["error"])
+
+    def test_max_per_request(self):
+        data = [
+            {"subtype": "running", "start_time": f"2026-04-10T{i:02d}:00:00Z"}
+            for i in range(51)
+        ]
+        response = self._post(data)
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("Maximum", response.json()["error"])
+
+    def test_rate_limiting(self):
+        data = [{"subtype": "running", "start_time": "2026-04-10T08:00:00Z"}]
+        for i in range(10):
+            # Each request needs a unique workout to avoid dedup
+            unique_data = [
+                {"subtype": "running", "start_time": f"2026-05-{i + 1:02d}T08:00:00Z"}
+            ]
+            self._post(unique_data)
+        response = self._post(data)
+        self.assertEqual(response.status_code, 429)
+
+    def test_missing_optional_fields(self):
+        data = [{"subtype": "running", "start_time": "2026-04-10T08:00:00Z"}]
+        response = self._post(data)
+        body = response.json()
+        self.assertEqual(body["created"], 1)
+        workout = Workout.objects.get(user=self.user)
+        detail = AerobicDetails.objects.get(workout=workout)
+        self.assertIsNone(detail.duration)
+        self.assertIsNone(detail.distance)
+
+    def test_invalid_gui_field_keys(self):
+        data = [
+            {
+                "subtype": "running",
+                "start_time": "2026-04-10T08:00:00Z",
+                "gui_fields": {"fake_field": 42},
+            }
+        ]
+        response = self._post(data)
+        body = response.json()
+        self.assertEqual(body["created"], 0)
+        self.assertEqual(len(body["errors"]), 1)
+        self.assertIn("unknown gui_fields", body["errors"][0])
+
+    def test_multiple_workouts_mixed(self):
+        data = [
+            {"subtype": "running", "start_time": "2026-04-10T08:00:00Z"},
+            {"subtype": "invalid", "start_time": "2026-04-10T09:00:00Z"},
+            {"subtype": "cycling", "start_time": "2026-04-10T14:00:00Z"},
+        ]
+        response = self._post(data)
+        body = response.json()
+        self.assertEqual(body["created"], 2)
+        self.assertEqual(len(body["errors"]), 1)
 
 
 @override_settings(

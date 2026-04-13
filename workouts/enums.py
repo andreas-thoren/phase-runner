@@ -123,6 +123,19 @@ GUI_SCHEMAS: dict[WorkoutSubtype, dict] = {
     },
 }
 
+FIT_SPORT_MAP: dict[str, WorkoutSubtype] = {
+    "running": WorkoutSubtype.RUNNING,
+    "trail_running": WorkoutSubtype.RUNNING,
+    "cycling": WorkoutSubtype.CYCLING,
+    "e_biking": WorkoutSubtype.CYCLING,
+    "swimming": WorkoutSubtype.SWIMMING,
+    "open_water_swimming": WorkoutSubtype.SWIMMING,
+    "cross_country_skiing": WorkoutSubtype.SKIING,
+    "alpine_skiing": WorkoutSubtype.SKIING,
+    "training": WorkoutSubtype.STRENGTH,
+    "fitness_equipment": WorkoutSubtype.STRENGTH,
+}
+
 
 @unique
 class MesocycleType(ChoicesEnum):
