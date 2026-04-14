@@ -3,6 +3,8 @@
 
 {% block title %}Upload Workouts{% endblock %}
 
+{% block app_class %}narrow-page{% endblock %}
+
 {% block styles %}
   <link rel="stylesheet" href="{% static 'workouts/css/workouts.css' %}">
 {% endblock %}
@@ -23,7 +25,7 @@
 
     <div id="parse-status" hidden></div>
 
-    <figure id="preview-figure" hidden>
+    <figure id="preview-figure" class="overflow-auto" hidden>
       <table class="record-table">
         <thead>
           <tr>
@@ -40,9 +42,28 @@
       </table>
     </figure>
 
-    <div id="upload-actions" hidden>
+    <div id="upload-actions" class="button-row" hidden>
+      <input type="file" id="csv-file-input" accept=".csv" hidden>
+      <button type="button" id="csv-import-btn" class="secondary">Import names from CSV</button>
       <button type="button" id="upload-btn">Upload</button>
     </div>
+
+    <dialog id="csv-dialog">
+      <article>
+        <header>
+          <button id="csv-dialog-close" aria-label="Close" rel="prev"></button>
+          <h3>CSV Column Mapping</h3>
+        </header>
+        <label for="csv-name-col">Name column</label>
+        <select id="csv-name-col"></select>
+        <label for="csv-datetime-col">Datetime column</label>
+        <select id="csv-datetime-col"></select>
+<footer>
+          <button id="csv-dialog-cancel" class="secondary">Cancel</button>
+          <button id="csv-dialog-apply">Apply</button>
+        </footer>
+      </article>
+    </dialog>
 
     <div id="upload-results" hidden></div>
   </div>

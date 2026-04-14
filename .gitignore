@@ -176,3 +176,4 @@ cython_debug/
 
 # Other files to ignore:
 dev_documents/
+temp_data/

@@ -92,6 +92,11 @@
   color: var(--pico-mark-color, #d68000);
 }
 
+#upload-actions #csv-import-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+}
+
 #upload-results,
 #parse-status {
   margin-top: 1rem;

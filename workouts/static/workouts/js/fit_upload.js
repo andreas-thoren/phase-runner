@@ -17,6 +17,15 @@ if (container) {
   const uploadBtn = document.getElementById("upload-btn");
   const uploadResults = document.getElementById("upload-results");
 
+  const csvImportBtn = document.getElementById("csv-import-btn");
+  const csvFileInput = document.getElementById("csv-file-input");
+  const csvDialog = document.getElementById("csv-dialog");
+  const csvNameCol = document.getElementById("csv-name-col");
+  const csvDatetimeCol = document.getElementById("csv-datetime-col");
+  const csvDialogApply = document.getElementById("csv-dialog-apply");
+  const csvDialogCancel = document.getElementById("csv-dialog-cancel");
+  const csvDialogClose = document.getElementById("csv-dialog-close");
+
   // -- Sport mapping (parallel to FIT_SPORT_MAP in enums.py) ----------------
 
   const SPORT_MAP = {
@@ -88,6 +97,101 @@ if (container) {
     parent.appendChild(el);
   }
 
+  // -- CSV helpers -----------------------------------------------------------
+
+  function detectDelimiter(firstLine) {
+    const commas = (firstLine.match(/,/g) || []).length;
+    const semicolons = (firstLine.match(/;/g) || []).length;
+    return semicolons > commas ? ";" : ",";
+  }
+
+  function parseCSV(text) {
+    const lines = text.split(/\r?\n/).filter((l) => l.trim() !== "");
+    if (lines.length === 0) return { headers: [], rows: [] };
+
+    const delimiter = detectDelimiter(lines[0]);
+
+    function parseLine(line) {
+      const fields = [];
+      let current = "";
+      let inQuotes = false;
+      for (let i = 0; i < line.length; i++) {
+        const ch = line[i];
+        if (inQuotes) {
+          if (ch === '"') {
+            if (i + 1 < line.length && line[i + 1] === '"') {
+              current += '"';
+              i++;
+            } else {
+              inQuotes = false;
+            }
+          } else {
+            current += ch;
+          }
+        } else if (ch === '"') {
+          inQuotes = true;
+        } else if (ch === delimiter) {
+          fields.push(current.trim());
+          current = "";
+        } else {
+          current += ch;
+        }
+      }
+      fields.push(current.trim());
+      return fields;
+    }
+
+    const headers = parseLine(lines[0]);
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+      const values = parseLine(lines[i]);
+      const row = {};
+      for (let j = 0; j < headers.length; j++) {
+        row[headers[j]] = values[j] || "";
+      }
+      rows.push(row);
+    }
+    return { headers, rows };
+  }
+
+  let csvData = null;
+
+  function matchCSVToWorkouts(csvRows, nameCol, datetimeCol) {
+    const matched = new Set();
+    let matchCount = 0;
+
+    for (const csvRow of csvRows) {
+      const rawDatetime = csvRow[datetimeCol];
+      if (!rawDatetime) continue;
+
+      // Parse as browser local time — the Date constructor applies the correct
+      // DST offset for each individual date automatically.
+      const isoStr = rawDatetime.trim().replace(" ", "T");
+      const parsed = new Date(isoStr);
+      if (isNaN(parsed.getTime())) continue;
+
+      // Round to nearest second
+      const utcDate = new Date(Math.round(parsed.getTime() / 1000) * 1000);
+
+      for (let i = 0; i < parsedWorkouts.length; i++) {
+        if (matched.has(i)) continue;
+
+        const wTime = new Date(parsedWorkouts[i].start_time);
+        if (Math.abs(wTime.getTime() - utcDate.getTime()) <= 1000) {
+          const csvName = (csvRow[nameCol] || "").trim();
+          if (csvName) {
+            parsedWorkouts[i]._display.name = csvName;
+            matchCount++;
+          }
+          matched.add(i);
+          break;
+        }
+      }
+    }
+
+    return { matchCount, csvTotal: csvRows.length };
+  }
+
   // -- Parse FIT files ------------------------------------------------------
 
   let parsedWorkouts = [];
@@ -137,10 +241,12 @@ if (container) {
           const startTime = session.startTime instanceof Date
             ? session.startTime
             : new Date(session.startTime);
+          const NON_DISTANCE_SUBTYPES = new Set(["strength", "mobility"]);
           const durationSeconds = session.totalElapsedTime || null;
-          const distanceMeters = session.totalDistance != null
-            ? Math.round(session.totalDistance)
-            : null;
+          const distanceMeters =
+            !NON_DISTANCE_SUBTYPES.has(subtype) && session.totalDistance != null
+              ? Math.round(session.totalDistance)
+              : null;
 
           const label = SPORT_LABELS[subtype] || "Workout";
           const name = `${timeOfDay(startTime.getUTCHours())} ${label}`;
@@ -242,6 +348,66 @@ if (container) {
     }
   });
 
+  // -- CSV dialog handlers --------------------------------------------------
+
+  csvImportBtn.addEventListener("click", () => csvFileInput.click());
+
+  csvFileInput.addEventListener("change", async () => {
+    const file = csvFileInput.files[0];
+    if (!file) return;
+
+    const text = await file.text();
+    csvData = parseCSV(text);
+
+    if (csvData.headers.length === 0) {
+      showStatus("CSV file is empty or has no headers.", "error");
+      csvFileInput.value = "";
+      return;
+    }
+
+    // Populate select elements
+    for (const select of [csvNameCol, csvDatetimeCol]) {
+      select.replaceChildren();
+      for (const header of csvData.headers) {
+        const opt = document.createElement("option");
+        opt.value = header;
+        opt.textContent = header;
+        select.appendChild(opt);
+      }
+    }
+
+    // Pre-select likely columns (case-insensitive, with Swedish fallbacks)
+    const lowerHeaders = csvData.headers.map((h) => h.toLowerCase());
+    const nameIdx = lowerHeaders.findIndex((h) => h === "name" || h === "namn");
+    if (nameIdx !== -1) csvNameCol.selectedIndex = nameIdx;
+    const dateIdx = lowerHeaders.findIndex((h) => h === "date" || h === "datum");
+    if (dateIdx !== -1) csvDatetimeCol.selectedIndex = dateIdx;
+
+    csvDialog.showModal();
+    csvFileInput.value = "";
+  });
+
+  csvDialogApply.addEventListener("click", () => {
+    if (!csvData) return;
+
+    const nameCol = csvNameCol.value;
+    const datetimeCol = csvDatetimeCol.value;
+
+    const { matchCount, csvTotal } = matchCSVToWorkouts(
+      csvData.rows, nameCol, datetimeCol
+    );
+
+    csvDialog.close();
+    renderPreview();
+    showStatus(
+      `Matched ${matchCount} of ${csvTotal} CSV row(s) to ${parsedWorkouts.length} workout(s).`,
+      ""
+    );
+  });
+
+  csvDialogCancel.addEventListener("click", () => csvDialog.close());
+  csvDialogClose.addEventListener("click", () => csvDialog.close());
+
   // -- Upload handler -------------------------------------------------------
 
   uploadBtn.addEventListener("click", async () => {
@@ -250,8 +416,11 @@ if (container) {
     uploadBtn.setAttribute("aria-busy", "true");
     uploadBtn.disabled = true;
 
-    // Strip _display before sending
-    const payload = parsedWorkouts.map(({ _display, ...rest }) => rest);
+    // Strip _display, include name from display
+    const payload = parsedWorkouts.map(({ _display, ...rest }) => ({
+      ...rest,
+      name: _display.name,
+    }));
 
     try {
       const response = await fetch(uploadUrl, {

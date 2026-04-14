@@ -1483,6 +1483,54 @@ class UploadWorkoutsAPITest(AuthenticatedTestMixin, TestCase):
         self.assertEqual(body["created"], 2)
         self.assertEqual(len(body["errors"]), 1)
 
+    def test_custom_name_accepted(self):
+        data = [
+            {
+                "subtype": "running",
+                "start_time": "2026-04-10T08:00:00Z",
+                "name": "Tempo Run",
+            },
+        ]
+        response = self._post(data)
+        body = response.json()
+        self.assertEqual(body["created"], 1)
+        workout = Workout.objects.get(user=self.user)
+        self.assertEqual(workout.name, "Tempo Run")
+
+    def test_name_fallback_when_empty(self):
+        data = [
+            {"subtype": "running", "start_time": "2026-04-10T08:00:00Z", "name": ""},
+        ]
+        response = self._post(data)
+        body = response.json()
+        self.assertEqual(body["created"], 1)
+        workout = Workout.objects.get(user=self.user)
+        self.assertEqual(workout.name, "Morning Run")
+
+    def test_name_too_long(self):
+        data = [
+            {
+                "subtype": "running",
+                "start_time": "2026-04-10T08:00:00Z",
+                "name": "x" * 256,
+            },
+        ]
+        response = self._post(data)
+        body = response.json()
+        self.assertEqual(body["created"], 0)
+        self.assertEqual(len(body["errors"]), 1)
+        self.assertIn("name too long", body["errors"][0])
+
+    def test_name_non_string(self):
+        data = [
+            {"subtype": "running", "start_time": "2026-04-10T08:00:00Z", "name": 42},
+        ]
+        response = self._post(data)
+        body = response.json()
+        self.assertEqual(body["created"], 0)
+        self.assertEqual(len(body["errors"]), 1)
+        self.assertIn("name must be a string", body["errors"][0])
+
 
 @override_settings(
     CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}

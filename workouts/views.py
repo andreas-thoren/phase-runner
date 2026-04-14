@@ -394,11 +394,19 @@ class UploadWorkoutsAPIView(LoginRequiredMixin, View):
         if unknown_keys:
             return f"Item {i}: unknown gui_fields: {', '.join(sorted(unknown_keys))}."
 
+        name = item.get("name")
+        if name is not None:
+            if not isinstance(name, str):
+                return f"Item {i}: name must be a string."
+            if len(name) > 255:
+                return f"Item {i}: name too long (max 255 chars)."
+
         return {
             "subtype_value": subtype_value,
             "subtype_enum": subtype_enum,
             "start_time": start_time,
             "gui_fields": gui_fields,
+            "name": name,
             "raw": item,
         }
 
@@ -412,7 +420,7 @@ class UploadWorkoutsAPIView(LoginRequiredMixin, View):
         item = parsed["raw"]
         workout_type = WorkoutType(subtype_enum.workout_type)
 
-        name = (
+        name = parsed.get("name") or (
             f"{_time_of_day(start_time.hour)} "
             f"{_UPLOAD_SPORT_LABELS.get(subtype_enum, 'Workout')}"
         )
