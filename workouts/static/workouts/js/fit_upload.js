@@ -254,7 +254,7 @@ if (container) {
             ? session.startTime
             : new Date(session.startTime);
           const NON_DISTANCE_SUBTYPES = new Set(["strength", "mobility"]);
-          const durationSeconds = session.totalElapsedTime || null;
+          const durationSeconds = session.totalTimerTime || null;
           const distanceMeters =
             !NON_DISTANCE_SUBTYPES.has(subtype) && session.totalDistance != null
               ? Math.round(session.totalDistance)
