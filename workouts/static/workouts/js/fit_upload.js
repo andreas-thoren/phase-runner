@@ -16,6 +16,8 @@ if (container) {
   const uploadActions = document.getElementById("upload-actions");
   const uploadBtn = document.getElementById("upload-btn");
   const uploadResults = document.getElementById("upload-results");
+  const paginationNav = document.getElementById("preview-pagination");
+  const paginationUl = paginationNav.querySelector("ul");
 
   const csvImportBtn = document.getElementById("csv-import-btn");
   const csvFileInput = document.getElementById("csv-file-input");
@@ -276,11 +278,22 @@ if (container) {
     return warnings;
   }
 
-  // -- Render preview -------------------------------------------------------
+  // -- Render preview (paginated) --------------------------------------------
+
+  const PAGE_SIZE = 15;
+  const PAGINATION_WINDOW = 5;
+  let currentPage = 1;
 
   function renderPreview() {
+    const total = parsedWorkouts.length;
+    const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+    if (currentPage > totalPages) currentPage = totalPages;
+
+    const start = (currentPage - 1) * PAGE_SIZE;
+    const pageItems = parsedWorkouts.slice(start, start + PAGE_SIZE);
+
     previewBody.replaceChildren();
-    for (const w of parsedWorkouts) {
+    for (const w of pageItems) {
       const d = w._display;
       const tr = document.createElement("tr");
       tr.appendChild(makeCell(d.startTime.toLocaleDateString(), "Date"));
@@ -297,8 +310,72 @@ if (container) {
       tr.appendChild(makeCell(w.gui_fields?.avg_hr?.toString() ?? "", "Avg HR"));
       previewBody.appendChild(tr);
     }
-    previewFigure.hidden = parsedWorkouts.length === 0;
-    uploadActions.hidden = parsedWorkouts.length === 0;
+
+    previewFigure.hidden = total === 0;
+    uploadActions.hidden = total === 0;
+    renderPagination(totalPages);
+  }
+
+  function renderPagination(totalPages) {
+    paginationUl.replaceChildren();
+
+    if (totalPages <= 1) {
+      paginationNav.hidden = true;
+      return;
+    }
+    paginationNav.hidden = false;
+
+    function pageLink(label, page, opts = {}) {
+      const li = document.createElement("li");
+      const a = document.createElement("a");
+      a.textContent = label;
+      if (opts.disabled) {
+        a.href = "#";
+        a.setAttribute("aria-disabled", "true");
+      } else {
+        a.href = "#";
+        a.addEventListener("click", (e) => {
+          e.preventDefault();
+          currentPage = page;
+          renderPreview();
+        });
+      }
+      if (opts.current) {
+        a.setAttribute("aria-current", "page");
+        const strong = document.createElement("strong");
+        strong.textContent = label;
+        a.replaceChildren(strong);
+      }
+      li.appendChild(a);
+      return li;
+    }
+
+    // First / prev
+    const hasPrev = currentPage > 1;
+    paginationUl.appendChild(pageLink("\u00ab", 1, { disabled: !hasPrev }));
+    paginationUl.appendChild(
+      pageLink("\u2039", currentPage - 1, { disabled: !hasPrev })
+    );
+
+    // Sliding window
+    const idealStart = Math.max(1, currentPage - Math.floor(PAGINATION_WINDOW / 2));
+    const clampedEnd = Math.min(totalPages, idealStart + PAGINATION_WINDOW - 1);
+    const finalStart = Math.max(1, clampedEnd - PAGINATION_WINDOW + 1);
+
+    for (let num = finalStart; num <= clampedEnd; num++) {
+      paginationUl.appendChild(
+        pageLink(String(num), num, { current: num === currentPage })
+      );
+    }
+
+    // Next / last
+    const hasNext = currentPage < totalPages;
+    paginationUl.appendChild(
+      pageLink("\u203a", currentPage + 1, { disabled: !hasNext })
+    );
+    paginationUl.appendChild(
+      pageLink("\u00bb", totalPages, { disabled: !hasNext })
+    );
   }
 
   function showStatus(message, type) {
@@ -331,7 +408,9 @@ if (container) {
     parseStatus.hidden = true;
     previewFigure.hidden = true;
     uploadActions.hidden = true;
+    paginationNav.hidden = true;
     uploadBtn.disabled = false;
+    currentPage = 1;
 
     showStatus(`Parsing ${files.length} file(s)...`, "");
 
@@ -415,6 +494,7 @@ if (container) {
 
     uploadBtn.setAttribute("aria-busy", "true");
     uploadBtn.disabled = true;
+    parseStatus.hidden = true;
 
     // Strip _display, include name from display
     const payload = parsedWorkouts.map(({ _display, ...rest }) => ({
@@ -453,6 +533,7 @@ if (container) {
           parsedWorkouts = [];
           previewFigure.hidden = true;
           uploadActions.hidden = true;
+          paginationNav.hidden = true;
         }
       } else {
         appendText(uploadResults, body.error || "Upload failed.", "upload-error");
