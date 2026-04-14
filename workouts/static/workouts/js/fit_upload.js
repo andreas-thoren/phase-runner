@@ -51,6 +51,30 @@ if (container) {
     strength: "Strength",
   };
 
+  // -- Valid gui_field keys per subtype (parallel to GUI_SCHEMAS in enums.py) -
+
+  const VALID_GUI_KEYS = {
+    running: new Set([
+      "load_garmin", "avg_hr", "max_hr", "cadence",
+      "z1_pct", "z2_pct", "z3_pct", "z4_pct", "z5_pct", "rpe",
+    ]),
+    cycling: new Set([
+      "load_garmin", "avg_hr", "max_hr", "cadence", "avg_power", "rpe",
+    ]),
+    swimming: new Set([
+      "load_garmin", "avg_hr", "max_hr", "stroke_rate", "laps", "pool_length_m", "rpe",
+    ]),
+    skiing: new Set([
+      "load_garmin", "avg_hr", "max_hr", "elevation_m", "rpe",
+    ]),
+    strength: new Set([
+      "load_garmin", "avg_hr", "max_hr", "exercises", "rpe",
+    ]),
+    mobility: new Set([
+      "load_garmin", "avg_hr", "max_hr", "rpe",
+    ]),
+  };
+
   // -- Helpers --------------------------------------------------------------
 
   function timeOfDay(hour) {
@@ -58,22 +82,6 @@ if (container) {
     if (hour >= 12 && hour < 17) return "Afternoon";
     if (hour >= 17 && hour < 21) return "Evening";
     return "Night";
-  }
-
-  function formatDuration(seconds) {
-    if (seconds == null) return "";
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.round(seconds % 60);
-    if (h > 0) {
-      return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-    }
-    return `${m}:${String(s).padStart(2, "0")}`;
-  }
-
-  function formatDistance(meters) {
-    if (meters == null) return "";
-    return (meters / 1000).toFixed(2) + " km";
   }
 
   function readFileAsArrayBuffer(file) {
@@ -230,6 +238,8 @@ if (container) {
           continue;
         }
 
+        const timeInZoneMesgs = messages.timeInZoneMesgs || [];
+
         for (const session of sessions) {
           const fitSport = session.sport || "";
           const subtype = SPORT_MAP[fitSport];
@@ -256,9 +266,41 @@ if (container) {
           const guiFields = {};
           if (session.avgHeartRate != null) guiFields.avg_hr = session.avgHeartRate;
           if (session.maxHeartRate != null) guiFields.max_hr = session.maxHeartRate;
-          if (session.avgCadence != null) guiFields.cadence = session.avgCadence;
+          if (session.avgCadence != null) {
+            // FIT running cadence is per-foot; double it to match Garmin's spm display
+            const RUNNING_SUBTYPES = new Set(["running"]);
+            guiFields.cadence = RUNNING_SUBTYPES.has(subtype)
+              ? Math.round(session.avgCadence * 2)
+              : session.avgCadence;
+          }
           if (session.trainingLoadPeak != null) {
             guiFields.load_garmin = Math.round(session.trainingLoadPeak);
+          }
+          if (session.avgPower != null) guiFields.avg_power = session.avgPower;
+          if (session.totalAscent != null) guiFields.elevation_m = session.totalAscent;
+          if (session.numLaps != null) guiFields.laps = session.numLaps;
+          if (session.poolLength != null) guiFields.pool_length_m = session.poolLength;
+
+          // HR zone percentages from timeInZoneMesgs (session-level entry)
+          const sessionZone = timeInZoneMesgs.find(
+            (m) => m.referenceMesg === "session" && m.referenceIndex === session.messageIndex
+          );
+          const hrZones = sessionZone?.timeInHrZone;
+          if (Array.isArray(hrZones) && hrZones.length >= 6) {
+            const zoneTotal = hrZones[1] + hrZones[2] + hrZones[3] + hrZones[4] + hrZones[5];
+            if (zoneTotal > 0) {
+              for (let z = 1; z <= 5; z++) {
+                guiFields[`z${z}_pct`] = Math.round((hrZones[z] / zoneTotal) * 100);
+              }
+            }
+          }
+
+          // Filter to keys valid for this subtype
+          const validKeys = VALID_GUI_KEYS[subtype];
+          if (validKeys) {
+            for (const key of Object.keys(guiFields)) {
+              if (!validKeys.has(key)) delete guiFields[key];
+            }
           }
 
           parsedWorkouts.push({
@@ -296,18 +338,11 @@ if (container) {
     for (const w of pageItems) {
       const d = w._display;
       const tr = document.createElement("tr");
-      tr.appendChild(makeCell(d.startTime.toLocaleDateString(), "Date"));
-      tr.appendChild(
-        makeCell(
-          d.startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-          "Time"
-        )
-      );
+      const datetime = d.startTime.toLocaleDateString() + " " +
+        d.startTime.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+      tr.appendChild(makeCell(datetime, "Datetime"));
       tr.appendChild(makeCell(d.label, "Activity"));
       tr.appendChild(makeCell(d.name, "Name"));
-      tr.appendChild(makeCell(formatDuration(w.duration_seconds), "Duration"));
-      tr.appendChild(makeCell(formatDistance(w.distance_meters), "Distance"));
-      tr.appendChild(makeCell(w.gui_fields?.avg_hr?.toString() ?? "", "Avg HR"));
       previewBody.appendChild(tr);
     }
 
