@@ -54,10 +54,15 @@ from .utils import GreaterThanDurationValidator, HydratedProperty, m_to_km
 # ==============================================================================
 
 
+WEEKLY_UPLOAD_CAP = 5000
+
+
 class User(AbstractUser):
     """Custom user with unique, required email."""
 
     email = models.EmailField(unique=True, blank=False)
+    weekly_upload_count = models.PositiveIntegerField(default=0)
+    weekly_upload_reset = models.DateField(null=True, blank=True)
 
     class Meta(AbstractUser.Meta):
         constraints = [
@@ -66,6 +71,19 @@ class User(AbstractUser):
                 name="user_email_required",
             ),
         ]
+
+    def get_weekly_upload_remaining(self) -> int:
+        """Return remaining upload capacity for this calendar week.
+
+        Resets the counter when a new week (Monday 00:00) has started.
+        Does NOT save — caller must persist changes.
+        """
+        today = date.today()
+        this_monday = today - timedelta(days=today.weekday())
+        if self.weekly_upload_reset is None or self.weekly_upload_reset < this_monday:
+            self.weekly_upload_count = 0
+            self.weekly_upload_reset = this_monday
+        return WEEKLY_UPLOAD_CAP - self.weekly_upload_count
 
 
 # ==============================================================================

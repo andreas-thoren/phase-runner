@@ -119,6 +119,7 @@ from .forms import (
     DETAIL_FORMS,
 )
 from .models import (
+    WEEKLY_UPLOAD_CAP,
     Workout,
     DetailBase,
     ActiveMacrocycle,
@@ -352,13 +353,13 @@ class UploadWorkoutsAPIView(LoginRequiredMixin, View):
 
     Accepts an array of workout objects, validates, deduplicates by
     (user, start_time, subtype), and creates Workout + detail records.
-    Rate-limited to 10 requests/hour per user.
+    Rate-limited to 20 requests/hour and 5000 workouts/week per user.
     """
 
     http_method_names = ["post"]
-    RATE_LIMIT = 10
+    RATE_LIMIT = 20
     COOLOFF_SECONDS = 3600
-    MAX_PER_REQUEST = 50
+    MAX_PER_REQUEST = 500
 
     def _validate_item(  # pylint: disable=too-many-return-statements
         self, item: dict, i: int, user: Any
@@ -460,7 +461,7 @@ class UploadWorkoutsAPIView(LoginRequiredMixin, View):
     def post(
         self, request: HttpRequest
     ) -> JsonResponse:  # pylint: disable=too-many-branches
-        # Rate limit
+        # Hourly rate limit (cache-based)
         cache_key = f"fit_upload_{request.user.pk}"
         attempts = cache.get(cache_key, 0)
         if attempts >= self.RATE_LIMIT:
@@ -482,6 +483,22 @@ class UploadWorkoutsAPIView(LoginRequiredMixin, View):
                 status=400,
             )
 
+        # Weekly upload cap (DB-backed)
+        user = request.user
+        remaining = user.get_weekly_upload_remaining()
+        if remaining <= 0:
+            user.save(update_fields=["weekly_upload_count", "weekly_upload_reset"])
+            next_monday = user.weekly_upload_reset + timedelta(days=7)
+            return JsonResponse(
+                {
+                    "error": (
+                        f"Weekly upload limit of {WEEKLY_UPLOAD_CAP} workouts reached. "
+                        f"Resets on {next_monday}."
+                    )
+                },
+                status=429,
+            )
+
         created = 0
         skipped = 0
         skipped_details: list[str] = []
@@ -497,6 +514,12 @@ class UploadWorkoutsAPIView(LoginRequiredMixin, View):
                 skipped_details.append(result["_duplicate"])
                 continue
 
+            if user.weekly_upload_count + created >= WEEKLY_UPLOAD_CAP:
+                errors.append(
+                    f"Item {i}: weekly upload limit of {WEEKLY_UPLOAD_CAP} reached."
+                )
+                continue
+
             try:
                 with transaction.atomic():
                     self._create_workout(request.user, result)
@@ -505,6 +528,9 @@ class UploadWorkoutsAPIView(LoginRequiredMixin, View):
                 errors.append(f"Item {i}: {exc}")
 
         cache.set(cache_key, attempts + 1, self.COOLOFF_SECONDS)
+
+        user.weekly_upload_count += created
+        user.save(update_fields=["weekly_upload_count", "weekly_upload_reset"])
 
         return JsonResponse(
             {

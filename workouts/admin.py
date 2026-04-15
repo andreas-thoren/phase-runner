@@ -24,3 +24,6 @@ class UserAdmin(BaseUserAdmin):
             },
         ),
     )
+    fieldsets = BaseUserAdmin.fieldsets + (
+        ("Upload Tracking", {"fields": ("weekly_upload_count", "weekly_upload_reset")}),
+    )

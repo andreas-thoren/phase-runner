@@ -1431,21 +1431,21 @@ class UploadWorkoutsAPITest(AuthenticatedTestMixin, TestCase):
     def test_max_per_request(self):
         data = [
             {"subtype": "running", "start_time": f"2026-04-10T{i:02d}:00:00Z"}
-            for i in range(51)
+            for i in range(501)
         ]
         response = self._post(data)
         self.assertEqual(response.status_code, 400)
         self.assertIn("Maximum", response.json()["error"])
 
     def test_rate_limiting(self):
-        data = [{"subtype": "running", "start_time": "2026-04-10T08:00:00Z"}]
-        for i in range(10):
-            # Each request needs a unique workout to avoid dedup
+        for i in range(20):
             unique_data = [
                 {"subtype": "running", "start_time": f"2026-05-{i + 1:02d}T08:00:00Z"}
             ]
             self._post(unique_data)
-        response = self._post(data)
+        response = self._post(
+            [{"subtype": "running", "start_time": "2026-04-10T08:00:00Z"}]
+        )
         self.assertEqual(response.status_code, 429)
 
     def test_missing_optional_fields(self):
@@ -1530,6 +1530,67 @@ class UploadWorkoutsAPITest(AuthenticatedTestMixin, TestCase):
         self.assertEqual(body["created"], 0)
         self.assertEqual(len(body["errors"]), 1)
         self.assertIn("name must be a string", body["errors"][0])
+
+    def test_weekly_cap_blocks_when_exhausted(self):
+        self.user.weekly_upload_count = 5000
+        self.user.weekly_upload_reset = date.today() - timedelta(
+            days=date.today().weekday()
+        )
+        self.user.save(update_fields=["weekly_upload_count", "weekly_upload_reset"])
+        response = self._post(
+            [{"subtype": "running", "start_time": "2026-04-10T08:00:00Z"}]
+        )
+        self.assertEqual(response.status_code, 429)
+        self.assertIn("Weekly upload limit", response.json()["error"])
+
+    def test_weekly_cap_resets_on_new_week(self):
+        today = date.today()
+        last_monday = today - timedelta(days=today.weekday()) - timedelta(days=7)
+        self.user.weekly_upload_count = 5000
+        self.user.weekly_upload_reset = last_monday
+        self.user.save(update_fields=["weekly_upload_count", "weekly_upload_reset"])
+        response = self._post(
+            [{"subtype": "running", "start_time": "2026-06-01T08:00:00Z"}]
+        )
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(body["created"], 1)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.weekly_upload_count, 1)
+
+    def test_weekly_cap_partial_batch(self):
+        today = date.today()
+        this_monday = today - timedelta(days=today.weekday())
+        self.user.weekly_upload_count = 4998
+        self.user.weekly_upload_reset = this_monday
+        self.user.save(update_fields=["weekly_upload_count", "weekly_upload_reset"])
+        data = [
+            {"subtype": "running", "start_time": f"2026-07-{i + 1:02d}T08:00:00Z"}
+            for i in range(5)
+        ]
+        response = self._post(data)
+        body = response.json()
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(body["created"], 2)
+        self.assertEqual(len(body["errors"]), 3)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.weekly_upload_count, 5000)
+
+    def test_weekly_cap_tracks_across_requests(self):
+        data1 = [
+            {"subtype": "running", "start_time": f"2026-08-{i + 1:02d}T08:00:00Z"}
+            for i in range(3)
+        ]
+        self._post(data1)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.weekly_upload_count, 3)
+        data2 = [
+            {"subtype": "running", "start_time": f"2026-09-{i + 1:02d}T08:00:00Z"}
+            for i in range(2)
+        ]
+        self._post(data2)
+        self.user.refresh_from_db()
+        self.assertEqual(self.user.weekly_upload_count, 5)
 
 
 @override_settings(

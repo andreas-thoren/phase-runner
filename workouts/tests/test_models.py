@@ -8,6 +8,7 @@ from django.test import TestCase
 from workouts.enums import SUBTYPE_TYPE_MAP, WorkoutStatus, WorkoutSubtype, WorkoutType
 from workouts.utils import create_default_cycles
 from workouts.models import (
+    WEEKLY_UPLOAD_CAP,
     ActiveMacrocycle,
     Workout,
     AerobicDetails,
@@ -35,6 +36,39 @@ class UserModelTest(TestCase):
             User.objects.create_user(
                 username="user2", email="same@example.com", password="testpass"
             )
+
+
+class WeeklyUploadCapTest(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="capuser", email="cap@example.com", password="testpass"
+        )
+
+    def test_fresh_user(self):
+        remaining = self.user.get_weekly_upload_remaining()
+        self.assertEqual(remaining, WEEKLY_UPLOAD_CAP)
+        today = date.today()
+        this_monday = today - timedelta(days=today.weekday())
+        self.assertEqual(self.user.weekly_upload_reset, this_monday)
+
+    def test_new_week_resets(self):
+        today = date.today()
+        last_monday = today - timedelta(days=today.weekday()) - timedelta(days=7)
+        self.user.weekly_upload_count = 3000
+        self.user.weekly_upload_reset = last_monday
+        self.user.save()
+        remaining = self.user.get_weekly_upload_remaining()
+        self.assertEqual(remaining, WEEKLY_UPLOAD_CAP)
+        self.assertEqual(self.user.weekly_upload_count, 0)
+
+    def test_active_window(self):
+        today = date.today()
+        this_monday = today - timedelta(days=today.weekday())
+        self.user.weekly_upload_count = 1000
+        self.user.weekly_upload_reset = this_monday
+        self.user.save()
+        remaining = self.user.get_weekly_upload_remaining()
+        self.assertEqual(remaining, WEEKLY_UPLOAD_CAP - 1000)
 
 
 class WorkoutModelTest(TestCase):
