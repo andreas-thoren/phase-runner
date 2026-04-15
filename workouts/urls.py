@@ -22,7 +22,6 @@ urlpatterns = [
     path("", views.IndexView.as_view(), name="index"),
     # --- Workout URLs ---
     path("workouts/", views.WorkoutListView.as_view(), name="workout_list"),
-    path("running/", views.RunningListView.as_view(), name="running_list"),
     path(
         "workouts/export/",
         views.ExportWorkoutsView.as_view(),

@@ -179,8 +179,11 @@ class BuildBreadcrumbsDirectTest(BuildBreadcrumbsTestMixin, TestCase):
         self.assertEqual(len(crumbs), 1)
         self.assertEqual(crumbs[0].label, "Workouts")
 
-    def test_running_list(self):
-        crumbs = _build_breadcrumbs("running_list", {}, None)
+    def test_workout_list_filtered_running(self):
+        from django.test import RequestFactory
+
+        request = RequestFactory().get("/workouts/", {"activity": "running"})
+        crumbs = _build_breadcrumbs("workout_list", {}, request)
         self.assertEqual(len(crumbs), 1)
         self.assertEqual(crumbs[0].label, "Running")
 

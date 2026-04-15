@@ -1,8 +1,8 @@
 {% extends "workouts/list_base.html" %}
 {% load static %}
 
-{% block page_title %}All workouts page{% endblock %}
-{% block heading %}Workouts{% endblock %}
+{% block page_title %}{{ page_heading }}{% endblock %}
+{% block heading %}{{ page_heading }}{% endblock %}
 
 {% block scripts %}
   {{ block.super }}
@@ -10,13 +10,17 @@
 {% endblock %}
 
 {% block toolbar %}
-  {% include "workouts/partials/workout_filters.html" with show_activity=True %}
+  {% include "workouts/partials/workout_filters.html" %}
 {% endblock %}
 
 {% block table_head %}
   <th>Date</th>
-  <th>Activity</th>
+  {% if view_mode == "default" %}<th>Activity</th>{% endif %}
   <th>Name</th>
+  {% if view_mode == "running" %}
+    <th>Distance</th>
+    <th>Pace</th>
+  {% endif %}
   <th>Status</th>
 {% endblock %}
 
@@ -24,11 +28,19 @@
   {% for wrk in workouts %}
     <tr id="row-{{ wrk.pk }}" data-href="{{ wrk.get_absolute_url }}" class="workout-row" tabindex="0">
       <td data-label="Date">{{ wrk.start_time|date:"Y-m-d" }}</td>
-      <td data-label="Activity">{{ wrk.get_subtype_display|default:"—" }}</td>
+      {% if view_mode == "default" %}
+        <td data-label="Activity">{{ wrk.get_subtype_display|default:"—" }}</td>
+      {% endif %}
       <td data-label="Name">{{ wrk.name }}</td>
+      {% if view_mode == "running" %}
+        {% with detail=wrk.aerobic_details %}
+        <td data-label="Distance">{% if detail.distance_km %}{{ detail.distance_km|floatformat:"-1" }} km{% else %}—{% endif %}</td>
+        <td data-label="Pace">{% if detail.pace_display %}{{ detail.pace_display }}{% else %}—{% endif %}</td>
+        {% endwith %}
+      {% endif %}
       <td data-label="Status">{{ wrk.get_workout_status_display }}</td>
     </tr>
   {% endfor %}
 {% endblock %}
 
-{% block empty_message %}No workouts match your filters.{% endblock %}
+{% block empty_message %}{% if view_mode == "running" %}No runs match your filters.{% else %}No workouts match your filters.{% endif %}{% endblock %}

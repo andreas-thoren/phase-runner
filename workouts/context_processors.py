@@ -52,7 +52,6 @@ _URL_SIDEBAR_MAP: dict[str, tuple[str, str]] = {
     "edit_microcycle": ("plans", "all_plans"),
     "delete_microcycle": ("plans", "all_plans"),
     "workout_list": ("workouts", "all_workouts"),
-    "running_list": ("workouts", "running"),
     "upload_workouts": ("workouts", "upload"),
     "export_workouts": ("workouts", "all_workouts"),
     "workout_detail": ("workouts", "all_workouts"),
@@ -193,10 +192,14 @@ def _workout_crumbs(
     workouts_url = reverse("workouts:workout_list")
 
     if url_name == "workout_list":
+        activity = request.GET.get("activity", "") if request else ""
+        if activity:
+            try:
+                label = WorkoutSubtype(activity).label
+                return [BreadcrumbItem(label)]
+            except ValueError:
+                pass
         return [BreadcrumbItem("Workouts")]
-
-    if url_name == "running_list":
-        return [BreadcrumbItem("Running")]
 
     if url_name == "upload_workouts":
         return [BreadcrumbItem("Workouts", workouts_url), BreadcrumbItem("Upload")]
@@ -301,6 +304,12 @@ def sidebar_navigation(request: HttpRequest) -> dict:
 
         if url_name in _URL_SIDEBAR_MAP:
             nav_section, nav_item = _URL_SIDEBAR_MAP[url_name]
+
+            # For workout list, detect activity filter from query params
+            if url_name == "workout_list":
+                activity = request.GET.get("activity", "")
+                if activity in {st.value for st in WorkoutSubtype}:
+                    nav_item = activity
 
             # For create workout, detect the subtype from URL kwargs
             if url_name == "create_workout":

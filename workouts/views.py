@@ -572,10 +572,33 @@ class IndexView(LoginRequiredMixin, View):
             return redirect(reverse(f"{APP_NAMESPACE}:macrocycle_list"))
 
 
+SPECIALIZED_SUBTYPES: dict[WorkoutSubtype, str] = {
+    WorkoutSubtype.RUNNING: "running",
+}
+
+
 class WorkoutListView(BaseWorkoutListView):
-    """All workouts list with optional activity filter."""
+    """Workout list with optional activity filter and specialized column modes."""
 
     template_name = "workouts/workout_list.html"
+
+    def get_base_queryset(self) -> QuerySet:
+        activity = self.request.GET.get("activity", "")
+        try:
+            subtype = WorkoutSubtype(activity)
+            wtype = subtype.workout_type
+            detail_model = DetailBase._detail_registry.get(wtype)
+            related = [detail_model.get_related_name()] if detail_model else []
+        except ValueError:
+            related = [
+                model.get_related_name()
+                for model in DetailBase._detail_registry.values()
+            ]
+        return (
+            Workout.objects.filter(user=self.request.user)
+            .select_related(*related)
+            .order_by("-start_time")
+        )
 
     def apply_filters(self, qs: QuerySet) -> QuerySet:
         qs = super().apply_filters(qs)
@@ -585,19 +608,21 @@ class WorkoutListView(BaseWorkoutListView):
                 qs = qs.filter(subtype=activity)
         return qs
 
-
-class RunningListView(BaseWorkoutListView):
-    """Running-only list with aerobic details (distance, pace)."""
-
-    template_name = "workouts/running_list.html"
-
-    def get_base_queryset(self) -> QuerySet:
-        return (
-            Workout.objects.filter(user=self.request.user)
-            .select_related("aerobic_details")
-            .filter(subtype=WorkoutSubtype.RUNNING)
-            .order_by("-start_time")
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        activity = ""
+        if self.filter_form.is_valid():
+            activity = self.filter_form.cleaned_data.get("activity", "")
+        try:
+            subtype = WorkoutSubtype(activity)
+            view_mode = SPECIALIZED_SUBTYPES.get(subtype, "default")
+        except ValueError:
+            view_mode = "default"
+        context["view_mode"] = view_mode
+        context["page_heading"] = (
+            WorkoutSubtype(activity).label if view_mode != "default" else "Workouts"
         )
+        return context
 
 
 # ── CSV Export ─────────────────────────────────────────────────────────

@@ -171,6 +171,57 @@ class WorkoutListFilterTest(AuthenticatedTestMixin, TestCase):
         self.assertContains(response, "No workouts match your filters.")
 
 
+class WorkoutListViewModeTest(AuthenticatedTestMixin, TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        User = get_user_model()
+        cls.user = User.objects.create_user(
+            username="viewmodeuser", email="vm@example.com", password="testpassword"
+        )
+        cls.url = reverse("workouts:workout_list")
+        cls.run_workout = Workout.objects.create(
+            user=cls.user,
+            name="Morning Run",
+            subtype=WorkoutSubtype.RUNNING,
+            workout_status=WorkoutStatus.COMPLETED,
+        )
+        AerobicDetails.objects.create(
+            workout=cls.run_workout, duration=timedelta(minutes=30), distance=5000
+        )
+
+    def test_default_view_mode(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.context["view_mode"], "default")
+        self.assertEqual(response.context["page_heading"], "Workouts")
+
+    def test_running_view_mode(self):
+        response = self.client.get(self.url, {"activity": "running"})
+        self.assertEqual(response.context["view_mode"], "running")
+        self.assertEqual(response.context["page_heading"], "Running")
+
+    def test_non_specialized_subtype_default_mode(self):
+        response = self.client.get(self.url, {"activity": "cycling"})
+        self.assertEqual(response.context["view_mode"], "default")
+
+    def test_default_shows_activity_column(self):
+        response = self.client.get(self.url)
+        self.assertContains(response, "<th>Activity</th>")
+        self.assertNotContains(response, "<th>Distance</th>")
+        self.assertNotContains(response, "<th>Pace</th>")
+
+    def test_running_shows_distance_pace_columns(self):
+        response = self.client.get(self.url, {"activity": "running"})
+        self.assertContains(response, "<th>Distance</th>")
+        self.assertContains(response, "<th>Pace</th>")
+        self.assertNotContains(response, "<th>Activity</th>")
+
+    def test_running_no_results_message(self):
+        response = self.client.get(
+            self.url, {"activity": "running", "date_from": "2099-01-01"}
+        )
+        self.assertContains(response, "No runs match your filters.")
+
+
 class WorkoutDetailViewTest(AuthenticatedTestMixin, TestCase):
     @classmethod
     def setUpTestData(cls):

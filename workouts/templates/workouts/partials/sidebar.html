@@ -46,7 +46,7 @@
           </a>
         </li>
         <li>
-          <a href="{% url 'workouts:running_list' %}"
+          <a href="{% url 'workouts:workout_list' %}?activity=running&show_filters=1"
              {% if nav_section == "workouts" and nav_item == "running" %}aria-current="page"{% endif %}>
             Running
           </a>
