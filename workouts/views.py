@@ -78,6 +78,8 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 from django.contrib import messages
+from django.contrib.auth import logout, update_session_auth_hash
+from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth import views as auth_views
 from django.core.cache import cache
@@ -110,6 +112,7 @@ from .enums import (
     ViewType,
 )
 from .forms import (
+    AccountForm,
     CreateCyclesForm,
     WorkoutForm,
     WorkoutFilterForm,
@@ -1577,3 +1580,79 @@ class MicrocycleDeleteView(
         ctx = super().get_context_data(**kwargs)
         ctx["form"] = MicrocycleForm(instance=self.object, read_only=True)
         return ctx
+
+
+# ── Account Views ──────────────────────────────────────────────────────
+
+User = get_user_model()
+
+
+class AccountDetailView(LoginRequiredMixin, NoCacheMixin, DetailView):
+    """Read-only account detail showing user profile fields."""
+
+    model = User
+    template_name = "workouts/account_form.html"
+
+    def get_object(self, queryset=None):
+        return self.request.user
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        ctx = super().get_context_data(**kwargs)
+        ctx["form"] = AccountForm(instance=self.request.user, read_only=True)
+        ctx["view_type"] = ViewType.DETAIL
+        ctx["read_only"] = True
+        ctx["edit_url"] = reverse(f"{APP_NAMESPACE}:edit_account")
+        ctx["delete_url"] = reverse(f"{APP_NAMESPACE}:delete_account")
+        return ctx
+
+
+class AccountEditView(LoginRequiredMixin, UpdateView):
+    """Edit account fields with current password verification."""
+
+    model = User
+    form_class = AccountForm
+    template_name = "workouts/account_form.html"
+
+    def get_object(self, queryset=None):
+        return self.request.user
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        ctx = super().get_context_data(**kwargs)
+        ctx["view_type"] = ViewType.UPDATE
+        ctx["read_only"] = False
+        ctx["cancel_url"] = reverse(f"{APP_NAMESPACE}:account_detail")
+        return ctx
+
+    def form_valid(self, form: AccountForm) -> HttpResponse:
+        user = form.save(commit=False)
+        new_password = form.cleaned_data.get("new_password")
+        if new_password:
+            user.set_password(new_password)
+        user.save()
+        if new_password:
+            update_session_auth_hash(self.request, user)
+        return redirect(reverse(f"{APP_NAMESPACE}:account_detail"))
+
+
+class AccountDeleteView(LoginRequiredMixin, NoCacheMixin, DeleteView):
+    """Account deletion with modal confirmation dialog."""
+
+    model = User
+    template_name = "workouts/account_form.html"
+
+    def get_object(self, queryset=None):
+        return self.request.user
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        ctx = super().get_context_data(**kwargs)
+        ctx["form"] = AccountForm(instance=self.request.user, read_only=True)
+        ctx["view_type"] = ViewType.DELETE
+        ctx["read_only"] = True
+        ctx["cancel_url"] = reverse(f"{APP_NAMESPACE}:account_detail")
+        return ctx
+
+    def form_valid(self, form: forms.Form) -> HttpResponse:
+        user = self.request.user
+        logout(self.request)
+        user.delete()
+        return redirect("login")

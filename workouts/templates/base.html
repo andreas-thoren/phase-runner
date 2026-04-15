@@ -43,6 +43,7 @@
                 </summary>
                 <ul dir="rtl">
                   <li><span class="account-username">{{ user.username }}</span></li>
+                  <li><a href="{% url 'workouts:account_detail' %}">Account</a></li>
                   <li>
                     <form id="logout-form" method="post" action="{% url 'logout' %}" class="logout-form">
                       {% csrf_token %}

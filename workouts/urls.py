@@ -20,6 +20,10 @@ app_name = APP_NAMESPACE
 
 urlpatterns = [
     path("", views.IndexView.as_view(), name="index"),
+    # --- Account URLs ---
+    path("account/", views.AccountDetailView.as_view(), name="account_detail"),
+    path("account/edit/", views.AccountEditView.as_view(), name="edit_account"),
+    path("account/delete/", views.AccountDeleteView.as_view(), name="delete_account"),
     # --- Workout URLs ---
     path("workouts/", views.WorkoutListView.as_view(), name="workout_list"),
     path(

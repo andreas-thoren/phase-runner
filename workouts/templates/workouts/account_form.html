@@ -1,0 +1,53 @@
+{% extends "workouts/form_base.html" %}
+{% load static %}
+
+{% block page_title %}Account{% endblock %}
+{% block heading %}Account{% endblock %}
+
+{% block scripts %}
+  {{ block.super }}
+  {% if view_type == "delete" %}
+    <script src="{% static 'workouts/js/account_delete.js' %}" defer></script>
+  {% endif %}
+{% endblock %}
+
+{% block form_content %}
+  {% for field in form %}
+    {% include "workouts/partials/form_field.html" %}
+  {% endfor %}
+{% endblock %}
+
+{% block button_row %}
+  {% if view_type == "delete" %}
+    <div class="button-row">
+      {% if cancel_url %}
+        <a class="secondary" href="{{ cancel_url }}" data-replace role="button" aria-label="Cancel" title="Cancel">Cancel</a>
+      {% else %}
+        <a class="secondary" data-back role="button" aria-label="Cancel" title="Cancel">Cancel</a>
+      {% endif %}
+      <button id="delete-btn" type="button">Delete</button>
+    </div>
+  {% else %}
+    {{ block.super }}
+  {% endif %}
+{% endblock %}
+
+{% block after_form %}
+  {% if view_type == "delete" %}
+    <dialog id="confirm-delete-dialog">
+      <article>
+        <header>
+          <button id="dialog-close" aria-label="Close" rel="prev" type="button"></button>
+          <h3>Delete account</h3>
+        </header>
+        <p>Do you really want to delete your account? All your workouts and plans will be deleted!</p>
+        <label for="confirm-delete-input">Type DELETE to confirm</label>
+        <input type="text" id="confirm-delete-input" autocomplete="off" placeholder="DELETE">
+        <footer>
+          <button id="dialog-cancel" class="secondary" type="button">Cancel</button>
+          <button id="dialog-confirm" type="button" disabled>Delete</button>
+        </footer>
+      </article>
+    </dialog>
+  {% endif %}
+{% endblock %}

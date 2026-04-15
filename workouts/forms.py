@@ -20,6 +20,8 @@ Views use this dict to instantiate the correct detail form for a workout.
 from typing import Any
 
 from django import forms
+from django.contrib.auth import get_user_model
+from django.contrib.auth.password_validation import validate_password
 from .models import (
     Workout,
     AerobicDetails,
@@ -29,6 +31,8 @@ from .models import (
     Mesocycle,
     Microcycle,
 )
+
+User = get_user_model()
 from .enums import WorkoutStatus, WorkoutSubtype, WorkoutType
 from .utils import m_to_km, km_to_m
 
@@ -239,3 +243,51 @@ class WorkoutFilterForm(forms.Form):
         choices=[("", "All activities")] + WorkoutSubtype.choices(),
         required=False,
     )
+
+
+class AccountForm(ReadOnlyFormMixin, forms.ModelForm):
+    """Account settings form with optional password change."""
+
+    current_password = forms.CharField(widget=forms.PasswordInput, required=False)
+    new_password = forms.CharField(widget=forms.PasswordInput, required=False)
+    confirm_password = forms.CharField(widget=forms.PasswordInput, required=False)
+
+    class Meta:
+        model = User
+        fields = ("first_name", "last_name", "email")
+
+    def __init__(self, *args: Any, read_only: bool = False, **kwargs: Any) -> None:
+        super().__init__(*args, read_only=read_only, **kwargs)
+        if read_only:
+            del self.fields["current_password"]
+            del self.fields["new_password"]
+            del self.fields["confirm_password"]
+
+    def clean_current_password(self) -> str:
+        password = self.cleaned_data.get("current_password", "")
+        if not password:
+            raise forms.ValidationError("Current password is required to save changes.")
+        if not self.instance.check_password(password):
+            raise forms.ValidationError("Current password is incorrect.")
+        return password
+
+    def clean_email(self) -> str:
+        email = self.cleaned_data.get("email", "")
+        if User.objects.filter(email=email).exclude(pk=self.instance.pk).exists():
+            raise forms.ValidationError("A user with this email already exists.")
+        return email
+
+    def clean(self) -> dict:
+        cleaned = super().clean()
+        new_pw = cleaned.get("new_password", "")
+        confirm_pw = cleaned.get("confirm_password", "")
+        if new_pw or confirm_pw:
+            if new_pw != confirm_pw:
+                raise forms.ValidationError(
+                    {"confirm_password": "Passwords do not match."}
+                )
+            try:
+                validate_password(new_pw, self.instance)
+            except forms.ValidationError as e:
+                self.add_error("new_password", e)
+        return cleaned

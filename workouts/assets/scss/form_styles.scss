@@ -113,6 +113,27 @@
   }
 }
 
+#dialog-confirm {
+  background-color: inherit;
+  color: var(--pico-del-color);
+  border-color: var(--pico-del-color);
+
+  &:hover,
+  &:focus {
+    background-color: var(--pico-del-color);
+    color: var(--pico-secondary-inverse);
+    border-color: var(--pico-del-color);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: inherit;
+    color: var(--pico-del-color);
+    border-color: var(--pico-del-color);
+  }
+}
+
 .heading-row {
   display: flex;
   flex-wrap: wrap;
