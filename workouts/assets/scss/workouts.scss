@@ -182,7 +182,11 @@
   box-shadow: none;
 }
 
+.summary-export { margin-bottom: 0; }
+
 @media (max-width: 640px) {
+  .summary-export { margin-bottom: 1rem; }
+
   .summary-table {
     white-space: normal;
 

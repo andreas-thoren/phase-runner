@@ -1171,6 +1171,85 @@ def _aggregate_workouts(
     return dict(result)
 
 
+def _build_summary_rows(macro: Macrocycle, user) -> list[dict]:
+    """Build per-microcycle summary rows with planned goals and actual workout stats."""
+    rows: list[dict] = []
+    micro_entries = []
+
+    for meso in macro.hydrated_mesocycles:
+        for micro in meso.hydrated_microcycles:
+            micro_entries.append(
+                {
+                    "pk": micro.pk,
+                    "start": micro.start_date,
+                    "end": micro.end_date,
+                }
+            )
+
+    if not micro_entries:
+        return rows
+
+    overall_start = micro_entries[0]["start"]
+    overall_end = micro_entries[-1]["end"]
+    actuals_by_micro = _aggregate_workouts(
+        overall_start,
+        overall_end,
+        micro_entries,
+        user,
+        macro.primary_sport,
+    )
+
+    workout_list_url = reverse(f"{APP_NAMESPACE}:workout_list")
+
+    for meso in macro.hydrated_mesocycles:
+        meso_first = True
+        meso_micro_count = len(meso.hydrated_microcycles)
+        for micro in meso.hydrated_microcycles:
+            actuals = actuals_by_micro.get(micro.pk, _empty_actuals())
+            date_from = micro.start_date.isoformat()
+            date_to = micro.end_date.isoformat()
+            rows.append(
+                {
+                    "micro_pk": micro.pk,
+                    "start_date": micro.start_date,
+                    "meso_pk": meso.pk,
+                    "meso_display": meso.get_meso_type_display(),
+                    "meso_url": meso.get_absolute_url(),
+                    "meso_first_row": meso_first,
+                    "meso_rowspan": meso_micro_count if meso_first else 0,
+                    "micro_type_display": micro.get_micro_type_display(),
+                    "micro_url": micro.get_absolute_url(),
+                    "workouts_url": (
+                        f"{workout_list_url}"
+                        f"?date_from={date_from}&date_to={date_to}"
+                    ),
+                    "planned_distance_km": micro.planned_distance_km,
+                    "planned_long_km": micro.planned_long_distance_km,
+                    "planned_sessions": micro.planned_sessions,
+                    "sport_distance": m_to_km(actuals["sport_distance"]) or 0,
+                    "long_distance": m_to_km(actuals["long_distance"]) or 0,
+                    **{
+                        k: v
+                        for k, v in actuals.items()
+                        if k not in ("sport_distance", "long_distance")
+                    },
+                }
+            )
+            meso_first = False
+
+    return rows
+
+
+def _summary_col_labels(sport: WorkoutSubtype) -> dict[str, str]:
+    """Return sport-specific column labels for the summary table."""
+    return {
+        "col_sessions": SESSION_LABELS[sport],
+        "col_distance": f"{sport.label} dst",
+        "col_long": LONG_SESSION_LABELS[sport],
+        "col_sport_load": f"{sport.label} load",
+    }
+
+
 class MacrocycleSummaryView(LoginRequiredMixin, NoCacheMixin, DetailView):
     """Read-only overview table comparing planned goals vs actual workout stats per microcycle."""
 
@@ -1186,79 +1265,98 @@ class MacrocycleSummaryView(LoginRequiredMixin, NoCacheMixin, DetailView):
         macro = self.object
         macro.hydrate()
         sport = WorkoutSubtype(macro.primary_sport)
-        ctx["rows"] = self._build_summary_rows(macro)
-        ctx["col_sessions"] = SESSION_LABELS[sport]
-        ctx["col_distance"] = f"{sport.label} dst"
-        ctx["col_long"] = LONG_SESSION_LABELS[sport]
-        ctx["col_sport_load"] = f"{sport.label} load"
+        ctx["rows"] = _build_summary_rows(macro, self.request.user)
+        ctx.update(_summary_col_labels(sport))
         return ctx
 
-    def _build_summary_rows(self, macro: Macrocycle) -> list[dict]:
-        rows = []
-        micro_entries = []
 
-        for meso in macro.hydrated_mesocycles:
-            for micro in meso.hydrated_microcycles:
-                micro_entries.append(
-                    {
-                        "pk": micro.pk,
-                        "start": micro.start_date,
-                        "end": micro.end_date,
-                    }
-                )
+class ExportPlanSummaryView(LoginRequiredMixin, View):
+    """CSV export of a macrocycle's summary table."""
 
-        if not micro_entries:
-            return rows
+    http_method_names = ["get"]
+    RATE_LIMIT = 10
+    COOLOFF_SECONDS = 3600
 
-        overall_start = micro_entries[0]["start"]
-        overall_end = micro_entries[-1]["end"]
-        actuals_by_micro = _aggregate_workouts(
-            overall_start,
-            overall_end,
-            micro_entries,
-            self.request.user,
-            macro.primary_sport,
+    def get(self, request: HttpRequest, macro_pk: int) -> HttpResponse:
+        cache_key = f"plan_export_{request.user.pk}"
+        attempts = cache.get(cache_key, 0)
+        if attempts >= self.RATE_LIMIT:
+            return HttpResponse(
+                "Rate limit exceeded. Please try again later.", status=429
+            )
+
+        macro = get_object_or_404(Macrocycle, pk=macro_pk, user=request.user)
+        macro.hydrate()
+        sport = WorkoutSubtype(macro.primary_sport)
+        labels = _summary_col_labels(sport)
+        rows = _build_summary_rows(macro, request.user)
+
+        cache.set(cache_key, attempts + 1, self.COOLOFF_SECONDS)
+
+        col_sessions = labels["col_sessions"]
+        col_distance = labels["col_distance"]
+        col_long = labels["col_long"]
+        col_sport_load = labels["col_sport_load"]
+
+        headers = [
+            "Mesocycle",
+            "Start date",
+            "Type",
+            f"Planned {col_sessions.lower()}",
+            f"Goal - {col_distance}",
+            f"Goal - {col_long}",
+            col_sessions,
+            col_distance,
+            col_long,
+            col_sport_load,
+            "Nr X",
+            "Nr str",
+            "Tot load",
+        ]
+
+        def _fmt(val, decimals=1):
+            if not val:
+                return ""
+            if isinstance(val, float):
+                return f"{val:.{decimals}f}".rstrip("0").rstrip(".")
+            return str(val)
+
+        safe_name = "".join(
+            c if c.isalnum() or c in " _-" else "_" for c in macro.name
+        ).strip()
+
+        response = HttpResponse(content_type="text/csv; charset=utf-8")
+        response["Content-Disposition"] = (
+            f'attachment; filename="plan_{safe_name}_{date.today()}.csv"'
         )
+        response.write("\ufeff")
+        response.write("sep=,\r\n")
+        writer = csv.writer(response)
+        writer.writerow(headers)
 
-        workout_list_url = reverse(f"{APP_NAMESPACE}:workout_list")
+        for row in rows:
+            writer.writerow(
+                [
+                    _sanitize_csv(v)
+                    for v in [
+                        row["meso_display"],
+                        row["start_date"].strftime("%Y-%m-%d"),
+                        row["micro_type_display"],
+                        _fmt(row["planned_sessions"]),
+                        _fmt(row["planned_distance_km"]),
+                        _fmt(row["planned_long_km"]),
+                        _fmt(row["sessions"]),
+                        _fmt(row["sport_distance"]),
+                        _fmt(row["long_distance"]),
+                        _fmt(row["sport_load"]),
+                        _fmt(row["cross_sessions"]),
+                        _fmt(row["strength_sessions"]),
+                        _fmt(row["total_load"]),
+                    ]
+                ]
+            )
 
-        for meso in macro.hydrated_mesocycles:
-            meso_first = True
-            meso_micro_count = len(meso.hydrated_microcycles)
-            for micro in meso.hydrated_microcycles:
-                actuals = actuals_by_micro.get(micro.pk, _empty_actuals())
-                date_from = micro.start_date.isoformat()
-                date_to = micro.end_date.isoformat()
-                rows.append(
-                    {
-                        "micro_pk": micro.pk,
-                        "start_date": micro.start_date,
-                        "meso_pk": meso.pk,
-                        "meso_display": meso.get_meso_type_display(),
-                        "meso_url": meso.get_absolute_url(),
-                        "meso_first_row": meso_first,
-                        "meso_rowspan": meso_micro_count if meso_first else 0,
-                        "micro_type_display": micro.get_micro_type_display(),
-                        "micro_url": micro.get_absolute_url(),
-                        "workouts_url": (
-                            f"{workout_list_url}"
-                            f"?date_from={date_from}&date_to={date_to}"
-                        ),
-                        "planned_distance_km": micro.planned_distance_km,
-                        "planned_long_km": micro.planned_long_distance_km,
-                        "planned_sessions": micro.planned_sessions,
-                        "sport_distance": m_to_km(actuals["sport_distance"]) or 0,
-                        "long_distance": m_to_km(actuals["long_distance"]) or 0,
-                        **{
-                            k: v
-                            for k, v in actuals.items()
-                            if k not in ("sport_distance", "long_distance")
-                        },
-                    }
-                )
-                meso_first = False
-
-        return rows
+        return response
 
 
 class MacrocycleCreateView(LoginRequiredMixin, FormContextMixin, CreateView):

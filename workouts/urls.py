@@ -95,6 +95,11 @@ urlpatterns = [
         views.MacrocycleSummaryView.as_view(),
         name="macrocycle_summary",
     ),
+    path(
+        "plan-<int:macro_pk>/summary/export/",
+        views.ExportPlanSummaryView.as_view(),
+        name="export_plan_summary",
+    ),
     # --- Mesocycle URLs ---
     path(
         "plan-<int:macro_pk>/add-meso/",

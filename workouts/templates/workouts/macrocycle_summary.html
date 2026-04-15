@@ -13,6 +13,12 @@
 
 {% block main %}
   <h1>{{ object.name }}</h1>
+  {% if rows %}
+    <div class="plan-summary-row summary-export">
+      <a href="{% url 'workouts:export_plan_summary' macro_pk=object.pk %}"
+         class="secondary button-slim" role="button">Export CSV</a>
+    </div>
+  {% endif %}
 
   {% if rows %}
     <figure class="overflow-auto">
