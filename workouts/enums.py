@@ -24,8 +24,10 @@ class WorkoutSubtype(ChoicesEnum):
     CYCLING = "cycling"
     SWIMMING = "swimming"
     SKIING = "skiing"
+    WALKING = "walking"
     STRENGTH = "strength"
     MOBILITY = "mobility"
+    GENERIC = "generic"
 
     @property
     def workout_type(self) -> WorkoutType:
@@ -45,8 +47,10 @@ SUBTYPE_TYPE_MAP: dict[WorkoutSubtype, WorkoutType] = {
     WorkoutSubtype.CYCLING: WorkoutType.AEROBIC,
     WorkoutSubtype.SWIMMING: WorkoutType.AEROBIC,
     WorkoutSubtype.SKIING: WorkoutType.AEROBIC,
+    WorkoutSubtype.WALKING: WorkoutType.AEROBIC,
     WorkoutSubtype.STRENGTH: WorkoutType.STRENGTH,
     WorkoutSubtype.MOBILITY: WorkoutType.GENERIC,
+    WorkoutSubtype.GENERIC: WorkoutType.GENERIC,
 }
 
 AEROBIC_SUBTYPES: list[WorkoutSubtype] = [
@@ -62,6 +66,7 @@ SESSION_LABELS: dict[WorkoutSubtype, str] = {
     WorkoutSubtype.CYCLING: "Rides",
     WorkoutSubtype.SWIMMING: "Swims",
     WorkoutSubtype.SKIING: "Ski sessions",
+    WorkoutSubtype.WALKING: "Walks",
 }
 
 LONG_SESSION_LABELS: dict[WorkoutSubtype, str] = {
@@ -69,6 +74,7 @@ LONG_SESSION_LABELS: dict[WorkoutSubtype, str] = {
     WorkoutSubtype.CYCLING: "Long ride",
     WorkoutSubtype.SWIMMING: "Long swim",
     WorkoutSubtype.SKIING: "Long ski",
+    WorkoutSubtype.WALKING: "Long walk",
 }
 
 GUI_SCHEMAS: dict[WorkoutSubtype, dict] = {
@@ -77,6 +83,7 @@ GUI_SCHEMAS: dict[WorkoutSubtype, dict] = {
         "avg_hr": {"type": "number", "label": "Avg HR"},
         "max_hr": {"type": "number", "label": "Max HR"},
         "cadence": {"type": "number", "label": "Cadence"},
+        "elevation_m": {"type": "number", "label": "Elevation (m)"},
         "z1_pct": {"type": "number", "label": "Zone 1 %"},
         "z2_pct": {"type": "number", "label": "Zone 2 %"},
         "z3_pct": {"type": "number", "label": "Zone 3 %"},
@@ -90,6 +97,7 @@ GUI_SCHEMAS: dict[WorkoutSubtype, dict] = {
         "max_hr": {"type": "number", "label": "Max HR"},
         "cadence": {"type": "number", "label": "Cadence"},
         "avg_power": {"type": "number", "label": "Avg Power (W)"},
+        "elevation_m": {"type": "number", "label": "Elevation (m)"},
         "rpe": {"type": "number", "label": "RPE"},
     },
     WorkoutSubtype.SWIMMING: {
@@ -115,7 +123,21 @@ GUI_SCHEMAS: dict[WorkoutSubtype, dict] = {
         "exercises": {"type": "number", "label": "Exercises"},
         "rpe": {"type": "number", "label": "RPE"},
     },
+    WorkoutSubtype.WALKING: {
+        "load_garmin": {"type": "number", "label": "Load (Garmin)"},
+        "avg_hr": {"type": "number", "label": "Avg HR"},
+        "max_hr": {"type": "number", "label": "Max HR"},
+        "cadence": {"type": "number", "label": "Cadence"},
+        "elevation_m": {"type": "number", "label": "Elevation (m)"},
+        "rpe": {"type": "number", "label": "RPE"},
+    },
     WorkoutSubtype.MOBILITY: {
+        "load_garmin": {"type": "number", "label": "Load (Garmin)"},
+        "avg_hr": {"type": "number", "label": "Avg HR"},
+        "max_hr": {"type": "number", "label": "Max HR"},
+        "rpe": {"type": "number", "label": "RPE"},
+    },
+    WorkoutSubtype.GENERIC: {
         "load_garmin": {"type": "number", "label": "Load (Garmin)"},
         "avg_hr": {"type": "number", "label": "Avg HR"},
         "max_hr": {"type": "number", "label": "Max HR"},
@@ -134,8 +156,12 @@ FIT_SPORT_MAP: dict[str, WorkoutSubtype] = {
     "openWaterSwimming": WorkoutSubtype.SWIMMING,
     "crossCountrySkiing": WorkoutSubtype.SKIING,
     "alpineSkiing": WorkoutSubtype.SKIING,
+    "walking": WorkoutSubtype.WALKING,
+    "hiking": WorkoutSubtype.WALKING,
     "training": WorkoutSubtype.STRENGTH,
     "fitnessEquipment": WorkoutSubtype.STRENGTH,
+    "flexibilityTraining": WorkoutSubtype.MOBILITY,
+    "generic": WorkoutSubtype.GENERIC,
 }
 
 

@@ -39,8 +39,12 @@ if (container) {
     openWaterSwimming: "swimming",
     crossCountrySkiing: "skiing",
     alpineSkiing: "skiing",
+    walking: "walking",
+    hiking: "walking",
     training: "strength",
     fitnessEquipment: "strength",
+    flexibilityTraining: "mobility",
+    generic: "generic",
   };
 
   const SPORT_LABELS = {
@@ -48,18 +52,21 @@ if (container) {
     cycling: "Ride",
     swimming: "Swim",
     skiing: "Ski",
+    walking: "Walk",
     strength: "Strength",
+    mobility: "Mobility",
+    generic: "Workout",
   };
 
   // -- Valid gui_field keys per subtype (parallel to GUI_SCHEMAS in enums.py) -
 
   const VALID_GUI_KEYS = {
     running: new Set([
-      "load_garmin", "avg_hr", "max_hr", "cadence",
+      "load_garmin", "avg_hr", "max_hr", "cadence", "elevation_m",
       "z1_pct", "z2_pct", "z3_pct", "z4_pct", "z5_pct", "rpe",
     ]),
     cycling: new Set([
-      "load_garmin", "avg_hr", "max_hr", "cadence", "avg_power", "rpe",
+      "load_garmin", "avg_hr", "max_hr", "cadence", "avg_power", "elevation_m", "rpe",
     ]),
     swimming: new Set([
       "load_garmin", "avg_hr", "max_hr", "stroke_rate", "laps", "pool_length_m", "rpe",
@@ -67,10 +74,16 @@ if (container) {
     skiing: new Set([
       "load_garmin", "avg_hr", "max_hr", "elevation_m", "rpe",
     ]),
+    walking: new Set([
+      "load_garmin", "avg_hr", "max_hr", "cadence", "elevation_m", "rpe",
+    ]),
     strength: new Set([
       "load_garmin", "avg_hr", "max_hr", "exercises", "rpe",
     ]),
     mobility: new Set([
+      "load_garmin", "avg_hr", "max_hr", "rpe",
+    ]),
+    generic: new Set([
       "load_garmin", "avg_hr", "max_hr", "rpe",
     ]),
   };
@@ -242,7 +255,10 @@ if (container) {
 
         for (const session of sessions) {
           const fitSport = session.sport || "";
-          const subtype = SPORT_MAP[fitSport];
+          let subtype = SPORT_MAP[fitSport];
+          if (!subtype && /^\d+$/.test(fitSport)) {
+            subtype = "generic";
+          }
           if (!subtype) {
             warnings.push(
               `${file.name}: unknown sport "${fitSport}", skipping.`

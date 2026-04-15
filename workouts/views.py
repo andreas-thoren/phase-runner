@@ -327,8 +327,10 @@ _UPLOAD_SPORT_LABELS: dict[WorkoutSubtype, str] = {
     WorkoutSubtype.CYCLING: "Ride",
     WorkoutSubtype.SWIMMING: "Swim",
     WorkoutSubtype.SKIING: "Ski",
+    WorkoutSubtype.WALKING: "Walk",
     WorkoutSubtype.STRENGTH: "Strength",
     WorkoutSubtype.MOBILITY: "Mobility",
+    WorkoutSubtype.GENERIC: "Workout",
 }
 
 
