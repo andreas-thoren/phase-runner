@@ -553,23 +553,39 @@ if (container) {
       uploadResults.replaceChildren();
 
       if (response.ok) {
-        if (body.created > 0) {
-          appendText(uploadResults, `${body.created} workout(s) created.`, "upload-success");
+        const total = body.created + body.skipped + body.errors.length;
+        if (body.created > 0 && body.skipped === 0 && body.errors.length === 0) {
+          appendText(
+            uploadResults,
+            `${body.created} workout(s) created.`,
+            "upload-success"
+          );
+        } else if (body.created > 0) {
+          appendText(
+            uploadResults,
+            `Created ${body.created} of ${total} workout(s).`,
+            "upload-success"
+          );
         }
+
         if (body.skipped > 0) {
-          appendText(uploadResults, `${body.skipped} duplicate(s) skipped.`);
+          appendText(
+            uploadResults,
+            `${body.skipped} already existed and were skipped.`,
+            "upload-warning"
+          );
         }
+
         for (const e of body.errors) {
           appendText(uploadResults, e, "upload-error");
         }
 
-        // Clear preview on success
-        if (body.created > 0) {
-          parsedWorkouts = [];
-          previewFigure.hidden = true;
-          uploadActions.hidden = true;
-          paginationNav.hidden = true;
-        }
+        // Clear preview and reset file input so the same files can be re-selected
+        parsedWorkouts = [];
+        previewFigure.hidden = true;
+        uploadActions.hidden = true;
+        paginationNav.hidden = true;
+        fileInput.value = "";
       } else {
         appendText(uploadResults, body.error || "Upload failed.", "upload-error");
         uploadBtn.disabled = false;
