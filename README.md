@@ -8,6 +8,15 @@ Log workouts across three types — **aerobic**, **strength**, and **generic** �
 
 ## Usage
 
+### Planning a training block
+
+Planning is the core of the app — everything else (logging, summaries, exports) revolves around comparing what you did against what you planned.
+
+1. Open **Plans** in the sidebar → **Create macrocycle**. Pick a primary sport, start date, name.
+2. From the macrocycle detail page, click **Create default cycles** to auto-generate mesocycles and microcycles (configurable durations). Or add them manually.
+3. Set the macrocycle as **active** (the badge on the detail page) to make the home page redirect to its summary.
+4. Open **Summary** to compare planned goals (sessions, distance, long session) against aggregated actuals from your logged workouts.
+
 ### Logging workouts
 
 Two ways to add workouts:
@@ -60,33 +69,44 @@ Useful when you keep workout titles in a spreadsheet and want them applied to a 
 - Matching tolerance is **±1 second**. Each CSV row matches at most one workout.
 - CSV rows with no matching workout are silently ignored; workouts with no matching row keep their auto-generated name.
 
-### Planning a training block
-
-1. Open **Plans** in the sidebar → **Create macrocycle**. Pick a primary sport, start date, name.
-2. From the macrocycle detail page, click **Create default cycles** to auto-generate mesocycles and microcycles (configurable durations). Or add them manually.
-3. Set the macrocycle as **active** (the badge on the detail page) to make the home page redirect to its summary.
-4. Open **Summary** to compare planned goals (sessions, distance, long session) against aggregated actuals from your logged workouts.
-
 ### Exporting
 
 - **Workouts** — filter the list, then click **Export CSV** in the toolbar. Exports respect current filters. Max 5000 rows per export.
 - **Plan summary** — click **Export CSV** on the summary page. Column headers match the macrocycle's primary sport (e.g. *Runs / Long run* vs *Rides / Long ride*).
 
-Exports include a UTF-8 BOM and a `sep=,` hint line so Excel opens them correctly regardless of locale. If reading them in Python, use `encoding="utf-8-sig"` and `skiprows=1`:
+Exports open cleanly in Excel regardless of locale (the file includes a UTF-8 BOM and a `sep=,` hint line).
+
+<details>
+<summary>Reading exported CSVs in Python</summary>
+
+Use `encoding="utf-8-sig"` and `skiprows=1`:
 
 ```python
 import pandas as pd
 df = pd.read_csv("workouts_2026-04-13.csv", encoding="utf-8-sig", skiprows=1)
 ```
 
-## Tech Stack
+**Why these flags?** The file starts with a UTF-8 BOM so Excel detects the encoding correctly on Windows — `utf-8-sig` strips it (without this, the first column name would come through as `\ufeff<name>`). The first line is an Excel-only `sep=,` hint that tells Excel which delimiter to use regardless of the system's list separator; pandas would otherwise treat it as a data row, so `skiprows=1` discards it.
+
+</details>
+
+### Keyboard shortcuts
+
+| Shortcut | Context | Action |
+|----------|---------|--------|
+| `Ctrl+S` / `Cmd+S` | Create / Edit views | Save the form |
+| `E` | Detail views | Navigate to edit |
+
+## For developers
+
+### Tech stack
 
 - **Backend:** Django 5, Python 3.11+
 - **Frontend:** Pico CSS, vanilla JavaScript
 - **Database:** SQLite (dev), PostgreSQL-ready
 - **Tooling:** [uv](https://docs.astral.sh/uv/) (deps), Black (format), Pylint (lint)
 
-## Getting Started
+### Getting started
 
 ```bash
 # Install dependencies
@@ -99,9 +119,7 @@ uv run python manage.py migrate
 uv run python manage.py runserver
 ```
 
-## Development
-
-### Common Commands
+### Common commands
 
 ```bash
 # Run all tests
@@ -114,7 +132,7 @@ uv run black .
 uv run pylint workouts/
 ```
 
-### Rebuilding the Database
+### Rebuilding the database
 
 Drop the database, recreate migrations, and rebuild:
 
@@ -123,7 +141,7 @@ uv run python manage.py rebuild_db
 uv run python manage.py rebuild_db --create-test-data  # also generates test workouts
 ```
 
-### Test Data
+### Test data
 
 Generate 3000 randomised workouts (1500 aerobic, 1000 strength, 500 generic) for a test user:
 
@@ -131,7 +149,7 @@ Generate 3000 randomised workouts (1500 aerobic, 1000 strength, 500 generic) for
 uv run python manage.py create_test_workouts
 ```
 
-### SQL Debugging
+### SQL debugging
 
 Log all SQL queries Django executes:
 
@@ -139,18 +157,11 @@ Log all SQL queries Django executes:
 uv run python manage.py runserver --settings=phaserunner.settings.sql_debug
 ```
 
-### Keyboard Shortcuts
-
-| Shortcut | Context | Action |
-|----------|---------|--------|
-| `Ctrl+S` / `Cmd+S` | Create / Edit views | Save the form |
-| `E` | Detail views | Navigate to edit |
-
-## Architecture
+### Architecture
 
 See [docs/schema_diagrams.md](docs/schema_diagrams.md) for visual database diagrams.
 
-## Contributing
+### Contributing
 
 1. Fork the repo and create a feature branch from `main`.
 2. Install dependencies: `uv sync`
@@ -163,9 +174,9 @@ See [docs/schema_diagrams.md](docs/schema_diagrams.md) for visual database diagr
 5. Run the test suite: `uv run python manage.py test`
 6. Open a pull request against `main`.
 
-## Dev
+### Issues
 
-- [Issues](https://github.com/andreas-thoren/phase-runner/issues) — bugs, feature requests, and planned work
+- [Issues tracker](https://github.com/andreas-thoren/phase-runner/issues) — bugs, feature requests, and planned work
 
 ## License
 
