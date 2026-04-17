@@ -34,6 +34,10 @@
   margin-bottom: v.$header-margin-bottom;
 }
 
+main {
+  flex: 1;
+}
+
 .header-svg {
   color: hsl(195, 85%, 41%);
 }

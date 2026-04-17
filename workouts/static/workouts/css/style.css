@@ -28,6 +28,10 @@
   margin-bottom: 60px;
 }
 
+main {
+  flex: 1;
+}
+
 .header-svg {
   color: hsl(195, 85%, 41%);
 }
