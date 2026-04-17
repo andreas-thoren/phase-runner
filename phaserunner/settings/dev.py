@@ -6,7 +6,7 @@ SECRET_KEY = "django-insecure-@_#8)l38twrta2z@9+6dqi#=q53r4^3bxi+s2fc(i!9%e=&(ls
 
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]  # Allow all hosts in development
 
 DATABASES = {
     "default": {

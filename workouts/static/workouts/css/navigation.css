@@ -130,24 +130,17 @@
     position: fixed;
     inset: 0;
     z-index: 200;
+    background: var(--pico-background-color);
     transform: translateX(calc(100% + var(--pico-spacing, 1rem)));
     transition: transform 0.3s ease;
     pointer-events: none;
-  }
-  #sidebar-menu::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    background: var(--pico-background-color);
-  }
-  #sidebar-menu > * {
-    position: relative;
   }
   #sidebar-menu.is-open {
     transform: translateX(0);
     pointer-events: auto;
     padding: 1.5rem;
     overflow-y: auto;
+    overscroll-behavior: contain;
   }
   html:has(#sidebar-menu.is-open) {
     overflow: hidden;
