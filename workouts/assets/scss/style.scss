@@ -38,8 +38,21 @@ main {
   flex: 1;
 }
 
+.header a:has(.header-svg) {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  line-height: 1;
+}
+
 .header-svg {
   color: hsl(195, 85%, 41%);
+  display: inline-flex;
+
+  svg {
+    width: 1.3em;
+    height: 1.3em;
+  }
 }
 
 .logout-form {
