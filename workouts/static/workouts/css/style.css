@@ -67,9 +67,30 @@ details.account-dropdown .account-username {
 }
 
 footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
   margin-top: 4rem;
   padding: 1.5rem 0 1rem 0;
   border-top: 1px dotted var(--pico-form-element-border-color);
+}
+footer p {
+  margin: 0;
+}
+footer .social-links {
+  display: flex;
+  gap: 2rem;
+}
+footer .social-links a {
+  color: var(--pico-secondary);
+}
+footer .social-links a:hover {
+  color: var(--pico-secondary-hover);
+}
+footer .social-links svg {
+  width: 1.25rem;
+  height: 1.25rem;
 }
 
 .button-slim {
