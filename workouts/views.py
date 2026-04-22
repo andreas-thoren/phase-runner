@@ -1129,8 +1129,11 @@ def _aggregate_workouts(
     micro_entries: list[dict],
     user,
     primary_sport: str,
+    statuses: set[str] | None = None,
 ) -> dict[int, dict[str, int]]:
     result = defaultdict(_empty_actuals)
+    if statuses is not None and not statuses:
+        return dict(result)
     workouts = Workout.objects.prefetch_related(
         "aerobic_details", "strength_details", "generic_details"
     ).filter(
@@ -1138,6 +1141,8 @@ def _aggregate_workouts(
         start_time__date__gte=overall_start,
         start_time__date__lte=overall_end,
     )
+    if statuses is not None:
+        workouts = workouts.filter(workout_status__in=statuses)
 
     buckets = [(e["start"], e["end"], e["pk"]) for e in micro_entries]
 
@@ -1176,7 +1181,9 @@ def _aggregate_workouts(
     return dict(result)
 
 
-def _build_summary_rows(macro: Macrocycle, user) -> list[dict]:
+def _build_summary_rows(
+    macro: Macrocycle, user, statuses: set[str] | None = None
+) -> list[dict]:
     """Build per-microcycle summary rows with planned goals and actual workout stats."""
     rows: list[dict] = []
     micro_entries = []
@@ -1202,6 +1209,7 @@ def _build_summary_rows(macro: Macrocycle, user) -> list[dict]:
         micro_entries,
         user,
         macro.primary_sport,
+        statuses=statuses,
     )
 
     workout_list_url = reverse(f"{APP_NAMESPACE}:workout_list")
@@ -1274,14 +1282,20 @@ class MacrocycleSummaryView(LoginRequiredMixin, NoCacheMixin, DetailView):
         macro = self.object
         macro.hydrate()
         sport = WorkoutSubtype(macro.primary_sport)
-        ctx["rows"] = _build_summary_rows(macro, self.request.user)
         ctx.update(_summary_col_labels(sport))
 
         form = SummaryFilterForm(self.request.GET or None)
-        if "filtered" in self.request.GET and form.is_valid():
+        is_filtered = "filtered" in self.request.GET and form.is_valid()
+        if is_filtered:
             visible_cols = set(form.cleaned_data.get("cols") or [])
+            statuses_filter = set(form.cleaned_data.get("statuses") or [])
         else:
             visible_cols = set(SummaryFilterForm.ALL_COLS)
+            statuses_filter = None
+
+        ctx["rows"] = _build_summary_rows(
+            macro, self.request.user, statuses=statuses_filter
+        )
 
         params = self.request.GET.copy()
         params.pop("show_filters", None)

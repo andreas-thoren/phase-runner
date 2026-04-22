@@ -1313,6 +1313,50 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
         )
         self.assertTrue(response.context["show_filters"])
 
+    def test_status_filter_only_completed_excludes_planned_workouts(self):
+        # Fixture workouts default to PLANNED status; filtering to only
+        # COMPLETED should drop all of them from the aggregation.
+        response = self.client.get(
+            self.url,
+            {
+                "filtered": "1",
+                "cols": ["comment", "x", "str", "load"],
+                "statuses": [WorkoutStatus.COMPLETED.value],
+            },
+        )
+        row = response.context["rows"][0]
+        self.assertEqual(row["sessions"], 0)
+        self.assertEqual(row["cross_sessions"], 0)
+        self.assertEqual(row["strength_sessions"], 0)
+        self.assertEqual(row["total_load"], 0)
+
+    def test_status_filter_only_planned_includes_all_fixture_workouts(self):
+        response = self.client.get(
+            self.url,
+            {
+                "filtered": "1",
+                "cols": ["comment", "x", "str", "load"],
+                "statuses": [WorkoutStatus.PLANNED.value],
+            },
+        )
+        row = response.context["rows"][0]
+        self.assertEqual(row["sessions"], 2)
+        self.assertEqual(row["cross_sessions"], 1)
+        self.assertEqual(row["strength_sessions"], 1)
+
+    def test_filtered_with_no_statuses_excludes_all_workouts(self):
+        response = self.client.get(
+            self.url,
+            {
+                "filtered": "1",
+                "cols": ["comment", "x", "str", "load"],
+            },
+        )
+        row = response.context["rows"][0]
+        self.assertEqual(row["sessions"], 0)
+        self.assertEqual(row["cross_sessions"], 0)
+        self.assertEqual(row["strength_sessions"], 0)
+
 
 class ToggleActiveMacrocycleViewTest(AuthenticatedTestMixin, TestCase):
     @classmethod

@@ -246,7 +246,7 @@ class WorkoutFilterForm(forms.Form):
 
 
 class SummaryFilterForm(forms.Form):
-    """Column-visibility filter for the macrocycle summary view."""
+    """Column-visibility and status filter for the macrocycle summary view."""
 
     COL_CHOICES = [
         ("comment", "Comment"),
@@ -255,12 +255,19 @@ class SummaryFilterForm(forms.Form):
         ("load", "Load"),
     ]
     ALL_COLS = {key for key, _ in COL_CHOICES}
+    ALL_STATUSES = {value for value, _ in WorkoutStatus.choices()}
 
     cols = forms.MultipleChoiceField(
         choices=COL_CHOICES,
         required=False,
         widget=forms.CheckboxSelectMultiple,
         initial=[key for key, _ in COL_CHOICES],
+    )
+    statuses = forms.MultipleChoiceField(
+        choices=WorkoutStatus.choices(),
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        initial=[value for value, _ in WorkoutStatus.choices()],
     )
 
 

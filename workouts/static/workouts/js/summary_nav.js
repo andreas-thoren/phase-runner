@@ -101,19 +101,19 @@
 
     var submit = document.getElementById("filter-submit");
     var clearBtn = document.getElementById("filter-clear");
-    var allCols = ["comment", "x", "str", "load"];
 
+    function allCheckboxesChecked(name) {
+      var all = filterBar.querySelectorAll('input[name="' + name + '"]');
+      var checked = filterBar.querySelectorAll(
+        'input[name="' + name + '"]:checked'
+      );
+      return all.length > 0 && checked.length === all.length;
+    }
     function differsFromDefault() {
-      var checked = Array.from(
-        filterBar.querySelectorAll('input[name="cols"]:checked')
-      ).map(function (el) { return el.value; });
-      if (checked.length !== allCols.length) return true;
-      return !allCols.every(function (c) { return checked.indexOf(c) !== -1; });
+      return !allCheckboxesChecked("cols") || !allCheckboxesChecked("statuses");
     }
     function refresh() {
-      var changed = differsFromDefault();
-      if (submit) submit.disabled = !changed;
-      if (clearBtn) clearBtn.disabled = !changed;
+      if (submit) submit.disabled = !differsFromDefault();
     }
     filterBar.addEventListener("input", refresh);
     filterBar.addEventListener("change", refresh);
