@@ -79,6 +79,14 @@
     });
   });
 
+  // Export button — navigates to export URL
+  var exportBtn = document.getElementById("export-csv");
+  if (exportBtn) {
+    exportBtn.addEventListener("click", function () {
+      window.location.href = exportBtn.dataset.exportUrl;
+    });
+  }
+
   // Restore focus from URL hash on back navigation
   function focusHashTarget() {
     if (!location.hash) return;

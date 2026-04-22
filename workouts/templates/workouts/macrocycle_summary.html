@@ -15,8 +15,9 @@
   <h1>{{ object.name }}</h1>
   {% if rows %}
     <div class="list-toolbar">
-      <a href="{% url 'workouts:export_plan_summary' macro_pk=object.pk %}"
-         class="secondary button-slim" role="button">Export CSV</a>
+      <button id="export-csv" class="secondary button-slim" type="button"
+              data-export-url="{% url 'workouts:export_plan_summary' macro_pk=object.pk %}">Export CSV</button>
+      <button id="toggle-summary-filters" class="secondary button-slim" type="button">Filter Options</button>
     </div>
   {% endif %}
 
