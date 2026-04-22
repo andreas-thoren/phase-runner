@@ -21,6 +21,23 @@
 .filter-bar .filter-fields label {
   flex: 1;
 }
+.filter-bar .filter-fields ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.25rem 0 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+}
+.filter-bar .filter-fields ul li {
+  margin: 0;
+}
+.filter-bar .filter-fields ul label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-weight: normal;
+}
 
 #filter-clear {
   flex: 0 1 8rem;

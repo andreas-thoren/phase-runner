@@ -87,6 +87,44 @@
     });
   }
 
+  // Filter bar: toggle, enable/disable submit, clear
+  var toggleBtn = document.getElementById("toggle-summary-filters");
+  var filterBar = document.getElementById("filter-bar");
+  if (toggleBtn && filterBar) {
+    toggleBtn.addEventListener("click", function () {
+      filterBar.hidden = !filterBar.hidden;
+      var url = new URL(window.location);
+      if (filterBar.hidden) url.searchParams.delete("show_filters");
+      else url.searchParams.set("show_filters", "1");
+      history.replaceState(null, "", url);
+    });
+
+    var submit = document.getElementById("filter-submit");
+    var clearBtn = document.getElementById("filter-clear");
+    var allCols = ["comment", "x", "str", "load"];
+
+    function differsFromDefault() {
+      var checked = Array.from(
+        filterBar.querySelectorAll('input[name="cols"]:checked')
+      ).map(function (el) { return el.value; });
+      if (checked.length !== allCols.length) return true;
+      return !allCols.every(function (c) { return checked.indexOf(c) !== -1; });
+    }
+    function refresh() {
+      var changed = differsFromDefault();
+      if (submit) submit.disabled = !changed;
+      if (clearBtn) clearBtn.disabled = !changed;
+    }
+    filterBar.addEventListener("input", refresh);
+    filterBar.addEventListener("change", refresh);
+
+    if (clearBtn) {
+      clearBtn.addEventListener("click", function () {
+        window.location.href = clearBtn.dataset.clearUrl;
+      });
+    }
+  }
+
   // Restore focus from URL hash on back navigation
   function focusHashTarget() {
     if (!location.hash) return;

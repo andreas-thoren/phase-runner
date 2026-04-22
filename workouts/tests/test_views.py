@@ -1266,6 +1266,53 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
         )
         self.assertContains(response, expected)
 
+    def test_default_all_columns_visible(self):
+        response = self.client.get(self.url)
+        self.assertEqual(
+            response.context["visible_cols"], {"comment", "x", "str", "load"}
+        )
+        self.assertEqual(response.context["planned_colspan"], 8)
+        self.assertEqual(response.context["actual_colspan"], 7)
+
+    def test_filter_hides_comment(self):
+        response = self.client.get(
+            self.url, {"filtered": "1", "cols": ["x", "str", "load"]}
+        )
+        self.assertEqual(response.context["planned_colspan"], 7)
+        self.assertNotIn("comment", response.context["visible_cols"])
+        self.assertNotContains(response, ">Comment<")
+
+    def test_filter_hides_x_and_str_on_both_sides(self):
+        response = self.client.get(
+            self.url, {"filtered": "1", "cols": ["comment", "load"]}
+        )
+        ctx = response.context
+        self.assertEqual(ctx["planned_colspan"], 6)
+        self.assertEqual(ctx["actual_colspan"], 5)
+        self.assertNotContains(response, ">X<")
+        self.assertNotContains(response, ">Str<")
+
+    def test_filter_hides_load_hides_both_load_columns(self):
+        response = self.client.get(
+            self.url, {"filtered": "1", "cols": ["comment", "x", "str"]}
+        )
+        self.assertEqual(response.context["actual_colspan"], 5)
+        self.assertNotContains(response, "Tot load")
+        self.assertNotContains(response, f">{response.context['col_sport_load']}<")
+
+    def test_filtered_with_no_cols_hides_all_toggleable(self):
+        response = self.client.get(self.url, {"filtered": "1"})
+        self.assertEqual(response.context["visible_cols"], set())
+        self.assertEqual(response.context["planned_colspan"], 5)
+        self.assertEqual(response.context["actual_colspan"], 3)
+
+    def test_filter_form_open_without_filtered_param_keeps_defaults(self):
+        response = self.client.get(self.url, {"show_filters": "1"})
+        self.assertEqual(
+            response.context["visible_cols"], {"comment", "x", "str", "load"}
+        )
+        self.assertTrue(response.context["show_filters"])
+
 
 class ToggleActiveMacrocycleViewTest(AuthenticatedTestMixin, TestCase):
     @classmethod

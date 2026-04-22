@@ -115,6 +115,7 @@ from .enums import (
 from .forms import (
     AccountForm,
     CreateCyclesForm,
+    SummaryFilterForm,
     WorkoutForm,
     WorkoutFilterForm,
     MacrocycleForm,
@@ -1275,6 +1276,31 @@ class MacrocycleSummaryView(LoginRequiredMixin, NoCacheMixin, DetailView):
         sport = WorkoutSubtype(macro.primary_sport)
         ctx["rows"] = _build_summary_rows(macro, self.request.user)
         ctx.update(_summary_col_labels(sport))
+
+        form = SummaryFilterForm(self.request.GET or None)
+        if "filtered" in self.request.GET and form.is_valid():
+            visible_cols = set(form.cleaned_data.get("cols") or [])
+        else:
+            visible_cols = set(SummaryFilterForm.ALL_COLS)
+
+        params = self.request.GET.copy()
+        params.pop("show_filters", None)
+
+        planned_colspan = 5 + sum(
+            1 for k in ("comment", "x", "str") if k in visible_cols
+        )
+        actual_colspan = (
+            3
+            + sum(1 for k in ("x", "str") if k in visible_cols)
+            + (2 if "load" in visible_cols else 0)
+        )
+
+        ctx["filter_form"] = form
+        ctx["show_filters"] = "show_filters" in self.request.GET
+        ctx["filter_querystring"] = params.urlencode()
+        ctx["visible_cols"] = visible_cols
+        ctx["planned_colspan"] = planned_colspan
+        ctx["actual_colspan"] = actual_colspan
         return ctx
 
 

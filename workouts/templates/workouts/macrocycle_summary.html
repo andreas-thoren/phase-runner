@@ -19,6 +19,21 @@
               data-export-url="{% url 'workouts:export_plan_summary' macro_pk=object.pk %}">Export CSV</button>
       <button id="toggle-summary-filters" class="secondary button-slim" type="button">Filter Options</button>
     </div>
+
+    <form method="get" class="filter-bar" id="filter-bar" {% if not show_filters %}hidden{% endif %}>
+      <div class="filter-fields">
+        <label>
+          Columns
+          {{ filter_form.cols }}
+        </label>
+      </div>
+      <div class="button-row">
+        <input type="hidden" name="show_filters" value="1">
+        <input type="hidden" name="filtered" value="1">
+        <button type="button" class="secondary" id="filter-clear" {% if not filter_querystring %}disabled{% endif %} data-clear-url="{{ request.path }}">Clear</button>
+        <button type="submit" id="filter-submit" {% if not filter_querystring %}disabled{% endif %}>Filter</button>
+      </div>
+    </form>
   {% endif %}
 
   {% if rows %}
@@ -27,25 +42,25 @@
         <thead>
           <tr>
             <th rowspan="2"></th>
-            <th class="th-group-planned" colspan="8">Planned</th>
-            <th class="th-group-actual" colspan="7">Actual</th>
+            <th class="th-group-planned" colspan="{{ planned_colspan }}">Planned</th>
+            <th class="th-group-actual" colspan="{{ actual_colspan }}">Actual</th>
           </tr>
           <tr>
             <th class="text-start">Start date</th>
             <th class="text-start">Type</th>
-            <th class="text-start">Comment</th>
+            {% if "comment" in visible_cols %}<th class="text-start">Comment</th>{% endif %}
             <th>{{ col_sessions }}</th>
             <th>{{ col_distance }}</th>
             <th>{{ col_long }}</th>
-            <th>X</th>
-            <th>Str</th>
+            {% if "x" in visible_cols %}<th>X</th>{% endif %}
+            {% if "str" in visible_cols %}<th>Str</th>{% endif %}
             <th class="actual-start">{{ col_sessions }}</th>
             <th>{{ col_distance }}</th>
             <th>{{ col_long }}</th>
-            <th>{{ col_sport_load }}</th>
-            <th>X</th>
-            <th>Str</th>
-            <th>Tot load</th>
+            {% if "load" in visible_cols %}<th>{{ col_sport_load }}</th>{% endif %}
+            {% if "x" in visible_cols %}<th>X</th>{% endif %}
+            {% if "str" in visible_cols %}<th>Str</th>{% endif %}
+            {% if "load" in visible_cols %}<th>Tot load</th>{% endif %}
           </tr>
         </thead>
         <tbody>
@@ -56,19 +71,19 @@
               {% endif %}
               <td class="text-start zone-planned" id="micro-{{ row.micro_pk }}" data-href="{{ row.micro_url }}" data-label="Start date" tabindex="0">{{ row.start_date|date:"Y-m-d" }}</td>
               <td class="text-start zone-planned" data-href="{{ row.micro_url }}" data-label="Type">{{ row.micro_type_display }}</td>
-              <td class="text-start zone-planned summary-comment" data-href="{{ row.micro_url }}" data-label="Comment" title="{{ row.comment }}"><span>{{ row.comment }}</span></td>
+              {% if "comment" in visible_cols %}<td class="text-start zone-planned summary-comment" data-href="{{ row.micro_url }}" data-label="Comment" title="{{ row.comment }}"><span>{{ row.comment }}</span></td>{% endif %}
               <td class="zone-planned" data-href="{{ row.micro_url }}" data-label="{{ col_sessions }}">{% if row.planned_sessions %}{{ row.planned_sessions }}{% endif %}</td>
               <td class="zone-planned" data-href="{{ row.micro_url }}" data-label="{{ col_distance }}">{% if row.planned_distance_km %}{{ row.planned_distance_km|floatformat:"-1" }}{% endif %}</td>
               <td class="zone-planned" data-href="{{ row.micro_url }}" data-label="{{ col_long }}">{% if row.planned_long_km %}{{ row.planned_long_km|floatformat:"-1" }}{% endif %}</td>
-              <td class="zone-planned" data-href="{{ row.micro_url }}" data-label="X">{% if row.planned_cross_sessions %}{{ row.planned_cross_sessions }}{% endif %}</td>
-              <td class="zone-planned" data-href="{{ row.micro_url }}" data-label="Str">{% if row.planned_strength_sessions %}{{ row.planned_strength_sessions }}{% endif %}</td>
+              {% if "x" in visible_cols %}<td class="zone-planned" data-href="{{ row.micro_url }}" data-label="X">{% if row.planned_cross_sessions %}{{ row.planned_cross_sessions }}{% endif %}</td>{% endif %}
+              {% if "str" in visible_cols %}<td class="zone-planned" data-href="{{ row.micro_url }}" data-label="Str">{% if row.planned_strength_sessions %}{{ row.planned_strength_sessions }}{% endif %}</td>{% endif %}
               <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="{{ col_sessions }}" tabindex="0">{% if row.sessions %}{{ row.sessions }}{% endif %}</td>
               <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="{{ col_distance }}">{% if row.sport_distance %}{{ row.sport_distance|floatformat:"-1" }}{% endif %}</td>
               <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="{{ col_long }}">{% if row.long_distance %}{{ row.long_distance|floatformat:"-1" }}{% endif %}</td>
-              <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="{{ col_sport_load }}">{% if row.sport_load %}{{ row.sport_load }}{% endif %}</td>
-              <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="X">{% if row.cross_sessions %}{{ row.cross_sessions }}{% endif %}</td>
-              <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Str">{% if row.strength_sessions %}{{ row.strength_sessions }}{% endif %}</td>
-              <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Tot load">{% if row.total_load %}{{ row.total_load }}{% endif %}</td>
+              {% if "load" in visible_cols %}<td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="{{ col_sport_load }}">{% if row.sport_load %}{{ row.sport_load }}{% endif %}</td>{% endif %}
+              {% if "x" in visible_cols %}<td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="X">{% if row.cross_sessions %}{{ row.cross_sessions }}{% endif %}</td>{% endif %}
+              {% if "str" in visible_cols %}<td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Str">{% if row.strength_sessions %}{{ row.strength_sessions }}{% endif %}</td>{% endif %}
+              {% if "load" in visible_cols %}<td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Tot load">{% if row.total_load %}{{ row.total_load }}{% endif %}</td>{% endif %}
             </tr>
           {% endfor %}
         </tbody>

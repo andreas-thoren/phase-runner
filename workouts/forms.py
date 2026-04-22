@@ -245,6 +245,25 @@ class WorkoutFilterForm(forms.Form):
     )
 
 
+class SummaryFilterForm(forms.Form):
+    """Column-visibility filter for the macrocycle summary view."""
+
+    COL_CHOICES = [
+        ("comment", "Comment"),
+        ("x", "X"),
+        ("str", "Str"),
+        ("load", "Load"),
+    ]
+    ALL_COLS = {key for key, _ in COL_CHOICES}
+
+    cols = forms.MultipleChoiceField(
+        choices=COL_CHOICES,
+        required=False,
+        widget=forms.CheckboxSelectMultiple,
+        initial=[key for key, _ in COL_CHOICES],
+    )
+
+
 class AccountForm(ReadOnlyFormMixin, forms.ModelForm):
     """Account settings form with optional password change."""
 
