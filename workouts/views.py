@@ -106,6 +106,7 @@ from .enums import (
     GUI_SCHEMAS,
     LONG_SESSION_LABELS,
     SESSION_LABELS,
+    SPORT_SHORT_LABELS,
     WorkoutStatus,
     WorkoutType,
     WorkoutSubtype,
@@ -1226,9 +1227,12 @@ def _build_summary_rows(macro: Macrocycle, user) -> list[dict]:
                         f"{workout_list_url}"
                         f"?date_from={date_from}&date_to={date_to}"
                     ),
+                    "comment": micro.comment,
                     "planned_distance_km": micro.planned_distance_km,
                     "planned_long_km": micro.planned_long_distance_km,
                     "planned_sessions": micro.planned_sessions,
+                    "planned_cross_sessions": micro.planned_cross_sessions,
+                    "planned_strength_sessions": micro.planned_strength_sessions,
                     "sport_distance": m_to_km(actuals["sport_distance"]) or 0,
                     "long_distance": m_to_km(actuals["long_distance"]) or 0,
                     **{
@@ -1245,11 +1249,12 @@ def _build_summary_rows(macro: Macrocycle, user) -> list[dict]:
 
 def _summary_col_labels(sport: WorkoutSubtype) -> dict[str, str]:
     """Return sport-specific column labels for the summary table."""
+    short = SPORT_SHORT_LABELS[sport]
     return {
         "col_sessions": SESSION_LABELS[sport],
-        "col_distance": f"{sport.label} dst",
+        "col_distance": f"{short} dst",
         "col_long": LONG_SESSION_LABELS[sport],
-        "col_sport_load": f"{sport.label} load",
+        "col_sport_load": f"{short} load",
     }
 
 
@@ -1305,9 +1310,12 @@ class ExportPlanSummaryView(LoginRequiredMixin, View):
             "Mesocycle",
             "Start date",
             "Type",
-            f"Planned {col_sessions.lower()}",
+            "Comment",
+            f"Goal - {col_sessions}",
             f"Goal - {col_distance}",
             f"Goal - {col_long}",
+            "Goal - X",
+            "Goal - Str",
             col_sessions,
             col_distance,
             col_long,
@@ -1345,9 +1353,12 @@ class ExportPlanSummaryView(LoginRequiredMixin, View):
                         row["meso_display"],
                         row["start_date"].strftime("%Y-%m-%d"),
                         row["micro_type_display"],
+                        row["comment"],
                         _fmt(row["planned_sessions"]),
                         _fmt(row["planned_distance_km"]),
                         _fmt(row["planned_long_km"]),
+                        _fmt(row["planned_cross_sessions"]),
+                        _fmt(row["planned_strength_sessions"]),
                         _fmt(row["sessions"]),
                         _fmt(row["sport_distance"]),
                         _fmt(row["long_distance"]),

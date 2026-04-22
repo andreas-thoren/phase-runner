@@ -1031,6 +1031,9 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
             duration_days=7,
             planned_distance=50000,
             planned_long_distance=20000,
+            planned_cross_sessions=2,
+            planned_strength_sessions=1,
+            comment="Recovery week",
         )
         cls.micro2 = Microcycle.objects.create(mesocycle=cls.meso1, duration_days=7)
         # meso2: 1 microcycle
@@ -1223,6 +1226,33 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
         self.assertEqual(row["cross_sessions"], 1)
         self.assertEqual(response.context["col_sessions"], "Rides")
         self.assertEqual(response.context["col_long"], "Long ride")
+
+    def test_row_has_comment(self):
+        response = self.client.get(self.url)
+        rows = response.context["rows"]
+        self.assertEqual(rows[0]["comment"], "Recovery week")
+        self.assertEqual(rows[1]["comment"], "")
+
+    def test_row_has_planned_cross_and_strength(self):
+        response = self.client.get(self.url)
+        row = response.context["rows"][0]
+        self.assertEqual(row["planned_cross_sessions"], 2)
+        self.assertEqual(row["planned_strength_sessions"], 1)
+
+    def test_comment_rendered_in_html(self):
+        response = self.client.get(self.url)
+        self.assertContains(response, "Recovery week")
+        self.assertContains(response, 'title="Recovery week"')
+
+    def test_planned_colspan_updated(self):
+        response = self.client.get(self.url)
+        self.assertContains(response, 'colspan="8"')
+
+    def test_planned_headers_have_no_goal_prefix(self):
+        response = self.client.get(self.url)
+        self.assertNotContains(response, "Planned runs")
+        self.assertNotContains(response, "Goal - Runs")
+        self.assertNotContains(response, "Goal - Run dst")
 
     def test_summary_link_on_detail_page(self):
         url = reverse(

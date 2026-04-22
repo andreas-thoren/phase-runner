@@ -130,6 +130,12 @@
 .summary-table a {
   text-decoration: none;
 }
+.summary-table .summary-comment {
+  max-width: 16rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 .summary-table .th-group-planned,
 .summary-table .th-group-actual {

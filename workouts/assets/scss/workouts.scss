@@ -136,6 +136,13 @@
   }
 
   a { text-decoration: none; }
+
+  .summary-comment {
+    max-width: 16rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
 
 .summary-table .th-group-planned,

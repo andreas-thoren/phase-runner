@@ -77,6 +77,14 @@ LONG_SESSION_LABELS: dict[WorkoutSubtype, str] = {
     WorkoutSubtype.WALKING: "Long walk",
 }
 
+SPORT_SHORT_LABELS: dict[WorkoutSubtype, str] = {
+    WorkoutSubtype.RUNNING: "Run",
+    WorkoutSubtype.CYCLING: "Ride",
+    WorkoutSubtype.SWIMMING: "Swim",
+    WorkoutSubtype.SKIING: "Ski",
+    WorkoutSubtype.WALKING: "Walk",
+}
+
 GUI_SCHEMAS: dict[WorkoutSubtype, dict] = {
     WorkoutSubtype.RUNNING: {
         "load_garmin": {"type": "number", "label": "Load (Garmin)"},
