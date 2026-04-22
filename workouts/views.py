@@ -1284,9 +1284,9 @@ class MacrocycleSummaryView(LoginRequiredMixin, NoCacheMixin, DetailView):
         sport = WorkoutSubtype(macro.primary_sport)
         ctx.update(_summary_col_labels(sport))
 
-        form = SummaryFilterForm(self.request.GET or None)
-        is_filtered = "filtered" in self.request.GET and form.is_valid()
-        if is_filtered:
+        is_filtered = "filtered" in self.request.GET
+        form = SummaryFilterForm(self.request.GET if is_filtered else None)
+        if is_filtered and form.is_valid():
             visible_cols = set(form.cleaned_data.get("cols") or [])
             statuses_filter = set(form.cleaned_data.get("statuses") or [])
         else:
