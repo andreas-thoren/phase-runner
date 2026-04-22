@@ -139,10 +139,20 @@
 
   .summary-comment {
     max-width: 16rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    white-space: normal;
+    vertical-align: top;
+
+    > span {
+      display: -webkit-box;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+      overflow: hidden;
+    }
   }
+
+  // Align number cells with the top of the (possibly two-line) comment row
+  tbody td { vertical-align: top; }
 }
 
 .summary-table .th-group-planned,
@@ -270,6 +280,16 @@
       margin-top: 0.35rem;
       padding-top: 0.35rem;
       border-top: 1px dashed var(--pico-muted-border-color, #ddd);
+    }
+
+    // Allow full comment to wrap on mobile (no 2-line clamp)
+    .summary-comment {
+      max-width: none;
+
+      > span {
+        display: inline;
+        overflow: visible;
+      }
     }
   }
 }

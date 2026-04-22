@@ -132,9 +132,18 @@
 }
 .summary-table .summary-comment {
   max-width: 16rem;
+  white-space: normal;
+  vertical-align: top;
+}
+.summary-table .summary-comment > span {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+.summary-table tbody td {
+  vertical-align: top;
 }
 
 .summary-table .th-group-planned,
@@ -254,5 +263,12 @@
     margin-top: 0.35rem;
     padding-top: 0.35rem;
     border-top: 1px dashed var(--pico-muted-border-color, #ddd);
+  }
+  .summary-table .summary-comment {
+    max-width: none;
+  }
+  .summary-table .summary-comment > span {
+    display: inline;
+    overflow: visible;
   }
 }
