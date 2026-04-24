@@ -68,7 +68,7 @@
             <th class="th-group-actual" colspan="{{ actual_colspan }}">Actual</th>
           </tr>
           <tr>
-            <th class="text-start">Start date</th>
+            <th class="text-start microcycle-start">Start date</th>
             <th class="text-start">Type</th>
             {% if "comment" in visible_cols %}<th class="text-start">Comment</th>{% endif %}
             <th class="planned-start">{{ col_sessions }}</th>
@@ -91,7 +91,7 @@
               {% if row.meso_first_row %}
                 <th rowspan="{{ row.meso_rowspan }}" class="meso-header" id="meso-{{ row.meso_pk }}"><a href="{{ row.meso_url }}">{{ row.meso_display }}</a></th>
               {% endif %}
-              <td class="text-start zone-planned" id="micro-{{ row.micro_pk }}" data-href="{{ row.micro_url }}" data-label="Start date" tabindex="0">{{ row.start_date|date:"Y-m-d" }}</td>
+              <td class="text-start zone-planned microcycle-start" id="micro-{{ row.micro_pk }}" data-href="{{ row.micro_url }}" data-label="Start date" tabindex="0">{{ row.start_date|date:"Y-m-d" }}</td>
               <td class="text-start zone-planned" data-href="{{ row.micro_url }}" data-label="Type">{{ row.micro_type_display }}</td>
               {% if "comment" in visible_cols %}<td class="text-start zone-planned summary-comment" data-href="{{ row.micro_url }}" data-label="Comment" title="{{ row.comment }}"><span>{{ row.comment }}</span></td>{% endif %}
               <td class="zone-planned planned-start" data-href="{{ row.micro_url }}" data-label="{{ col_sessions }}">{% if row.planned_sessions %}{{ row.planned_sessions }}{% endif %}</td>

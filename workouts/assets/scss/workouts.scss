@@ -213,6 +213,7 @@
 .summary-table .th-group-actual { text-align: center; border-bottom-color: var(--pico-ins-color, #388e3c); }
 
 // Vertical divider between info/planned/actual sections
+.summary-table .microcycle-start,
 .summary-table .actual-start,
 .summary-table .zone-planned + .zone-actual {
   border-left: 1px solid var(--pico-muted-border-color, #999);
