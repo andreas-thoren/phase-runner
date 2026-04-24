@@ -120,6 +120,15 @@
 
     if (clearBtn) {
       clearBtn.addEventListener("click", function () {
+        var macroPk = filterBar.dataset.macroPk;
+        if (macroPk) {
+          try {
+            var key = "phaserunner.summaryFilters.v1";
+            var store = JSON.parse(localStorage.getItem(key) || "{}");
+            delete store[macroPk];
+            localStorage.setItem(key, JSON.stringify(store));
+          } catch (_) { /* ignore */ }
+        }
         window.location.href = clearBtn.dataset.clearUrl;
       });
     }
