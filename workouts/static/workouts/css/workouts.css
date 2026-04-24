@@ -34,6 +34,7 @@
 }
 .filter-bar .filter-fields.filter-fields--inline {
   justify-content: center;
+  flex-wrap: wrap;
   gap: 3rem;
 }
 .filter-bar .filter-fields.filter-fields--inline > label {
