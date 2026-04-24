@@ -1225,6 +1225,7 @@ def _build_summary_rows(
                 {
                     "micro_pk": micro.pk,
                     "start_date": micro.start_date,
+                    "duration_days": micro.duration_days,
                     "meso_pk": meso.pk,
                     "meso_display": meso.get_meso_type_display(),
                     "meso_url": meso.get_absolute_url(),
@@ -1254,6 +1255,26 @@ def _build_summary_rows(
             meso_first = False
 
     return rows
+
+
+def _build_plan_summary(rows: list[dict]) -> dict | None:
+    """Aggregate stats for the whole plan: weekly averages + longest + total.
+
+    Returns None when there are no rows so the caller can hide the section.
+    """
+    if not rows:
+        return None
+    total_days = sum(r["duration_days"] for r in rows) or 1
+    weeks = total_days / 7
+    total_distance = sum(r["sport_distance"] for r in rows)
+    return {
+        "avg_sessions": sum(r["sessions"] for r in rows) / weeks,
+        "avg_distance": total_distance / weeks,
+        "avg_cross": sum(r["cross_sessions"] for r in rows) / weeks,
+        "avg_strength": sum(r["strength_sessions"] for r in rows) / weeks,
+        "longest_distance": max((r["long_distance"] for r in rows), default=0),
+        "total_distance": total_distance,
+    }
 
 
 def _summary_col_labels(sport: WorkoutSubtype) -> dict[str, str]:
@@ -1296,6 +1317,7 @@ class MacrocycleSummaryView(LoginRequiredMixin, NoCacheMixin, DetailView):
         ctx["rows"] = _build_summary_rows(
             macro, self.request.user, statuses=statuses_filter
         )
+        ctx["plan_summary"] = _build_plan_summary(ctx["rows"])
 
         params = self.request.GET.copy()
         params.pop("show_filters", None)

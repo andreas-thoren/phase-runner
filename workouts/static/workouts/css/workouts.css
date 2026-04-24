@@ -67,10 +67,6 @@
   background-color: var(--pico-card-background-color);
 }
 
-.summary-table thead tr:first-child th:first-child {
-  background-color: transparent;
-}
-
 .empty-state-action {
   display: flex;
   align-items: center;
@@ -159,7 +155,8 @@
   border-top: 2px solid var(--pico-muted-border-color, #999);
   background: var(--pico-card-background-color);
 }
-.summary-table .meso-header a {
+.summary-table .meso-header a,
+.summary-table .meso-header > span {
   display: inline-block;
   writing-mode: vertical-rl;
   transform: rotate(180deg);
@@ -251,6 +248,31 @@
 .meso-header a:focus-visible {
   outline: none;
   box-shadow: none;
+}
+
+.plan-summary-figure {
+  margin: 3rem 0 0 auto;
+  padding: 1rem;
+  width: -moz-fit-content;
+  width: fit-content;
+  max-width: 100%;
+  border: 3px solid var(--pico-muted-border-color);
+  border-radius: var(--pico-border-radius);
+  background-color: var(--pico-card-background-color);
+}
+
+.plan-summary-table {
+  width: auto;
+  font-size: 1.3rem;
+}
+.plan-summary-table .th-group-planned {
+  border-bottom-color: var(--pico-del-color);
+}
+
+.plan-summary-caption {
+  margin-top: 0.5rem;
+  font-size: 0.9em;
+  color: var(--pico-muted-color, #888);
 }
 
 @media (max-width: 640px) {

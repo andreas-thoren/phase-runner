@@ -111,6 +111,37 @@
         </tbody>
       </table>
     </figure>
+
+    {% if plan_summary %}
+      <figure class="overflow-auto plan-summary-figure">
+        <table class="summary-table plan-summary-table">
+          <thead>
+            <tr>
+              <th class="th-group-planned" colspan="6">Plan summary</th>
+            </tr>
+            <tr>
+              <th>Avg* {{ col_sessions|lower }}</th>
+              <th>Avg* {{ col_distance|lower }}</th>
+              <th>Avg* X</th>
+              <th>Avg* Str</th>
+              <th>Longest {{ col_long|lower }}</th>
+              <th>Total {{ col_distance|lower }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="meso-group-start">
+              <td data-label="Avg* {{ col_sessions|lower }}">{{ plan_summary.avg_sessions|floatformat:"1" }}</td>
+              <td data-label="Avg* {{ col_distance|lower }}">{{ plan_summary.avg_distance|floatformat:"1" }}</td>
+              <td data-label="Avg* X">{{ plan_summary.avg_cross|floatformat:"1" }}</td>
+              <td data-label="Avg* Str">{{ plan_summary.avg_strength|floatformat:"1" }}</td>
+              <td data-label="Longest {{ col_long|lower }}">{{ plan_summary.longest_distance|floatformat:"-1" }}</td>
+              <td data-label="Total {{ col_distance|lower }}">{{ plan_summary.total_distance|floatformat:"-1" }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <figcaption class="plan-summary-caption">*Weekly averages</figcaption>
+      </figure>
+    {% endif %}
   {% else %}
     <p>No microcycles in this plan yet.</p>
   {% endif %}

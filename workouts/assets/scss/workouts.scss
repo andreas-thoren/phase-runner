@@ -82,10 +82,6 @@
 .record-table thead tr th {
   background-color: var(--pico-card-background-color);
 }
-// Exclude the rowspan=2 mesocycle-label cell — it's visually outside the table.
-.summary-table thead tr:first-child th:first-child {
-  background-color: transparent;
-}
 
 .empty-state-action {
   display: flex;
@@ -174,7 +170,8 @@
     border-top: 2px solid var(--pico-muted-border-color, #999);
     background: var(--pico-card-background-color);
 
-    a {
+    a,
+    > span {
       display: inline-block;
       writing-mode: vertical-rl;
       transform: rotate(180deg);
@@ -262,6 +259,31 @@
 .meso-header a:focus-visible {
   outline: none;
   box-shadow: none;
+}
+
+.plan-summary-figure {
+  margin: 3rem 0 0 auto;
+  padding: 1rem;
+  width: fit-content;
+  max-width: 100%; // don't overflow container on narrow screens
+  border: 3px solid var(--pico-muted-border-color);
+  border-radius: var(--pico-border-radius);
+  background-color: var(--pico-card-background-color);
+}
+
+.plan-summary-table {
+  width: auto; // override Pico's default `table { width: 100% }`
+  font-size: 1.3rem; // override .summary-table { font-size: 0.9em } — bigger headings/cells
+
+  .th-group-planned {
+    border-bottom-color: var(--pico-del-color);
+  }
+}
+
+.plan-summary-caption {
+  margin-top: 0.5rem;
+  font-size: 0.9em;
+  color: var(--pico-muted-color, #888);
 }
 
 @media (max-width: 640px) {
