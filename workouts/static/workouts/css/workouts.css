@@ -65,6 +65,10 @@
   background-color: var(--pico-card-background-color);
 }
 
+.summary-table thead tr:first-child th:first-child {
+  background-color: transparent;
+}
+
 .empty-state-action {
   display: flex;
   align-items: center;

@@ -79,6 +79,10 @@
 .record-table thead tr th {
   background-color: var(--pico-card-background-color);
 }
+// Exclude the rowspan=2 mesocycle-label cell — it's visually outside the table.
+.summary-table thead tr:first-child th:first-child {
+  background-color: transparent;
+}
 
 .empty-state-action {
   display: flex;
