@@ -125,6 +125,10 @@ button.icon-btn {
   margin: 0;
   width: auto;
   cursor: pointer;
+  color: var(--pico-secondary);
+}
+button.icon-btn:hover, button.icon-btn:focus-visible {
+  color: var(--pico-secondary-hover);
 }
 
 .icon-btn--swap > :nth-child(2) {

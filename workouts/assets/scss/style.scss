@@ -130,6 +130,8 @@ footer {
 }
 
 // <button class="icon-btn"> must beat Pico's button.secondary background (0,1,1 specificity).
+// Mirror the color + hover rules Pico applies to a.secondary so the icon behaves
+// the same as the <a class="icon-btn secondary"> edit/delete icons.
 button.icon-btn {
   background: none;
   border: none;
@@ -137,6 +139,12 @@ button.icon-btn {
   margin: 0;
   width: auto;
   cursor: pointer;
+  color: var(--pico-secondary);
+
+  &:hover,
+  &:focus-visible {
+    color: var(--pico-secondary-hover);
+  }
 }
 
 .icon-btn--swap > :nth-child(2) { display: none; }
