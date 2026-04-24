@@ -82,6 +82,11 @@
 .record-table thead tr th {
   background-color: var(--pico-card-background-color);
 }
+// First-row group headers sit visually outside the card — no background so
+// the page shows through.
+.summary-table thead tr:first-child th:first-child {
+  background-color: transparent;
+}
 
 .empty-state-action {
   display: flex;
@@ -259,6 +264,13 @@
 .meso-header a:focus-visible {
   outline: none;
   box-shadow: none;
+}
+
+// Σ toggle button: sits alongside the SVG icon-btns but is text, so it needs
+// an explicit font-size to match their visual weight.
+#toggle-plan-summary {
+  font-size: 1.4rem;
+  line-height: 1;
 }
 
 .plan-summary-figure {

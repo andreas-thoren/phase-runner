@@ -10,6 +10,7 @@
 {% block scripts %}
   <script src="{% static 'workouts/js/summary_filter_restore.js' %}" data-macro-pk="{{ object.pk }}"></script>
   <script src="{% static 'workouts/js/summary_nav.js' %}" defer></script>
+  <script src="{% static 'workouts/js/plan_summary_toggle.js' %}" defer></script>
 {% endblock %}
 
 {% block main %}
@@ -22,6 +23,11 @@
         {% include "workouts/partials/cloud-download.svg" %}
         {% include "workouts/partials/cloud-download-fill.svg" %}
       </button>
+      <button id="toggle-plan-summary" class="icon-btn secondary" type="button"
+              data-url="{% url 'workouts:plan_summary_fragment' macro_pk=object.pk %}"
+              data-target="plan-summary-container"
+              aria-label="Plan summary" title="Toggle plan summary"
+              aria-expanded="false" aria-controls="plan-summary-container">Σ</button>
       <button id="toggle-summary-filters" class="icon-btn secondary" type="button"
               aria-label="Filter options{% if filter_querystring %} (active){% endif %}"
               title="Filter options{% if filter_querystring %} (active){% endif %}">
@@ -112,39 +118,7 @@
       </table>
     </figure>
 
-    {% if plan_summary %}
-      <figure class="overflow-auto plan-summary-figure">
-        <table class="summary-table plan-summary-table">
-          <thead>
-            <tr>
-              <th class="th-group-planned" colspan="6">Plan summary<sup>1</sup></th>
-            </tr>
-            <tr>
-              <th>Avg<sup>2</sup> {{ col_sessions|lower }}</th>
-              <th>Avg<sup>2</sup> {{ col_distance|lower }}</th>
-              <th>Avg<sup>2</sup> X</th>
-              <th>Avg<sup>2</sup> Str</th>
-              <th>Longest {{ col_long|lower }}</th>
-              <th>Total {{ col_distance|lower }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr class="meso-group-start">
-              <td data-label="Avg² {{ col_sessions|lower }}">{{ plan_summary.avg_sessions|floatformat:"1" }}</td>
-              <td data-label="Avg² {{ col_distance|lower }}">{{ plan_summary.avg_distance|floatformat:"1" }}</td>
-              <td data-label="Avg² X">{{ plan_summary.avg_cross|floatformat:"1" }}</td>
-              <td data-label="Avg² Str">{{ plan_summary.avg_strength|floatformat:"1" }}</td>
-              <td data-label="Longest {{ col_long|lower }}">{{ plan_summary.longest_distance|floatformat:"-1" }}</td>
-              <td data-label="Total {{ col_distance|lower }}">{{ plan_summary.total_distance|floatformat:"-1" }}</td>
-            </tr>
-          </tbody>
-        </table>
-        <figcaption class="plan-summary-caption">
-          1) Summary of completed workouts until {{ plan_summary_cutoff|date:"Y-m-d" }}<br>
-          2) Weekly averages
-        </figcaption>
-      </figure>
-    {% endif %}
+    <div id="plan-summary-container" hidden></div>
   {% else %}
     <p>No microcycles in this plan yet.</p>
   {% endif %}

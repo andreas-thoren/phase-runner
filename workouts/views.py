@@ -1326,14 +1326,8 @@ class MacrocycleSummaryView(LoginRequiredMixin, NoCacheMixin, DetailView):
         ctx["rows"] = _build_summary_rows(
             macro, self.request.user, statuses=statuses_filter
         )
-        # Plan summary always aggregates only completed workouts (independent of
-        # the user's table filter), so averages reflect what actually happened.
-        completed_rows = _build_summary_rows(
-            macro, self.request.user, statuses={WorkoutStatus.COMPLETED}
-        )
-        cutoff = min(date.today(), macro.end_date)
-        ctx["plan_summary"] = _build_plan_summary(completed_rows, cutoff)
-        ctx["plan_summary_cutoff"] = cutoff
+        # Plan summary is loaded lazily via `PlanSummaryFragmentView` when the
+        # user clicks the Σ button — skip the completed-only aggregation here.
 
         params = self.request.GET.copy()
         params.pop("show_filters", None)
@@ -1353,6 +1347,36 @@ class MacrocycleSummaryView(LoginRequiredMixin, NoCacheMixin, DetailView):
         ctx["info_colspan"] = info_colspan
         ctx["planned_colspan"] = planned_colspan
         ctx["actual_colspan"] = actual_colspan
+        return ctx
+
+
+class PlanSummaryFragmentView(LoginRequiredMixin, NoCacheMixin, DetailView):
+    """Lazy-loaded HTML fragment of the plan summary aggregate table.
+
+    Fetched by `plan_summary_toggle.js` when the user clicks the Σ button.
+    Runs the completed-only aggregation on demand so the main summary view
+    stays cheap for users who never open the plan summary.
+    """
+
+    model = Macrocycle
+    pk_url_kwarg = "macro_pk"
+    template_name = "workouts/partials/plan_summary.html"
+
+    def get_queryset(self) -> QuerySet:
+        return super().get_queryset().filter(user=self.request.user)
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        ctx = super().get_context_data(**kwargs)
+        macro = self.object
+        macro.hydrate()
+        sport = WorkoutSubtype(macro.primary_sport)
+        ctx.update(_summary_col_labels(sport))
+        completed_rows = _build_summary_rows(
+            macro, self.request.user, statuses={WorkoutStatus.COMPLETED}
+        )
+        cutoff = min(date.today(), macro.end_date)
+        ctx["plan_summary"] = _build_plan_summary(completed_rows, cutoff)
+        ctx["plan_summary_cutoff"] = cutoff
         return ctx
 
 
