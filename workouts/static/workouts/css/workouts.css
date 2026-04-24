@@ -60,6 +60,11 @@
     gap: 1rem;
   }
 }
+.summary-table thead tr th,
+.record-table thead tr th {
+  background-color: var(--pico-card-background-color);
+}
+
 .empty-state-action {
   display: flex;
   align-items: center;

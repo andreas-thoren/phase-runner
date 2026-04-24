@@ -72,6 +72,14 @@
   }
 }
 
+// First thead row shares the filter-bar card background to visually tie them together.
+// Must target the cells, not the row — Pico sets a background on <th>/<td> that
+// would otherwise paint over the row background.
+.summary-table thead tr th,
+.record-table thead tr th {
+  background-color: var(--pico-card-background-color);
+}
+
 .empty-state-action {
   display: flex;
   align-items: center;
