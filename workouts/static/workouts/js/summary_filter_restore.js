@@ -8,6 +8,12 @@
   if (!macroPk) return;
 
   var STORAGE_KEY = "phaserunner.summaryFilters.v1";
+  // Applied on first visit to a plan's summary (no saved entry yet).
+  // Matches SummaryFilterForm.COL_CHOICES keys and WorkoutStatus values.
+  var DEFAULT_FILTER = {
+    cols: ["comment"],
+    statuses: ["planned", "completed", "cancelled", "postponed"],
+  };
   var url = new URL(location.href);
   var params = url.searchParams;
 
@@ -37,7 +43,9 @@
   }
 
   var saved = readStore()[macroPk];
-  if (!saved) return;
+  // Clear button saved `{ cleared: true }` — render unfiltered, no redirect.
+  if (saved && saved.cleared) return;
+  if (!saved) saved = DEFAULT_FILTER;
 
   params.set("filtered", "1");
   (saved.cols || []).forEach(function (c) { params.append("cols", c); });

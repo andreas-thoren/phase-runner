@@ -136,7 +136,9 @@
           try {
             var key = "phaserunner.summaryFilters.v1";
             var store = JSON.parse(localStorage.getItem(key) || "{}");
-            delete store[macroPk];
+            // Sticky "cleared" marker suppresses the default-filter redirect
+            // until the user submits a new filter (which overwrites it).
+            store[macroPk] = { cleared: true };
             localStorage.setItem(key, JSON.stringify(store));
           } catch (_) { /* ignore */ }
         }
