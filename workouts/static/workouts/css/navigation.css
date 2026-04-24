@@ -47,13 +47,18 @@
   margin: 0;
 }
 
+#sidebar-menu [data-sidebar-close],
+.filter-bar .filter-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+}
+
 #sidebar-menu {
+  position: relative;
   padding: var(--pico-nav-element-spacing-vertical) 0;
 }
 #sidebar-menu .sidebar-mobile-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
   margin-bottom: 1rem;
 }
 #sidebar-menu .sidebar-mobile-header span {

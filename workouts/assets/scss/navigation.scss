@@ -61,14 +61,20 @@
   margin: 0;
 }
 
+// ─── Shared top-right corner for close-X buttons ───────────────────
+#sidebar-menu [data-sidebar-close],
+.filter-bar .filter-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+}
+
 // ─── Sidebar shared styles ─────────────────────────────────────────
 #sidebar-menu {
+  position: relative;
   padding: var(--pico-nav-element-spacing-vertical) 0;
 
   .sidebar-mobile-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
     margin-bottom: 1rem;
 
     span {

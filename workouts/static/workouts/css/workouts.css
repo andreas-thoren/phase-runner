@@ -18,11 +18,6 @@
   background-color: var(--pico-card-background-color);
   border-radius: var(--pico-border-radius);
 }
-.filter-bar .filter-close {
-  position: absolute;
-  top: 0.5rem;
-  right: 0.5rem;
-}
 .filter-bar .filter-inline-wrap {
   width: -moz-fit-content;
   width: fit-content;
