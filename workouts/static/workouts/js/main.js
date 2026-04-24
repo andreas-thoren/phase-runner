@@ -62,3 +62,18 @@ if (logoutLink && logoutForm) {
     logoutForm.submit();
   });
 }
+
+// -- Theme toggle -----------------------------------------------------------
+
+const themeToggle = document.querySelector("[data-theme-toggle]");
+if (themeToggle) {
+  themeToggle.addEventListener("click", e => {
+    e.preventDefault();
+    const current = document.documentElement.getAttribute("data-theme") || "dark";
+    const next = current === "dark" ? "light" : "dark";
+    document.documentElement.setAttribute("data-theme", next);
+    try { localStorage.setItem("phaserunner.theme", next); } catch (_) {}
+    const dropdown = themeToggle.closest("details");
+    if (dropdown) dropdown.removeAttribute("open");
+  });
+}

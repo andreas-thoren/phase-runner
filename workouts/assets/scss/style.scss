@@ -153,6 +153,12 @@ button.icon-btn {
 .icon-btn--swap:hover > :nth-child(2),
 .icon-btn--swap:focus-visible > :nth-child(2) { display: inline; }
 
+// Theme toggle label: show the label that matches the *current* theme
+// (the label describes the action the user is about to take).
+[data-theme-when] { display: none; }
+html[data-theme="dark"] [data-theme-when="dark"] { display: inline; }
+html[data-theme="light"] [data-theme-when="light"] { display: inline; }
+
 .button-row {
   display: flex;
   align-items: center;

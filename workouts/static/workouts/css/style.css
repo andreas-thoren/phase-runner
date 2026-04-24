@@ -145,6 +145,18 @@ button.icon-btn:hover, button.icon-btn:focus-visible {
   display: inline;
 }
 
+[data-theme-when] {
+  display: none;
+}
+
+html[data-theme=dark] [data-theme-when=dark] {
+  display: inline;
+}
+
+html[data-theme=light] [data-theme-when=light] {
+  display: inline;
+}
+
 .button-row {
   display: flex;
   align-items: center;

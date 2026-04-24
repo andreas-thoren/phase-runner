@@ -1,12 +1,13 @@
 {% load static %}
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="color-scheme" content="light dark">
+  <meta name="color-scheme" content="dark light">
+  <script src="{% static 'workouts/js/theme_init.js' %}"></script>
   <link rel="icon" type="image/svg+xml" href="{% static 'workouts/images/run_schedule.svg' %}">
   <title>{% block title %}{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/pico.min.css' %}">
@@ -42,6 +43,12 @@
                 <ul dir="rtl">
                   <li><span class="account-username">{{ user.username }}</span></li>
                   <li><a href="{% url 'workouts:account_detail' %}">Account</a></li>
+                  <li>
+                    <a href="#" data-theme-toggle>
+                      <span data-theme-when="dark">Light mode</span>
+                      <span data-theme-when="light">Dark mode</span>
+                    </a>
+                  </li>
                   <li>
                     <form id="logout-form" method="post" action="{% url 'logout' %}" class="logout-form">
                       {% csrf_token %}
