@@ -49,17 +49,16 @@
 }
 
 // ─── Shared icon-button reset (hamburger, close) ─────────────────────
-#sidebar-menu,
-#sidebar-breadcrumb {
-  button {
-    background: none;
-    border: none;
-    padding: 0.25rem;
-    cursor: pointer;
-    color: var(--pico-secondary);
-    width: auto;
-    margin: 0;
-  }
+#sidebar-menu button,
+#sidebar-breadcrumb button,
+.filter-bar .filter-close {
+  background: none;
+  border: none;
+  padding: 0.25rem;
+  cursor: pointer;
+  color: var(--pico-secondary);
+  width: auto;
+  margin: 0;
 }
 
 // ─── Sidebar shared styles ─────────────────────────────────────────

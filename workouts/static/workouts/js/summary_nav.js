@@ -91,13 +91,24 @@
   var toggleBtn = document.getElementById("toggle-summary-filters");
   var filterBar = document.getElementById("filter-bar");
   if (toggleBtn && filterBar) {
-    toggleBtn.addEventListener("click", function () {
-      filterBar.hidden = !filterBar.hidden;
+    function setFilterBarHidden(hidden) {
+      filterBar.hidden = hidden;
       var url = new URL(window.location);
-      if (filterBar.hidden) url.searchParams.delete("show_filters");
+      if (hidden) url.searchParams.delete("show_filters");
       else url.searchParams.set("show_filters", "1");
       history.replaceState(null, "", url);
+    }
+
+    toggleBtn.addEventListener("click", function () {
+      setFilterBarHidden(!filterBar.hidden);
     });
+
+    var closeBtn = filterBar.querySelector("[data-filter-close]");
+    if (closeBtn) {
+      closeBtn.addEventListener("click", function () {
+        setFilterBarHidden(true);
+      });
+    }
 
     var submit = document.getElementById("filter-submit");
     var clearBtn = document.getElementById("filter-clear");

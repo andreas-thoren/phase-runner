@@ -36,7 +36,8 @@
   }
 }
 #sidebar-menu button,
-#sidebar-breadcrumb button {
+#sidebar-breadcrumb button,
+.filter-bar .filter-close {
   background: none;
   border: none;
   padding: 0.25rem;

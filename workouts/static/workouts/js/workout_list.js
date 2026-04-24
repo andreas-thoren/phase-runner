@@ -1,16 +1,21 @@
-document.getElementById("toggle-filters").addEventListener("click", () => {
-  const bar = document.getElementById("filter-bar");
-  bar.hidden = !bar.hidden;
+const filterBar = document.getElementById("filter-bar");
+
+function setFilterBarHidden(hidden) {
+  filterBar.hidden = hidden;
   const url = new URL(window.location);
-  if (bar.hidden) {
-    url.searchParams.delete("show_filters");
-  } else {
-    url.searchParams.set("show_filters", "1");
-  }
+  if (hidden) url.searchParams.delete("show_filters");
+  else url.searchParams.set("show_filters", "1");
   history.replaceState(null, "", url);
+}
+
+document.getElementById("toggle-filters").addEventListener("click", () => {
+  setFilterBarHidden(!filterBar.hidden);
 });
 
-const filterBar = document.getElementById("filter-bar");
+const filterClose = filterBar.querySelector("[data-filter-close]");
+if (filterClose) {
+  filterClose.addEventListener("click", () => setFilterBarHidden(true));
+}
 const filterSubmit = document.getElementById("filter-submit");
 
 function updateFilterButton() {

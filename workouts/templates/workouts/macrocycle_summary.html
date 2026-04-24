@@ -22,6 +22,9 @@
     </div>
 
     <form method="get" class="filter-bar" id="filter-bar" data-macro-pk="{{ object.pk }}" {% if not show_filters %}hidden{% endif %}>
+      <button type="button" class="filter-close" data-filter-close aria-label="Close filters">
+        {% include "workouts/partials/close.svg" %}
+      </button>
       <div class="filter-inline-wrap">
         <div class="filter-fields filter-fields--inline">
           <label>

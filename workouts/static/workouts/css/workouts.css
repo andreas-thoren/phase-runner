@@ -12,7 +12,16 @@
 }
 
 .filter-bar {
+  position: relative;
   margin-bottom: 3rem;
+  padding: 1rem;
+  background-color: var(--pico-card-background-color);
+  border-radius: var(--pico-border-radius);
+}
+.filter-bar .filter-close {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
 }
 .filter-bar .filter-inline-wrap {
   width: -moz-fit-content;
@@ -22,6 +31,7 @@
 .filter-bar .filter-fields {
   display: flex;
   gap: 1rem;
+  margin-top: 2rem;
 }
 .filter-bar .filter-fields label {
   flex: 1;

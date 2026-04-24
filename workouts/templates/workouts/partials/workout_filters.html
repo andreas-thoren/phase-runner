@@ -5,6 +5,9 @@
 </div>
 
 <form method="get" class="filter-bar" id="filter-bar" {% if not show_filters %}hidden{% endif %}>
+  <button type="button" class="filter-close" data-filter-close aria-label="Close filters">
+    {% include "workouts/partials/close.svg" %}
+  </button>
   <div class="filter-fields">
     <label>
       From
