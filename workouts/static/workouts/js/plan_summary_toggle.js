@@ -46,5 +46,8 @@
     var nowHidden = !container.hidden;
     container.hidden = nowHidden;
     btn.setAttribute("aria-expanded", String(!nowHidden));
+    if (!nowHidden) {
+      container.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
   });
 })();

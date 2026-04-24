@@ -27,7 +27,10 @@
               data-url="{% url 'workouts:plan_summary_fragment' macro_pk=object.pk %}"
               data-target="plan-summary-container"
               aria-label="Plan summary" title="Toggle plan summary"
-              aria-expanded="false" aria-controls="plan-summary-container">Σ</button>
+              aria-expanded="false" aria-controls="plan-summary-container">
+        {% include "workouts/partials/bar-chart.svg" %}
+        {% include "workouts/partials/bar-chart-fill.svg" %}
+      </button>
       <button id="toggle-summary-filters" class="icon-btn secondary" type="button"
               aria-label="Filter options{% if filter_querystring %} (active){% endif %}"
               title="Filter options{% if filter_querystring %} (active){% endif %}">

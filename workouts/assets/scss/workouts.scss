@@ -266,12 +266,12 @@
   box-shadow: none;
 }
 
-// Σ toggle button: sits alongside the SVG icon-btns but is text, so it needs
-// an explicit font-size to match their visual weight.
-#toggle-plan-summary {
-  font-size: 1.4rem;
-  line-height: 1;
-}
+// Plan summary toggle: show outline when closed, filled when open.
+// Mirrors the filter button's state-based icon swap, but driven client-side
+// off aria-expanded since the open/closed state lives in JS, not the server.
+#toggle-plan-summary > :nth-child(2) { display: none; }
+#toggle-plan-summary[aria-expanded="true"] > :nth-child(1) { display: none; }
+#toggle-plan-summary[aria-expanded="true"] > :nth-child(2) { display: inline; }
 
 .plan-summary-figure {
   margin: 8rem 0 0 auto;

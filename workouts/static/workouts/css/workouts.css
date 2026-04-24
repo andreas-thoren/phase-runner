@@ -254,9 +254,16 @@
   box-shadow: none;
 }
 
-#toggle-plan-summary {
-  font-size: 1.4rem;
-  line-height: 1;
+#toggle-plan-summary > :nth-child(2) {
+  display: none;
+}
+
+#toggle-plan-summary[aria-expanded=true] > :nth-child(1) {
+  display: none;
+}
+
+#toggle-plan-summary[aria-expanded=true] > :nth-child(2) {
+  display: inline;
 }
 
 .plan-summary-figure {
