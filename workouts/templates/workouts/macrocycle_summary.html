@@ -37,7 +37,6 @@
           </label>
         </div>
         <div class="button-row">
-          <input type="hidden" name="show_filters" value="1">
           <input type="hidden" name="filtered" value="1">
           <button type="button" class="secondary" id="filter-clear" {% if not filter_querystring %}disabled{% endif %} data-clear-url="{{ request.path }}">Clear</button>
           <button type="submit" id="filter-submit" {% if not filter_querystring %}disabled{% endif %}>Filter</button>
