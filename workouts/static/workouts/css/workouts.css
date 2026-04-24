@@ -34,7 +34,6 @@
 }
 .filter-bar .filter-fields.filter-fields--inline {
   justify-content: center;
-  flex-wrap: wrap;
   gap: 3rem;
 }
 .filter-bar .filter-fields.filter-fields--inline > label {
@@ -56,9 +55,11 @@
     flex-direction: column;
   }
   .filter-bar .filter-fields.filter-fields--inline {
-    flex-direction: row;
-    align-items: center;
+    flex-direction: column;
     gap: 1rem;
+  }
+  .filter-bar .filter-fields.filter-fields--inline > label {
+    width: 100%;
   }
 }
 .summary-table thead tr th,

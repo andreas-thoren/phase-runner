@@ -39,7 +39,6 @@
     // Summary view variant: labels shrink to content and center-align
     &.filter-fields--inline {
       justify-content: center;
-      flex-wrap: wrap;
       gap: 3rem;
 
       > label {
@@ -66,9 +65,12 @@
     flex-direction: column;
 
     &.filter-fields--inline {
-      flex-direction: row;
-      align-items: center;
+      flex-direction: column;
       gap: 1rem;
+
+      > label {
+        width: 100%;
+      }
     }
   }
 }
