@@ -117,29 +117,32 @@
         <table class="summary-table plan-summary-table">
           <thead>
             <tr>
-              <th class="th-group-planned" colspan="6">Plan summary</th>
+              <th class="th-group-planned" colspan="6">Plan summary<sup>1</sup></th>
             </tr>
             <tr>
-              <th>Avg* {{ col_sessions|lower }}</th>
-              <th>Avg* {{ col_distance|lower }}</th>
-              <th>Avg* X</th>
-              <th>Avg* Str</th>
+              <th>Avg<sup>2</sup> {{ col_sessions|lower }}</th>
+              <th>Avg<sup>2</sup> {{ col_distance|lower }}</th>
+              <th>Avg<sup>2</sup> X</th>
+              <th>Avg<sup>2</sup> Str</th>
               <th>Longest {{ col_long|lower }}</th>
               <th>Total {{ col_distance|lower }}</th>
             </tr>
           </thead>
           <tbody>
             <tr class="meso-group-start">
-              <td data-label="Avg* {{ col_sessions|lower }}">{{ plan_summary.avg_sessions|floatformat:"1" }}</td>
-              <td data-label="Avg* {{ col_distance|lower }}">{{ plan_summary.avg_distance|floatformat:"1" }}</td>
-              <td data-label="Avg* X">{{ plan_summary.avg_cross|floatformat:"1" }}</td>
-              <td data-label="Avg* Str">{{ plan_summary.avg_strength|floatformat:"1" }}</td>
+              <td data-label="Avg² {{ col_sessions|lower }}">{{ plan_summary.avg_sessions|floatformat:"1" }}</td>
+              <td data-label="Avg² {{ col_distance|lower }}">{{ plan_summary.avg_distance|floatformat:"1" }}</td>
+              <td data-label="Avg² X">{{ plan_summary.avg_cross|floatformat:"1" }}</td>
+              <td data-label="Avg² Str">{{ plan_summary.avg_strength|floatformat:"1" }}</td>
               <td data-label="Longest {{ col_long|lower }}">{{ plan_summary.longest_distance|floatformat:"-1" }}</td>
               <td data-label="Total {{ col_distance|lower }}">{{ plan_summary.total_distance|floatformat:"-1" }}</td>
             </tr>
           </tbody>
         </table>
-        <figcaption class="plan-summary-caption">*Weekly averages</figcaption>
+        <figcaption class="plan-summary-caption">
+          1) Summary of completed workouts until {{ plan_summary_cutoff|date:"Y-m-d" }}<br>
+          2) Weekly averages
+        </figcaption>
       </figure>
     {% endif %}
   {% else %}

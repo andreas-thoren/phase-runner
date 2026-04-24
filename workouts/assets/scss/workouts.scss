@@ -262,7 +262,7 @@
 }
 
 .plan-summary-figure {
-  margin: 3rem 0 0 auto;
+  margin: 8rem 0 0 auto;
   padding: 1rem;
   width: fit-content;
   max-width: 100%; // don't overflow container on narrow screens
@@ -273,10 +273,15 @@
 
 .plan-summary-table {
   width: auto; // override Pico's default `table { width: 100% }`
-  font-size: 1.3rem; // override .summary-table { font-size: 0.9em } — bigger headings/cells
+  font-size: 1.1rem; // override .summary-table { font-size: 0.9em } — bigger headings/cells
 
   .th-group-planned {
     border-bottom-color: var(--pico-del-color);
+  }
+
+  sup {
+    font-size: 0.65em;
+    font-style: italic;
   }
 }
 

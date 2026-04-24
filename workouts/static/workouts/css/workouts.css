@@ -251,7 +251,7 @@
 }
 
 .plan-summary-figure {
-  margin: 3rem 0 0 auto;
+  margin: 8rem 0 0 auto;
   padding: 1rem;
   width: -moz-fit-content;
   width: fit-content;
@@ -263,10 +263,14 @@
 
 .plan-summary-table {
   width: auto;
-  font-size: 1.3rem;
+  font-size: 1.1rem;
 }
 .plan-summary-table .th-group-planned {
   border-bottom-color: var(--pico-del-color);
+}
+.plan-summary-table sup {
+  font-size: 0.65em;
+  font-style: italic;
 }
 
 .plan-summary-caption {

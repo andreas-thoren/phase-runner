@@ -1257,22 +1257,31 @@ def _build_summary_rows(
     return rows
 
 
-def _build_plan_summary(rows: list[dict]) -> dict | None:
-    """Aggregate stats for the whole plan: weekly averages + longest + total.
+def _build_plan_summary(rows: list[dict], cutoff: date) -> dict | None:
+    """Aggregate stats over microcycles whose `end_date <= cutoff`.
 
-    Returns None when there are no rows so the caller can hide the section.
+    Cutoff is typically `min(date.today(), macro.end_date)` — we only count
+    completed microcycles so averages aren't diluted by future/incomplete weeks.
+    Returns None when no microcycle has finished yet.
     """
     if not rows:
         return None
-    total_days = sum(r["duration_days"] for r in rows) or 1
+    past_rows = [
+        r
+        for r in rows
+        if r["start_date"] + timedelta(days=r["duration_days"] - 1) <= cutoff
+    ]
+    if not past_rows:
+        return None
+    total_days = sum(r["duration_days"] for r in past_rows) or 1
     weeks = total_days / 7
-    total_distance = sum(r["sport_distance"] for r in rows)
+    total_distance = sum(r["sport_distance"] for r in past_rows)
     return {
-        "avg_sessions": sum(r["sessions"] for r in rows) / weeks,
+        "avg_sessions": sum(r["sessions"] for r in past_rows) / weeks,
         "avg_distance": total_distance / weeks,
-        "avg_cross": sum(r["cross_sessions"] for r in rows) / weeks,
-        "avg_strength": sum(r["strength_sessions"] for r in rows) / weeks,
-        "longest_distance": max((r["long_distance"] for r in rows), default=0),
+        "avg_cross": sum(r["cross_sessions"] for r in past_rows) / weeks,
+        "avg_strength": sum(r["strength_sessions"] for r in past_rows) / weeks,
+        "longest_distance": max((r["long_distance"] for r in past_rows), default=0),
         "total_distance": total_distance,
     }
 
@@ -1317,7 +1326,14 @@ class MacrocycleSummaryView(LoginRequiredMixin, NoCacheMixin, DetailView):
         ctx["rows"] = _build_summary_rows(
             macro, self.request.user, statuses=statuses_filter
         )
-        ctx["plan_summary"] = _build_plan_summary(ctx["rows"])
+        # Plan summary always aggregates only completed workouts (independent of
+        # the user's table filter), so averages reflect what actually happened.
+        completed_rows = _build_summary_rows(
+            macro, self.request.user, statuses={WorkoutStatus.COMPLETED}
+        )
+        cutoff = min(date.today(), macro.end_date)
+        ctx["plan_summary"] = _build_plan_summary(completed_rows, cutoff)
+        ctx["plan_summary_cutoff"] = cutoff
 
         params = self.request.GET.copy()
         params.pop("show_filters", None)
