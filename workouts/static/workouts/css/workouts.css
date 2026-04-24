@@ -180,12 +180,18 @@
   vertical-align: top;
 }
 
+.summary-table .th-group-info,
 .summary-table .th-group-planned,
 .summary-table .th-group-actual {
   font-size: 0.85em;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   border-bottom: 2px solid var(--pico-primary);
+}
+
+.summary-table .th-group-info {
+  text-align: center;
+  border-bottom-color: #6b5b7b;
 }
 
 .summary-table .th-group-planned {
@@ -200,6 +206,10 @@
 .summary-table .actual-start,
 .summary-table .zone-planned + .zone-actual {
   border-left: 1px solid var(--pico-muted-border-color, #999);
+}
+
+.summary-table .planned-start {
+  border-left: 1px dashed var(--pico-muted-border-color, #999);
 }
 
 .summary-table .meso-group-start td {

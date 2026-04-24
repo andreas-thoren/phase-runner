@@ -63,6 +63,7 @@
         <thead>
           <tr>
             <th rowspan="2"></th>
+            <th class="th-group-info" colspan="{{ info_colspan }}">Microcycle</th>
             <th class="th-group-planned" colspan="{{ planned_colspan }}">Planned</th>
             <th class="th-group-actual" colspan="{{ actual_colspan }}">Actual</th>
           </tr>
@@ -70,7 +71,7 @@
             <th class="text-start">Start date</th>
             <th class="text-start">Type</th>
             {% if "comment" in visible_cols %}<th class="text-start">Comment</th>{% endif %}
-            <th>{{ col_sessions }}</th>
+            <th class="planned-start">{{ col_sessions }}</th>
             <th>{{ col_distance }}</th>
             <th>{{ col_long }}</th>
             {% if "x" in visible_cols %}<th>X</th>{% endif %}
@@ -93,7 +94,7 @@
               <td class="text-start zone-planned" id="micro-{{ row.micro_pk }}" data-href="{{ row.micro_url }}" data-label="Start date" tabindex="0">{{ row.start_date|date:"Y-m-d" }}</td>
               <td class="text-start zone-planned" data-href="{{ row.micro_url }}" data-label="Type">{{ row.micro_type_display }}</td>
               {% if "comment" in visible_cols %}<td class="text-start zone-planned summary-comment" data-href="{{ row.micro_url }}" data-label="Comment" title="{{ row.comment }}"><span>{{ row.comment }}</span></td>{% endif %}
-              <td class="zone-planned" data-href="{{ row.micro_url }}" data-label="{{ col_sessions }}">{% if row.planned_sessions %}{{ row.planned_sessions }}{% endif %}</td>
+              <td class="zone-planned planned-start" data-href="{{ row.micro_url }}" data-label="{{ col_sessions }}">{% if row.planned_sessions %}{{ row.planned_sessions }}{% endif %}</td>
               <td class="zone-planned" data-href="{{ row.micro_url }}" data-label="{{ col_distance }}">{% if row.planned_distance_km %}{{ row.planned_distance_km|floatformat:"-1" }}{% endif %}</td>
               <td class="zone-planned" data-href="{{ row.micro_url }}" data-label="{{ col_long }}">{% if row.planned_long_km %}{{ row.planned_long_km|floatformat:"-1" }}{% endif %}</td>
               {% if "x" in visible_cols %}<td class="zone-planned" data-href="{{ row.micro_url }}" data-label="X">{% if row.planned_cross_sessions %}{{ row.planned_cross_sessions }}{% endif %}</td>{% endif %}

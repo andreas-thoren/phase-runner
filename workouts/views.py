@@ -1300,9 +1300,8 @@ class MacrocycleSummaryView(LoginRequiredMixin, NoCacheMixin, DetailView):
         params = self.request.GET.copy()
         params.pop("show_filters", None)
 
-        planned_colspan = 5 + sum(
-            1 for k in ("comment", "x", "str") if k in visible_cols
-        )
+        info_colspan = 2 + (1 if "comment" in visible_cols else 0)
+        planned_colspan = 3 + sum(1 for k in ("x", "str") if k in visible_cols)
         actual_colspan = (
             3
             + sum(1 for k in ("x", "str") if k in visible_cols)
@@ -1313,6 +1312,7 @@ class MacrocycleSummaryView(LoginRequiredMixin, NoCacheMixin, DetailView):
         ctx["show_filters"] = "show_filters" in self.request.GET
         ctx["filter_querystring"] = params.urlencode()
         ctx["visible_cols"] = visible_cols
+        ctx["info_colspan"] = info_colspan
         ctx["planned_colspan"] = planned_colspan
         ctx["actual_colspan"] = actual_colspan
         return ctx

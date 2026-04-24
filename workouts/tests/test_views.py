@@ -1246,7 +1246,8 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
 
     def test_planned_colspan_updated(self):
         response = self.client.get(self.url)
-        self.assertContains(response, 'colspan="8"')
+        self.assertContains(response, 'colspan="5"')
+        self.assertContains(response, 'colspan="3"')
 
     def test_planned_headers_have_no_goal_prefix(self):
         response = self.client.get(self.url)
@@ -1271,14 +1272,16 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
         self.assertEqual(
             response.context["visible_cols"], {"comment", "x", "str", "load"}
         )
-        self.assertEqual(response.context["planned_colspan"], 8)
+        self.assertEqual(response.context["info_colspan"], 3)
+        self.assertEqual(response.context["planned_colspan"], 5)
         self.assertEqual(response.context["actual_colspan"], 7)
 
     def test_filter_hides_comment(self):
         response = self.client.get(
             self.url, {"filtered": "1", "cols": ["x", "str", "load"]}
         )
-        self.assertEqual(response.context["planned_colspan"], 7)
+        self.assertEqual(response.context["info_colspan"], 2)
+        self.assertEqual(response.context["planned_colspan"], 5)
         self.assertNotIn("comment", response.context["visible_cols"])
         self.assertNotContains(response, ">Comment<")
 
@@ -1287,7 +1290,8 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
             self.url, {"filtered": "1", "cols": ["comment", "load"]}
         )
         ctx = response.context
-        self.assertEqual(ctx["planned_colspan"], 6)
+        self.assertEqual(ctx["info_colspan"], 3)
+        self.assertEqual(ctx["planned_colspan"], 3)
         self.assertEqual(ctx["actual_colspan"], 5)
         self.assertNotContains(response, ">X<")
         self.assertNotContains(response, ">Str<")
@@ -1303,7 +1307,8 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
     def test_filtered_with_no_cols_hides_all_toggleable(self):
         response = self.client.get(self.url, {"filtered": "1"})
         self.assertEqual(response.context["visible_cols"], set())
-        self.assertEqual(response.context["planned_colspan"], 5)
+        self.assertEqual(response.context["info_colspan"], 2)
+        self.assertEqual(response.context["planned_colspan"], 3)
         self.assertEqual(response.context["actual_colspan"], 3)
 
     def test_filter_form_open_without_filtered_param_keeps_defaults(self):
