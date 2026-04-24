@@ -110,6 +110,37 @@ footer .social-links svg {
   padding-bottom: 0.25rem;
 }
 
+.icon-btn {
+  height: 1.3rem;
+}
+.icon-btn svg {
+  height: 100%;
+  width: auto;
+}
+
+button.icon-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  width: auto;
+  cursor: pointer;
+}
+
+.icon-btn--swap > :nth-child(2) {
+  display: none;
+}
+
+.icon-btn--swap:hover > :nth-child(1),
+.icon-btn--swap:focus-visible > :nth-child(1) {
+  display: none;
+}
+
+.icon-btn--swap:hover > :nth-child(2),
+.icon-btn--swap:focus-visible > :nth-child(2) {
+  display: inline;
+}
+
 .button-row {
   display: flex;
   align-items: center;

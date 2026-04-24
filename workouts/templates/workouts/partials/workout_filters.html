@@ -1,7 +1,19 @@
 <div class="list-toolbar">
-  <button id="export-csv" class="secondary button-slim" type="button"
-          data-export-url="{% url 'workouts:export_workouts' %}">Export CSV</button>
-  <button id="toggle-filters" class="secondary button-slim" type="button">Filter Options</button>
+  <button id="export-csv" class="icon-btn icon-btn--swap secondary" type="button"
+          data-export-url="{% url 'workouts:export_workouts' %}"
+          aria-label="Export CSV" title="Export CSV">
+    {% include "workouts/partials/cloud-download.svg" %}
+    {% include "workouts/partials/cloud-download-fill.svg" %}
+  </button>
+  <button id="toggle-filters" class="icon-btn secondary" type="button"
+          aria-label="Filter options{% if filter_querystring %} (active){% endif %}"
+          title="Filter options{% if filter_querystring %} (active){% endif %}">
+    {% if filter_querystring %}
+      {% include "workouts/partials/filter-applied.svg" %}
+    {% else %}
+      {% include "workouts/partials/filter.svg" %}
+    {% endif %}
+  </button>
 </div>
 
 <form method="get" class="filter-bar" id="filter-bar" {% if not show_filters %}hidden{% endif %}>
