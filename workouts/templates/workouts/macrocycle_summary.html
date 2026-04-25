@@ -121,11 +121,10 @@
           {% endfor %}
         </tbody>
       </table>
-      {% if "zones" in visible_cols %}
-        <figcaption class="summary-table-caption">
-          Z1–Z5: % of {{ primary_sport_label }} time per HR zone
-        </figcaption>
-      {% endif %}
+      <figcaption class="summary-table-caption">
+        All distances in km{% if "zones" in visible_cols %}<br>
+        Z1–Z5: % of {{ primary_sport_label }} time per HR zone{% endif %}
+      </figcaption>
     </figure>
 
     <div id="summary-stats-container" hidden></div>

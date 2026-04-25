@@ -29,7 +29,8 @@
     </table>
     <figcaption class="summary-stats-caption">
       1) Summary of completed workouts until {{ summary_stats_cutoff|date:"Y-m-d" }}<br>
-      2) Weekly averages{% if summary_stats.zone_distribution %}<br>
+      2) 7 day average<br>
+      All distances in km{% if summary_stats.zone_distribution %}<br>
       Z1–Z5: % of {{ primary_sport_label }} time per HR zone{% endif %}
     </figcaption>
   </figure>
