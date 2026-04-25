@@ -1,0 +1,35 @@
+{% if summary_stats %}
+  <figure class="overflow-auto summary-stats-figure">
+    <table class="summary-table summary-stats-table">
+      <thead>
+        <tr>
+          <th class="th-group-planned" colspan="6">Summary stats<sup>1</sup></th>
+        </tr>
+        <tr>
+          <th>Avg<sup>2</sup> {{ col_sessions|lower }}</th>
+          <th>Avg<sup>2</sup> {{ col_distance|lower }}</th>
+          <th>Avg<sup>2</sup> X</th>
+          <th>Avg<sup>2</sup> Str</th>
+          <th>Longest {{ col_long|lower }}</th>
+          <th>Total {{ col_distance|lower }}</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="meso-group-start">
+          <td data-label="Avg² {{ col_sessions|lower }}">{{ summary_stats.avg_sessions|floatformat:"1" }}</td>
+          <td data-label="Avg² {{ col_distance|lower }}">{{ summary_stats.avg_distance|floatformat:"1" }}</td>
+          <td data-label="Avg² X">{{ summary_stats.avg_cross|floatformat:"1" }}</td>
+          <td data-label="Avg² Str">{{ summary_stats.avg_strength|floatformat:"1" }}</td>
+          <td data-label="Longest {{ col_long|lower }}">{{ summary_stats.longest_distance|floatformat:"-1" }}</td>
+          <td data-label="Total {{ col_distance|lower }}">{{ summary_stats.total_distance|floatformat:"-1" }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <figcaption class="summary-stats-caption">
+      1) Summary of completed workouts until {{ summary_stats_cutoff|date:"Y-m-d" }}<br>
+      2) Weekly averages
+    </figcaption>
+  </figure>
+{% else %}
+  <p class="summary-stats-empty">No completed workouts yet.</p>
+{% endif %}

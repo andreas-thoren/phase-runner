@@ -1,10 +1,10 @@
-// Lazy-loads and toggles the plan summary fragment.
+// Lazy-loads and toggles the summary stats fragment.
 // First click fetches the HTML from `data-url` into the container referenced
 // by `data-target`; subsequent clicks just show/hide the container.
 // No persistence — state resets on every page load.
 
 (function () {
-  var btn = document.getElementById("toggle-plan-summary");
+  var btn = document.getElementById("toggle-summary-stats");
   if (!btn) return;
   var container = document.getElementById(btn.dataset.target);
   if (!container) return;
@@ -22,7 +22,7 @@
   function renderError(message) {
     container.replaceChildren();
     var p = document.createElement("p");
-    p.className = "plan-summary-empty";
+    p.className = "summary-stats-empty";
     p.textContent = message;
     container.appendChild(p);
   }
@@ -38,7 +38,7 @@
         renderFragment(await resp.text());
         loaded = true;
       } catch (err) {
-        renderError("Could not load plan summary.");
+        renderError("Could not load summary stats.");
       } finally {
         btn.disabled = false;
       }

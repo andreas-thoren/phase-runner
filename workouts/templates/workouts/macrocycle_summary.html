@@ -10,7 +10,7 @@
 {% block scripts %}
   <script src="{% static 'workouts/js/summary_filter_restore.js' %}" data-macro-pk="{{ object.pk }}"></script>
   <script src="{% static 'workouts/js/summary_nav.js' %}" defer></script>
-  <script src="{% static 'workouts/js/plan_summary_toggle.js' %}" defer></script>
+  <script src="{% static 'workouts/js/summary_stats_toggle.js' %}" defer></script>
 {% endblock %}
 
 {% block main %}
@@ -23,11 +23,11 @@
         {% include "workouts/partials/cloud-download.svg" %}
         {% include "workouts/partials/cloud-download-fill.svg" %}
       </button>
-      <button id="toggle-plan-summary" class="icon-btn secondary" type="button"
-              data-url="{% url 'workouts:plan_summary_fragment' macro_pk=object.pk %}"
-              data-target="plan-summary-container"
-              aria-label="Plan summary" title="Toggle plan summary"
-              aria-expanded="false" aria-controls="plan-summary-container">
+      <button id="toggle-summary-stats" class="icon-btn secondary" type="button"
+              data-url="{% url 'workouts:summary_stats_fragment' macro_pk=object.pk %}"
+              data-target="summary-stats-container"
+              aria-label="Summary stats" title="Toggle summary stats"
+              aria-expanded="false" aria-controls="summary-stats-container">
         {% include "workouts/partials/bar-chart.svg" %}
         {% include "workouts/partials/bar-chart-fill.svg" %}
       </button>
@@ -121,7 +121,7 @@
       </table>
     </figure>
 
-    <div id="plan-summary-container" hidden></div>
+    <div id="summary-stats-container" hidden></div>
   {% else %}
     <p>No microcycles in this plan yet.</p>
   {% endif %}

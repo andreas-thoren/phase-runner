@@ -1257,7 +1257,7 @@ def _build_summary_rows(
     return rows
 
 
-def _build_plan_summary(rows: list[dict], cutoff: date) -> dict | None:
+def _build_summary_stats(rows: list[dict], cutoff: date) -> dict | None:
     """Aggregate stats over microcycles whose `end_date <= cutoff`.
 
     Cutoff is typically `min(date.today(), macro.end_date)` — we only count
@@ -1326,8 +1326,8 @@ class MacrocycleSummaryView(LoginRequiredMixin, NoCacheMixin, DetailView):
         ctx["rows"] = _build_summary_rows(
             macro, self.request.user, statuses=statuses_filter
         )
-        # Plan summary is loaded lazily via `PlanSummaryFragmentView` when the
-        # user clicks the Σ button — skip the completed-only aggregation here.
+        # Summary stats are loaded lazily via `SummaryStatsFragmentView` when
+        # the user clicks the toggle — skip the completed-only aggregation here.
 
         params = self.request.GET.copy()
         params.pop("show_filters", None)
@@ -1350,17 +1350,17 @@ class MacrocycleSummaryView(LoginRequiredMixin, NoCacheMixin, DetailView):
         return ctx
 
 
-class PlanSummaryFragmentView(LoginRequiredMixin, NoCacheMixin, DetailView):
-    """Lazy-loaded HTML fragment of the plan summary aggregate table.
+class SummaryStatsFragmentView(LoginRequiredMixin, NoCacheMixin, DetailView):
+    """Lazy-loaded HTML fragment of the summary stats aggregate table.
 
-    Fetched by `plan_summary_toggle.js` when the user clicks the Σ button.
+    Fetched by `summary_stats_toggle.js` when the user clicks the toggle.
     Runs the completed-only aggregation on demand so the main summary view
-    stays cheap for users who never open the plan summary.
+    stays cheap for users who never open the summary stats.
     """
 
     model = Macrocycle
     pk_url_kwarg = "macro_pk"
-    template_name = "workouts/partials/plan_summary.html"
+    template_name = "workouts/partials/summary_stats.html"
 
     def get_queryset(self) -> QuerySet:
         return super().get_queryset().filter(user=self.request.user)
@@ -1375,8 +1375,8 @@ class PlanSummaryFragmentView(LoginRequiredMixin, NoCacheMixin, DetailView):
             macro, self.request.user, statuses={WorkoutStatus.COMPLETED}
         )
         cutoff = min(date.today(), macro.end_date)
-        ctx["plan_summary"] = _build_plan_summary(completed_rows, cutoff)
-        ctx["plan_summary_cutoff"] = cutoff
+        ctx["summary_stats"] = _build_summary_stats(completed_rows, cutoff)
+        ctx["summary_stats_cutoff"] = cutoff
         return ctx
 
 

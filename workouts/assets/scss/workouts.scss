@@ -266,14 +266,14 @@
   box-shadow: none;
 }
 
-// Plan summary toggle: show outline when closed, filled when open.
+// Summary stats toggle: show outline when closed, filled when open.
 // Mirrors the filter button's state-based icon swap, but driven client-side
 // off aria-expanded since the open/closed state lives in JS, not the server.
-#toggle-plan-summary > :nth-child(2) { display: none; }
-#toggle-plan-summary[aria-expanded="true"] > :nth-child(1) { display: none; }
-#toggle-plan-summary[aria-expanded="true"] > :nth-child(2) { display: inline; }
+#toggle-summary-stats > :nth-child(2) { display: none; }
+#toggle-summary-stats[aria-expanded="true"] > :nth-child(1) { display: none; }
+#toggle-summary-stats[aria-expanded="true"] > :nth-child(2) { display: inline; }
 
-.plan-summary-figure {
+.summary-stats-figure {
   margin: 8rem 0 0 auto;
   padding: 1rem;
   width: fit-content;
@@ -283,7 +283,7 @@
   background-color: var(--pico-card-background-color);
 }
 
-.plan-summary-table {
+.summary-stats-table {
   width: auto; // override Pico's default `table { width: 100% }`
   font-size: 1.1rem; // override .summary-table { font-size: 0.9em } — bigger headings/cells
 
@@ -297,7 +297,7 @@
   }
 }
 
-.plan-summary-caption {
+.summary-stats-caption {
   margin-top: 0.5rem;
   font-size: 0.9em;
   color: var(--pico-muted-color, #888);
