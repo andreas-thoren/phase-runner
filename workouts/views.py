@@ -1295,6 +1295,11 @@ def _build_summary_stats(rows: list[dict], cutoff: date) -> dict | None:
     total_days = sum(r["duration_days"] for r in past_rows) or 1
     weeks = total_days / 7
     total_distance = sum(r["sport_distance"] for r in past_rows)
+    zone_totals = [sum(r["zone_seconds"][i] for r in past_rows) for i in range(5)]
+    zs_total = sum(zone_totals)
+    zone_distribution = (
+        [round(v / zs_total * 100) for v in zone_totals] if zs_total > 0 else None
+    )
     return {
         "avg_sessions": sum(r["sessions"] for r in past_rows) / weeks,
         "avg_distance": total_distance / weeks,
@@ -1302,6 +1307,7 @@ def _build_summary_stats(rows: list[dict], cutoff: date) -> dict | None:
         "avg_strength": sum(r["strength_sessions"] for r in past_rows) / weeks,
         "longest_distance": max((r["long_distance"] for r in past_rows), default=0),
         "total_distance": total_distance,
+        "zone_distribution": zone_distribution,
     }
 
 
@@ -1400,6 +1406,11 @@ class SummaryStatsFragmentView(LoginRequiredMixin, NoCacheMixin, DetailView):
         cutoff = min(date.today(), macro.end_date)
         ctx["summary_stats"] = _build_summary_stats(completed_rows, cutoff)
         ctx["summary_stats_cutoff"] = cutoff
+        ctx["summary_stats_colspan"] = 6 + (
+            5
+            if ctx["summary_stats"] and ctx["summary_stats"].get("zone_distribution")
+            else 0
+        )
         return ctx
 
 
