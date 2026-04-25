@@ -186,6 +186,10 @@
 .summary-table tbody td {
   vertical-align: top;
 }
+.summary-table sup {
+  font-size: 0.65em;
+  font-style: italic;
+}
 
 .summary-table .th-group-info,
 .summary-table .th-group-planned,
@@ -283,10 +287,6 @@
 }
 .summary-stats-table .th-group-planned {
   border-bottom-color: var(--pico-del-color);
-}
-.summary-stats-table sup {
-  font-size: 0.65em;
-  font-style: italic;
 }
 
 .summary-stats-caption,

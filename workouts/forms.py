@@ -33,7 +33,13 @@ from .models import (
 )
 
 User = get_user_model()
-from .enums import EXTRA_SUMMARY_COLS, WorkoutStatus, WorkoutSubtype, WorkoutType
+from .enums import (
+    EXTRA_SUMMARY_COLS,
+    SPORT_SHORT_LABELS,
+    WorkoutStatus,
+    WorkoutSubtype,
+    WorkoutType,
+)
 from .utils import m_to_km, km_to_m
 
 
@@ -253,11 +259,13 @@ class SummaryFilterForm(forms.Form):
     primary_sport (passed in as a kwarg).
     """
 
-    UNIVERSAL_COL_CHOICES = [
-        ("comment", "Comment"),
+    # Filter checkboxes render in choice order. Sport extras slot between the
+    # sport-specific load checkbox and the cross/strength/total-load group:
+    # comment → sport load → sport extras (e.g. zones) → x → str → total load.
+    UNIVERSAL_COL_CHOICES_POST = [
         ("x", "X"),
         ("str", "Str"),
-        ("load", "Load"),
+        ("totload", "Total load"),
     ]
     ALL_STATUSES = {value for value, _ in WorkoutStatus.choices()}
 
@@ -272,10 +280,17 @@ class SummaryFilterForm(forms.Form):
         self, *args: Any, primary_sport: str | None = None, **kwargs: Any
     ) -> None:
         super().__init__(*args, **kwargs)
+        sport_load_label = "Sport load"
         extras: list[tuple[str, str]] = []
         if primary_sport:
-            extras = EXTRA_SUMMARY_COLS.get(WorkoutSubtype(primary_sport), [])
-        col_choices = self.UNIVERSAL_COL_CHOICES + extras
+            subtype = WorkoutSubtype(primary_sport)
+            sport_load_label = f"{SPORT_SHORT_LABELS[subtype]} load"
+            extras = EXTRA_SUMMARY_COLS.get(subtype, [])
+        pre = [
+            ("comment", "Comment"),
+            ("sportload", sport_load_label),
+        ]
+        col_choices = pre + extras + self.UNIVERSAL_COL_CHOICES_POST
         self.fields["cols"] = forms.MultipleChoiceField(
             choices=col_choices,
             required=False,

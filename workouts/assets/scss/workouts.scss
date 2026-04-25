@@ -204,6 +204,12 @@
 
   // Align number cells with the top of the (possibly two-line) comment row
   tbody td { vertical-align: top; }
+
+  // Footnote markers in headers (e.g. Zone distribution¹, Summary stats¹).
+  sup {
+    font-size: 0.65em;
+    font-style: italic;
+  }
 }
 
 .summary-table .th-group-info,
@@ -289,11 +295,6 @@
 
   .th-group-planned {
     border-bottom-color: var(--pico-del-color);
-  }
-
-  sup {
-    font-size: 0.65em;
-    font-style: italic;
   }
 }
 

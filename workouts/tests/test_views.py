@@ -1271,7 +1271,7 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
         response = self.client.get(self.url)
         self.assertEqual(
             response.context["visible_cols"],
-            {"comment", "x", "str", "load", "zones"},
+            {"comment", "x", "str", "sportload", "totload", "zones"},
         )
         self.assertEqual(response.context["info_colspan"], 3)
         self.assertEqual(response.context["planned_colspan"], 5)
@@ -1279,7 +1279,8 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
 
     def test_filter_hides_comment(self):
         response = self.client.get(
-            self.url, {"filtered": "1", "cols": ["x", "str", "load"]}
+            self.url,
+            {"filtered": "1", "cols": ["x", "str", "sportload", "totload"]},
         )
         self.assertEqual(response.context["info_colspan"], 2)
         self.assertEqual(response.context["planned_colspan"], 5)
@@ -1288,7 +1289,8 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
 
     def test_filter_hides_x_and_str_on_both_sides(self):
         response = self.client.get(
-            self.url, {"filtered": "1", "cols": ["comment", "load"]}
+            self.url,
+            {"filtered": "1", "cols": ["comment", "sportload", "totload"]},
         )
         ctx = response.context
         self.assertEqual(ctx["info_colspan"], 3)
@@ -1297,12 +1299,15 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
         self.assertNotContains(response, ">X<")
         self.assertNotContains(response, ">Str<")
 
-    def test_filter_hides_load_hides_both_load_columns(self):
-        response = self.client.get(
-            self.url, {"filtered": "1", "cols": ["comment", "x", "str"]}
-        )
-        self.assertEqual(response.context["actual_colspan"], 5)
+    def test_load_filters_are_independent(self):
+        # Sport-specific load and total load each have their own filter key.
+        # Only sportload selected → Tot load column hidden, sport load shown.
+        response = self.client.get(self.url, {"filtered": "1", "cols": ["sportload"]})
         self.assertNotContains(response, "Tot load")
+        self.assertContains(response, f">{response.context['col_sport_load']}<")
+        # Only totload selected → sport load column hidden, Tot load shown.
+        response = self.client.get(self.url, {"filtered": "1", "cols": ["totload"]})
+        self.assertContains(response, "Tot load")
         self.assertNotContains(response, f">{response.context['col_sport_load']}<")
 
     def test_filtered_with_no_cols_hides_all_toggleable(self):
@@ -1316,7 +1321,7 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
         response = self.client.get(self.url, {"show_filters": "1"})
         self.assertEqual(
             response.context["visible_cols"],
-            {"comment", "x", "str", "load", "zones"},
+            {"comment", "x", "str", "sportload", "totload", "zones"},
         )
         self.assertTrue(response.context["show_filters"])
 
@@ -1327,7 +1332,7 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
             self.url,
             {
                 "filtered": "1",
-                "cols": ["comment", "x", "str", "load"],
+                "cols": ["comment", "x", "str", "sportload", "totload"],
                 "statuses": [WorkoutStatus.COMPLETED.value],
             },
         )
@@ -1342,7 +1347,7 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
             self.url,
             {
                 "filtered": "1",
-                "cols": ["comment", "x", "str", "load"],
+                "cols": ["comment", "x", "str", "sportload", "totload"],
                 "statuses": [WorkoutStatus.PLANNED.value],
             },
         )
@@ -1356,7 +1361,7 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
             self.url,
             {
                 "filtered": "1",
-                "cols": ["comment", "x", "str", "load"],
+                "cols": ["comment", "x", "str", "sportload", "totload"],
             },
         )
         row = response.context["rows"][0]

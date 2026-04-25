@@ -1355,11 +1355,10 @@ class MacrocycleSummaryView(LoginRequiredMixin, NoCacheMixin, DetailView):
 
         info_colspan = 2 + (1 if "comment" in visible_cols else 0)
         planned_colspan = 3 + sum(1 for k in ("x", "str") if k in visible_cols)
-        actual_colspan = (
-            3
-            + sum(1 for k in ("x", "str") if k in visible_cols)
-            + (2 if "load" in visible_cols else 0)
-            + (1 if "zones" in visible_cols else 0)
+        actual_colspan = 3 + sum(
+            1
+            for k in ("sportload", "zones", "x", "str", "totload")
+            if k in visible_cols
         )
 
         ctx["filter_form"] = form
