@@ -1275,7 +1275,8 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
         )
         self.assertEqual(response.context["info_colspan"], 3)
         self.assertEqual(response.context["planned_colspan"], 5)
-        self.assertEqual(response.context["actual_colspan"], 8)
+        # 3 (sessions/distance/long) + 4 (sportload/x/str/totload) + 5 (zones)
+        self.assertEqual(response.context["actual_colspan"], 12)
 
     def test_filter_hides_comment(self):
         response = self.client.get(

@@ -1356,10 +1356,10 @@ class MacrocycleSummaryView(LoginRequiredMixin, NoCacheMixin, DetailView):
 
         info_colspan = 2 + (1 if "comment" in visible_cols else 0)
         planned_colspan = 3 + sum(1 for k in ("x", "str") if k in visible_cols)
-        actual_colspan = 3 + sum(
-            1
-            for k in ("sportload", "zones", "x", "str", "totload")
-            if k in visible_cols
+        actual_colspan = (
+            3
+            + sum(1 for k in ("sportload", "x", "str", "totload") if k in visible_cols)
+            + (5 if "zones" in visible_cols else 0)
         )
 
         ctx["filter_form"] = form
@@ -1431,9 +1431,20 @@ class ExportPlanSummaryView(LoginRequiredMixin, View):
         col_sport_load = labels["col_sport_load"]
 
         # Sport-specific extras slot between sport-load and Nr X, mirroring the
-        # table's column order. Adding a new entry to EXTRA_SUMMARY_COLS only
-        # propagates here once its value has a corresponding case in _fmt_extra.
+        # table's column order. Each entry in EXTRA_SUMMARY_COLS may expand to
+        # multiple CSV columns — see _extra_headers / _extra_values below.
         extra_cols = EXTRA_SUMMARY_COLS.get(sport, [])
+
+        def _extra_headers(key: str, label: str) -> list[str]:
+            if key == "zones":
+                return ["Z1", "Z2", "Z3", "Z4", "Z5"]
+            return [label]
+
+        def _extra_values(key: str, row: dict) -> list[str]:
+            if key == "zones":
+                zd = row.get("zone_distribution") or [None] * 5
+                return ["" if v is None else str(v) for v in zd]
+            return [""]
 
         headers = [
             "Mesocycle",
@@ -1449,7 +1460,7 @@ class ExportPlanSummaryView(LoginRequiredMixin, View):
             col_distance,
             col_long,
             col_sport_load,
-            *(label for _, label in extra_cols),
+            *(h for k, label in extra_cols for h in _extra_headers(k, label)),
             "Nr X",
             "Nr str",
             "Tot load",
@@ -1461,12 +1472,6 @@ class ExportPlanSummaryView(LoginRequiredMixin, View):
             if isinstance(val, float):
                 return f"{val:.{decimals}f}".rstrip("0").rstrip(".")
             return str(val)
-
-        def _fmt_extra(key, row):
-            if key == "zones":
-                zd = row.get("zone_distribution")
-                return "/".join(str(v) for v in zd) if zd else ""
-            return ""
 
         safe_name = "".join(
             c if c.isalnum() or c in " _-" else "_" for c in macro.name
@@ -1499,7 +1504,7 @@ class ExportPlanSummaryView(LoginRequiredMixin, View):
                         _fmt(row["sport_distance"]),
                         _fmt(row["long_distance"]),
                         _fmt(row["sport_load"]),
-                        *(_fmt_extra(k, row) for k, _ in extra_cols),
+                        *(v for k, _ in extra_cols for v in _extra_values(k, row)),
                         _fmt(row["cross_sessions"]),
                         _fmt(row["strength_sessions"]),
                         _fmt(row["total_load"]),
