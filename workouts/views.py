@@ -1313,6 +1313,7 @@ def _summary_col_labels(sport: WorkoutSubtype) -> dict[str, str]:
         "col_distance": f"{short} dst",
         "col_long": LONG_SESSION_LABELS[sport],
         "col_sport_load": f"{short} load",
+        "primary_sport_label": sport.label.lower(),
     }
 
 
