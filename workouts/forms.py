@@ -33,7 +33,7 @@ from .models import (
 )
 
 User = get_user_model()
-from .enums import WorkoutStatus, WorkoutSubtype, WorkoutType
+from .enums import EXTRA_SUMMARY_COLS, WorkoutStatus, WorkoutSubtype, WorkoutType
 from .utils import m_to_km, km_to_m
 
 
@@ -246,29 +246,43 @@ class WorkoutFilterForm(forms.Form):
 
 
 class SummaryFilterForm(forms.Form):
-    """Column-visibility and status filter for the macrocycle summary view."""
+    """Column-visibility and status filter for the macrocycle summary view.
 
-    COL_CHOICES = [
+    `cols` choices are sport-aware: universal columns are extended with any
+    sport-specific extras from `EXTRA_SUMMARY_COLS` based on the macrocycle's
+    primary_sport (passed in as a kwarg).
+    """
+
+    UNIVERSAL_COL_CHOICES = [
         ("comment", "Comment"),
         ("x", "X"),
         ("str", "Str"),
         ("load", "Load"),
     ]
-    ALL_COLS = {key for key, _ in COL_CHOICES}
     ALL_STATUSES = {value for value, _ in WorkoutStatus.choices()}
 
-    cols = forms.MultipleChoiceField(
-        choices=COL_CHOICES,
-        required=False,
-        widget=forms.CheckboxSelectMultiple,
-        initial=[key for key, _ in COL_CHOICES],
-    )
     statuses = forms.MultipleChoiceField(
         choices=WorkoutStatus.choices(),
         required=False,
         widget=forms.CheckboxSelectMultiple,
         initial=[value for value, _ in WorkoutStatus.choices()],
     )
+
+    def __init__(
+        self, *args: Any, primary_sport: str | None = None, **kwargs: Any
+    ) -> None:
+        super().__init__(*args, **kwargs)
+        extras: list[tuple[str, str]] = []
+        if primary_sport:
+            extras = EXTRA_SUMMARY_COLS.get(WorkoutSubtype(primary_sport), [])
+        col_choices = self.UNIVERSAL_COL_CHOICES + extras
+        self.fields["cols"] = forms.MultipleChoiceField(
+            choices=col_choices,
+            required=False,
+            widget=forms.CheckboxSelectMultiple,
+            initial=[k for k, _ in col_choices],
+        )
+        self.all_cols: set[str] = {k for k, _ in col_choices}
 
 
 class AccountForm(ReadOnlyFormMixin, forms.ModelForm):

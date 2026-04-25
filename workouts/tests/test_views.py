@@ -1270,11 +1270,12 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
     def test_default_all_columns_visible(self):
         response = self.client.get(self.url)
         self.assertEqual(
-            response.context["visible_cols"], {"comment", "x", "str", "load"}
+            response.context["visible_cols"],
+            {"comment", "x", "str", "load", "zones"},
         )
         self.assertEqual(response.context["info_colspan"], 3)
         self.assertEqual(response.context["planned_colspan"], 5)
-        self.assertEqual(response.context["actual_colspan"], 7)
+        self.assertEqual(response.context["actual_colspan"], 8)
 
     def test_filter_hides_comment(self):
         response = self.client.get(
@@ -1314,7 +1315,8 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
     def test_filter_form_open_without_filtered_param_keeps_defaults(self):
         response = self.client.get(self.url, {"show_filters": "1"})
         self.assertEqual(
-            response.context["visible_cols"], {"comment", "x", "str", "load"}
+            response.context["visible_cols"],
+            {"comment", "x", "str", "load", "zones"},
         )
         self.assertTrue(response.context["show_filters"])
 

@@ -85,6 +85,13 @@ SPORT_SHORT_LABELS: dict[WorkoutSubtype, str] = {
     WorkoutSubtype.WALKING: "Walk",
 }
 
+# Sport-specific summary-view columns. Universal cols (comment/x/str/load) live in
+# SummaryFilterForm.UNIVERSAL_COL_CHOICES. Add an entry here when a column only
+# makes sense for certain primary sports.
+EXTRA_SUMMARY_COLS: dict[WorkoutSubtype, list[tuple[str, str]]] = {
+    WorkoutSubtype.RUNNING: [("zones", "Zone distribution")],
+}
+
 GUI_SCHEMAS: dict[WorkoutSubtype, dict] = {
     WorkoutSubtype.RUNNING: {
         "load_garmin": {"type": "number", "label": "Load (Garmin)"},

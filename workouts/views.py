@@ -1104,7 +1104,7 @@ class ToggleActiveMacrocycleView(LoginRequiredMixin, View):
         return redirect(macro.get_absolute_url())
 
 
-def _empty_actuals() -> dict[str, int]:
+def _empty_actuals() -> dict[str, Any]:
     return {
         "sessions": 0,
         "sport_distance": 0,
@@ -1113,6 +1113,11 @@ def _empty_actuals() -> dict[str, int]:
         "cross_sessions": 0,
         "strength_sessions": 0,
         "total_load": 0,
+        # Time-weighted seconds in each HR zone (Z1..Z5). Only populated for
+        # primary-sport workouts that record both duration and z*_pct fields.
+        # Stays raw (not normalized) so it can sum cleanly across rows for
+        # higher-level aggregates.
+        "zone_seconds": [0.0, 0.0, 0.0, 0.0, 0.0],
     }
 
 
@@ -1130,7 +1135,7 @@ def _aggregate_workouts(
     user,
     primary_sport: str,
     statuses: set[str] | None = None,
-) -> dict[int, dict[str, int]]:
+) -> dict[int, dict[str, Any]]:
     result = defaultdict(_empty_actuals)
     if statuses is not None and not statuses:
         return dict(result)
@@ -1165,6 +1170,7 @@ def _aggregate_workouts(
             actuals["sessions"] += 1
             actuals["sport_load"] += load
             distance = 0
+            ad = None
             try:
                 ad = w.aerobic_details
                 distance = ad.distance or 0
@@ -1173,6 +1179,12 @@ def _aggregate_workouts(
             actuals["sport_distance"] += distance
             if distance > actuals["long_distance"]:
                 actuals["long_distance"] = distance
+            if ad and ad.duration:
+                pcts = [gui.get(f"z{i}_pct") for i in range(1, 6)]
+                if all(isinstance(p, (int, float)) for p in pcts):
+                    dur_s = ad.duration.total_seconds()
+                    for i, p in enumerate(pcts):
+                        actuals["zone_seconds"][i] += (p / 100.0) * dur_s
         elif w.workout_type == WorkoutType.STRENGTH:
             actuals["strength_sessions"] += 1
         else:
@@ -1221,6 +1233,11 @@ def _build_summary_rows(
             actuals = actuals_by_micro.get(micro.pk, _empty_actuals())
             date_from = micro.start_date.isoformat()
             date_to = micro.end_date.isoformat()
+            zs = actuals["zone_seconds"]
+            zs_total = sum(zs)
+            zone_distribution = (
+                [round(v / zs_total * 100) for v in zs] if zs_total > 0 else None
+            )
             rows.append(
                 {
                     "micro_pk": micro.pk,
@@ -1245,6 +1262,7 @@ def _build_summary_rows(
                     "planned_strength_sessions": micro.planned_strength_sessions,
                     "sport_distance": m_to_km(actuals["sport_distance"]) or 0,
                     "long_distance": m_to_km(actuals["long_distance"]) or 0,
+                    "zone_distribution": zone_distribution,
                     **{
                         k: v
                         for k, v in actuals.items()
@@ -1315,12 +1333,15 @@ class MacrocycleSummaryView(LoginRequiredMixin, NoCacheMixin, DetailView):
         ctx.update(_summary_col_labels(sport))
 
         is_filtered = "filtered" in self.request.GET
-        form = SummaryFilterForm(self.request.GET if is_filtered else None)
+        form = SummaryFilterForm(
+            self.request.GET if is_filtered else None,
+            primary_sport=macro.primary_sport,
+        )
         if is_filtered and form.is_valid():
             visible_cols = set(form.cleaned_data.get("cols") or [])
             statuses_filter = set(form.cleaned_data.get("statuses") or [])
         else:
-            visible_cols = set(SummaryFilterForm.ALL_COLS)
+            visible_cols = set(form.all_cols)
             statuses_filter = None
 
         ctx["rows"] = _build_summary_rows(
@@ -1338,6 +1359,7 @@ class MacrocycleSummaryView(LoginRequiredMixin, NoCacheMixin, DetailView):
             3
             + sum(1 for k in ("x", "str") if k in visible_cols)
             + (2 if "load" in visible_cols else 0)
+            + (1 if "zones" in visible_cols else 0)
         )
 
         ctx["filter_form"] = form

@@ -297,7 +297,8 @@
   }
 }
 
-.summary-stats-caption {
+.summary-stats-caption,
+.summary-table-caption {
   margin-top: 0.5rem;
   font-size: 0.9em;
   color: var(--pico-muted-color, #888);
