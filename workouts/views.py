@@ -103,6 +103,7 @@ from django.urls import reverse
 from .constants import APP_NAMESPACE
 from .utils import create_default_cycles, m_to_km
 from .enums import (
+    EXTRA_SUMMARY_COLS,
     GUI_SCHEMAS,
     LONG_SESSION_LABELS,
     SESSION_LABELS,
@@ -1429,6 +1430,11 @@ class ExportPlanSummaryView(LoginRequiredMixin, View):
         col_long = labels["col_long"]
         col_sport_load = labels["col_sport_load"]
 
+        # Sport-specific extras slot between sport-load and Nr X, mirroring the
+        # table's column order. Adding a new entry to EXTRA_SUMMARY_COLS only
+        # propagates here once its value has a corresponding case in _fmt_extra.
+        extra_cols = EXTRA_SUMMARY_COLS.get(sport, [])
+
         headers = [
             "Mesocycle",
             "Start date",
@@ -1443,6 +1449,7 @@ class ExportPlanSummaryView(LoginRequiredMixin, View):
             col_distance,
             col_long,
             col_sport_load,
+            *(label for _, label in extra_cols),
             "Nr X",
             "Nr str",
             "Tot load",
@@ -1454,6 +1461,12 @@ class ExportPlanSummaryView(LoginRequiredMixin, View):
             if isinstance(val, float):
                 return f"{val:.{decimals}f}".rstrip("0").rstrip(".")
             return str(val)
+
+        def _fmt_extra(key, row):
+            if key == "zones":
+                zd = row.get("zone_distribution")
+                return "/".join(str(v) for v in zd) if zd else ""
+            return ""
 
         safe_name = "".join(
             c if c.isalnum() or c in " _-" else "_" for c in macro.name
@@ -1486,6 +1499,7 @@ class ExportPlanSummaryView(LoginRequiredMixin, View):
                         _fmt(row["sport_distance"]),
                         _fmt(row["long_distance"]),
                         _fmt(row["sport_load"]),
+                        *(_fmt_extra(k, row) for k, _ in extra_cols),
                         _fmt(row["cross_sessions"]),
                         _fmt(row["strength_sessions"]),
                         _fmt(row["total_load"]),
