@@ -308,67 +308,25 @@
   color: var(--pico-muted-color, #888);
 }
 
+// Section sub-headings live in the DOM for mobile but are invisible on desktop.
+.summary-table .section-heading { display: none; }
+
 @media (max-width: 640px) {
 
-  .summary-table {
+  // Stats fragment: keep the simple stacked layout (redesign in a follow-up).
+  .summary-table.summary-stats-table {
     white-space: normal;
-
     thead { display: none; }
-
     &, tbody, tr, td, th { display: block; }
 
-    // All rows get shared side borders and padding; gray divider between rows
-    tr {
-      border-left: 1px solid color-mix(in srgb, var(--pico-primary) 25%, transparent);
-      border-right: 1px solid color-mix(in srgb, var(--pico-primary) 25%, transparent);
-      border-bottom: 1px solid var(--pico-muted-border-color, #ddd);
-      padding: 0.5rem 0.75rem;
-    }
+    tr { padding: 0.5rem 0.75rem; }
 
-    // Meso-group-start: top border + top radius + spacing between groups
-    .meso-group-start {
-      border-top: 2px solid color-mix(in srgb, var(--pico-primary) 50%, transparent);
-      border-radius: var(--pico-border-radius, 0.375rem)
-                     var(--pico-border-radius, 0.375rem) 0 0;
-      margin-top: 1rem;
-
-      &:first-child { margin-top: 0; }
-    }
-
-    // Reset desktop border-top on meso-group-start td cells
-    .meso-group-start td { border-top: none; }
-
-    // Last row of each group: primary-tinted bottom border + bottom radius
-    tr:has(+ .meso-group-start),
-    tbody tr:last-child {
-      border-bottom: 1px solid color-mix(in srgb, var(--pico-primary) 25%, transparent);
-      border-radius: 0 0 var(--pico-border-radius, 0.375rem)
-                         var(--pico-border-radius, 0.375rem);
-    }
-
-    // Meso header bar: full-width colored bar inside the group-start row
-    .meso-header {
-      margin: -0.5rem -0.75rem 0.5rem;
-      padding: 0.5rem 0.75rem;
-      background: var(--pico-card-background-color);
-      border-bottom: 1px solid color-mix(in srgb, var(--pico-primary) 25%, transparent);
-      text-align: center;
-
-      a {
-        writing-mode: horizontal-tb;
-        transform: none;
-        font-size: 1.3em;
-      }
-    }
-
-    // Data cells: flex row with label pseudo-element
     td {
       display: flex;
       align-items: baseline;
       padding: 0.15rem 0;
       border: none;
       text-align: left;
-
       &::before {
         content: attr(data-label) ": ";
         font-weight: bold;
@@ -376,22 +334,226 @@
         margin-right: 0.25rem;
       }
     }
+  }
 
-    // Visual separator between planned and actual sections
-    .zone-planned + .zone-actual {
-      margin-top: 0.35rem;
-      padding-top: 0.35rem;
-      border-top: 1px dashed var(--pico-muted-border-color, #ddd);
+  // Main per-microcycle table: card grid with paired planned/actual columns.
+  .summary-table:not(.summary-stats-table) {
+    white-space: normal;
+    thead { display: none; }
+    & { display: block; }
+    // tbody is a flex column so trs become flex items and `margin-top` on
+    // them gives a reliable inter-card gap. With `display: block` on tbody
+    // browsers ignore tr margins (the table-row nature wins even when
+    // `display: grid` is set on the tr itself).
+    tbody { display: flex; flex-direction: column; }
+
+    // Each microcycle row = a card laid out as a 3-col grid.
+    // `dense` auto-flow pairs planned (col 1+2) with actual (col 3) by DOM
+    // order: every planned cell occupies cols 1-2 and every actual cell occupies
+    // col 3, so the n-th planned and n-th actual end up on the same row even
+    // though all planned cells precede all actual cells in the DOM.
+    //
+    // Card border: 4 inset box-shadows draw a 1px muted frame inside the
+    // padding-box, fully enclosing the card content.
+    //
+    // Blue meso bar: rendered as an absolutely-positioned ::before pseudo to
+    // the LEFT of the card so there's a visible gap between bar and card. With
+    // margin: 0 between cards in the same meso, adjacent ::before bars stack
+    // flush vertically and read as one continuous bar.
+    tr {
+      position: relative;
+      display: grid;
+      grid-template-columns: max-content 1fr 1fr;
+      grid-auto-flow: row dense;
+      column-gap: 0.5rem;
+      // No row-gap: cells stack flush so hover/focus tint reads as one
+      // contiguous block instead of striped rows. Cells use their own
+      // top/bottom padding for vertical breathing room.
+      row-gap: 0;
+      padding: 0.5rem 0.75rem;
+      background-color: var(--pico-card-background-color);
+      border: none;
+      box-shadow:
+        inset  1px  0   0 var(--pico-muted-border-color),  // left
+        inset -1px  0   0 var(--pico-muted-border-color),  // right
+        inset  0    1px 0 var(--pico-muted-border-color),  // top
+        inset  0   -1px 0 var(--pico-muted-border-color);  // bottom
+      margin: 1.5rem 0 0 1.75rem; // 0.5rem inter-card gap; 1.75rem left for bar+gap.
+
+      &::before {
+        content: "";
+        position: absolute;
+        // Extend bar up by the inter-card gap so the bar reads as continuous
+        // through cards in the same meso despite the 0.5rem gap between them.
+        top: -5rem;
+        bottom: 0;
+        left: -1.25rem;   // bar sits 1.25rem to the left of the card edge
+        width: 2px;       // bar's right edge at -1rem → ~1rem gap to the card
+        background: var(--pico-primary);
+        pointer-events: none;
+      }
     }
 
-    // Allow full comment to wrap on mobile (no 2-line clamp)
+    // Pico applies row-striping / cell backgrounds on td/th by default.
+    // Force them transparent so the tr's card background shows through —
+    // but skip cells in the hover/focus state so the lower-specificity
+    // `.zone-planned.zone-hover` / `.zone-actual.zone-hover` tints can win.
+    td:not(.zone-hover):not(.zone-focus),
+    th:not(.zone-hover):not(.zone-focus) { background-color: transparent; }
+
+    // Round right corners only at the boundaries of each meso group so the
+    // group reads as a single rounded card on the right while the blue bar
+    // stays straight on the left.
+    .meso-group-start {
+      // Reserve room above the card for: the absolutely-positioned meso heading
+      // (~1.75rem) PLUS a visible inter-meso gap (~1.25rem).
+      margin-top: 3rem;
+      border-top-right-radius: var(--pico-border-radius);
+      &:first-child { margin-top: 1.75rem; } // Just heading room, no inter-meso gap above.
+
+      // Bar starts at the card's top — does not extend up beside the meso
+      // heading or into the inter-meso gap.
+      &::before { top: 0; }
+    }
+    tr:has(+ .meso-group-start),
+    tbody tr:last-child {
+      border-bottom-right-radius: var(--pico-border-radius);
+    }
+    // Last card in a meso: don't extend the bar below into the inter-meso gap.
+    tr:has(+ .meso-group-start)::before,
+    tbody tr:last-child::before {
+      bottom: 0;
+    }
+
+    // Meso TYPE: lifted out of the card via absolute positioning so it sits in
+    // the empty space above the card with no card background or border around it.
+    // `bottom: 100%` anchors the heading's bottom edge at the card's top edge.
+    .meso-header {
+      position: absolute;
+      bottom: 100%;
+      left: 0;
+      right: 0;
+      margin-bottom: 0.25rem;
+      writing-mode: horizontal-tb;
+      transform: none;
+      background: transparent;
+      border: none;
+      padding: 0 0 0 0rem; // align with the card's content padding-left
+      text-align: center;
+
+      a {
+        writing-mode: horizontal-tb;
+        transform: none;
+        font-size: 1.25em;
+        color: var(--pico-primary);
+        text-transform: uppercase;
+      }
+    }
+
+    // Section sub-headings (mobile-only via the .section-heading default rule above).
+    .section-heading {
+      display: block;
+      padding: 0.5rem 0 0.15rem;
+      font-size: 0.8em;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--pico-primary);
+      background: transparent;
+      border: none;
+    }
+    .micro-heading,
+    .stats-heading { grid-column: 1 / -1; text-align: center; }
+    .planned-heading { grid-column: 1 / span 2; text-align: left; }
+    .actual-heading  { grid-column: 3;          text-align: right; }
+
+    // Microcycle info cells (Start date / Type / Comment): full-width "label: value".
+    td.text-start {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 0.15rem 0;
+      border: none;
+      text-align: left;
+      &::before {
+        content: attr(data-label) ":";
+        font-weight: bold;
+        margin-right: 0.5rem;
+      }
+    }
+
+    // Planned data cells: label + value, span cols 1+2.
+    td.zone-planned:not(.text-start):not(.zone-stats) {
+      grid-column: 1 / span 2;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 0.15rem 0;
+      border: none;
+      text-align: right;
+      &::before {
+        content: attr(data-label) ":";
+        font-weight: bold;
+        margin-right: 0.5rem;
+      }
+    }
+
+    // Actual data cells (non-stats): just the value in col 3.
+    // Thin vertical divider on the LEFT edge separates from the planned col.
+    td.zone-actual:not(.zone-stats):not(.text-start) {
+      grid-column: 3;
+      padding: 0.15rem 0 0.15rem 0.5rem;
+      border: none;
+      border-left: 1px solid color-mix(in srgb, var(--pico-muted-border-color) 60%, transparent);
+      text-align: right;
+      &::before { display: none; }
+    }
+
+    // Continue the same vertical divider up through the ACTUAL sub-heading
+    // so the line is unbroken from heading row down through metric rows.
+    .actual-heading {
+      border-left: 1px solid color-mix(in srgb, var(--pico-muted-border-color) 60%, transparent);
+      padding-left: 0.5rem;
+    }
+
+    // Stats cells (zones / sportload / totload): full-width "label: value".
+    td.zone-stats {
+      grid-column: 1 / -1;
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 0.15rem 0;
+      border: none;
+      text-align: right;
+      &::before {
+        content: attr(data-label) ":";
+        font-weight: bold;
+        margin-right: 0.5rem;
+      }
+    }
+
+    // Allow comment to wrap full-width on mobile (no 2-line clamp).
     .summary-comment {
       max-width: none;
+      > span { display: inline; overflow: visible; }
+    }
 
-      > span {
-        display: inline;
-        overflow: visible;
-      }
+    // "Tetris block" focus/hover highlights: extend the existing zone tint
+    // to the section-heading cells that visually belong to the same block.
+    // Block 1 (planned/blue): MICROCYCLE + PLANNED headings.
+    // Block 2 (actual/green): ACTUAL + STATS headings.
+    tr:has(.zone-planned.zone-hover) .micro-heading,
+    tr:has(.zone-planned.zone-hover) .planned-heading,
+    tr:has(.zone-planned.zone-focus) .micro-heading,
+    tr:has(.zone-planned.zone-focus) .planned-heading {
+      background-color: color-mix(in srgb, var(--pico-primary) 12%, transparent);
+    }
+    tr:has(.zone-actual.zone-hover) .actual-heading,
+    tr:has(.zone-actual.zone-hover) .stats-heading,
+    tr:has(.zone-actual.zone-focus) .actual-heading,
+    tr:has(.zone-actual.zone-focus) .stats-heading {
+      background-color: color-mix(in srgb, var(--pico-ins-color, #388e3c) 12%, transparent);
     }
   }
 }
