@@ -378,6 +378,7 @@
         inset -1px  0   0 var(--pico-muted-border-color),  // right
         inset  0    1px 0 var(--pico-muted-border-color),  // top
         inset  0   -1px 0 var(--pico-muted-border-color);  // bottom
+      border-radius: var(--pico-border-radius);
       margin: 1.5rem 0 0 1.75rem; // 0.5rem inter-card gap; 1.75rem left for bar+gap.
 
       &::before {
@@ -401,23 +402,15 @@
     td:not(.zone-hover):not(.zone-focus),
     th:not(.zone-hover):not(.zone-focus) { background-color: transparent; }
 
-    // Round right corners only at the boundaries of each meso group so the
-    // group reads as a single rounded card on the right while the blue bar
-    // stays straight on the left.
+    // First card of a meso: extra top margin for the lifted meso heading +
+    // visible inter-meso gap.
     .meso-group-start {
-      // Reserve room above the card for: the absolutely-positioned meso heading
-      // (~1.75rem) PLUS a visible inter-meso gap (~1.25rem).
       margin-top: 3rem;
-      border-top-right-radius: var(--pico-border-radius);
       &:first-child { margin-top: 1.75rem; } // Just heading room, no inter-meso gap above.
 
       // Bar starts at the card's top — does not extend up beside the meso
       // heading or into the inter-meso gap.
       &::before { top: 0; }
-    }
-    tr:has(+ .meso-group-start),
-    tbody tr:last-child {
-      border-bottom-right-radius: var(--pico-border-radius);
     }
     // Last card in a meso: don't extend the bar below into the inter-meso gap.
     tr:has(+ .meso-group-start)::before,

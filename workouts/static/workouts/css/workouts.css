@@ -358,6 +358,7 @@
     background-color: var(--pico-card-background-color);
     border: none;
     box-shadow: inset 1px 0 0 var(--pico-muted-border-color), inset -1px 0 0 var(--pico-muted-border-color), inset 0 1px 0 var(--pico-muted-border-color), inset 0 -1px 0 var(--pico-muted-border-color);
+    border-radius: var(--pico-border-radius);
     margin: 1.5rem 0 0 1.75rem;
   }
   .summary-table:not(.summary-stats-table) tr::before {
@@ -376,17 +377,12 @@
   }
   .summary-table:not(.summary-stats-table) .meso-group-start {
     margin-top: 3rem;
-    border-top-right-radius: var(--pico-border-radius);
   }
   .summary-table:not(.summary-stats-table) .meso-group-start:first-child {
     margin-top: 1.75rem;
   }
   .summary-table:not(.summary-stats-table) .meso-group-start::before {
     top: 0;
-  }
-  .summary-table:not(.summary-stats-table) tr:has(+ .meso-group-start),
-  .summary-table:not(.summary-stats-table) tbody tr:last-child {
-    border-bottom-right-radius: var(--pico-border-radius);
   }
   .summary-table:not(.summary-stats-table) tr:has(+ .meso-group-start)::before,
   .summary-table:not(.summary-stats-table) tbody tr:last-child::before {
