@@ -1275,8 +1275,10 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
         )
         self.assertEqual(response.context["info_colspan"], 3)
         self.assertEqual(response.context["planned_colspan"], 5)
-        # 3 (sessions/distance/long) + 4 (sportload/x/str/totload) + 5 (zones)
-        self.assertEqual(response.context["actual_colspan"], 12)
+        # 3 (sessions/distance/long) + 2 (x/str)
+        self.assertEqual(response.context["actual_colspan"], 5)
+        # 5 (zones) + 2 (sportload/totload)
+        self.assertEqual(response.context["stats_colspan"], 7)
 
     def test_filter_hides_comment(self):
         response = self.client.get(
@@ -1296,7 +1298,8 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
         ctx = response.context
         self.assertEqual(ctx["info_colspan"], 3)
         self.assertEqual(ctx["planned_colspan"], 3)
-        self.assertEqual(ctx["actual_colspan"], 5)
+        self.assertEqual(ctx["actual_colspan"], 3)
+        self.assertEqual(ctx["stats_colspan"], 2)
         self.assertNotContains(response, ">X<")
         self.assertNotContains(response, ">Str<")
 
@@ -1317,6 +1320,7 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
         self.assertEqual(response.context["info_colspan"], 2)
         self.assertEqual(response.context["planned_colspan"], 3)
         self.assertEqual(response.context["actual_colspan"], 3)
+        self.assertEqual(response.context["stats_colspan"], 0)
 
     def test_filter_form_open_without_filtered_param_keeps_defaults(self):
         response = self.client.get(self.url, {"show_filters": "1"})

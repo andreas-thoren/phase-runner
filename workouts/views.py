@@ -1363,11 +1363,18 @@ class MacrocycleSummaryView(LoginRequiredMixin, NoCacheMixin, DetailView):
 
         info_colspan = 2 + (1 if "comment" in visible_cols else 0)
         planned_colspan = 3 + sum(1 for k in ("x", "str") if k in visible_cols)
-        actual_colspan = (
-            3
-            + sum(1 for k in ("sportload", "x", "str", "totload") if k in visible_cols)
-            + (5 if "zones" in visible_cols else 0)
+        actual_colspan = 3 + sum(1 for k in ("x", "str") if k in visible_cols)
+        stats_colspan = (5 if "zones" in visible_cols else 0) + sum(
+            1 for k in ("sportload", "totload") if k in visible_cols
         )
+        if "zones" in visible_cols:
+            stats_start_col = "zones"
+        elif "sportload" in visible_cols:
+            stats_start_col = "sportload"
+        elif "totload" in visible_cols:
+            stats_start_col = "totload"
+        else:
+            stats_start_col = None
 
         ctx["filter_form"] = form
         ctx["show_filters"] = "show_filters" in self.request.GET
@@ -1376,6 +1383,8 @@ class MacrocycleSummaryView(LoginRequiredMixin, NoCacheMixin, DetailView):
         ctx["info_colspan"] = info_colspan
         ctx["planned_colspan"] = planned_colspan
         ctx["actual_colspan"] = actual_colspan
+        ctx["stats_colspan"] = stats_colspan
+        ctx["stats_start_col"] = stats_start_col
         return ctx
 
 

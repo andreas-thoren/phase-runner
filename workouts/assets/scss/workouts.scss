@@ -214,7 +214,8 @@
 
 .summary-table .th-group-info,
 .summary-table .th-group-planned,
-.summary-table .th-group-actual {
+.summary-table .th-group-actual,
+.summary-table .th-group-stats {
   font-size: 0.85em;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -226,10 +227,12 @@
 }
 .summary-table .th-group-planned { text-align: center; }
 .summary-table .th-group-actual { text-align: center; border-bottom-color: var(--pico-ins-color, #388e3c); }
+.summary-table .th-group-stats { text-align: center; border-bottom-color: var(--pico-del-color); }
 
-// Vertical divider between info/planned/actual sections
+// Vertical divider between info/planned/actual/stats sections
 .summary-table .microcycle-start,
 .summary-table .actual-start,
+.summary-table .stats-start,
 .summary-table .zone-planned + .zone-actual {
   border-left: 1px solid var(--pico-muted-border-color, #999);
 }

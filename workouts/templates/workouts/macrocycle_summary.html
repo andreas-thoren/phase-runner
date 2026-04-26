@@ -75,6 +75,7 @@
             <th class="th-group-info" colspan="{{ info_colspan }}">Microcycle</th>
             <th class="th-group-planned" colspan="{{ planned_colspan }}">Planned</th>
             <th class="th-group-actual" colspan="{{ actual_colspan }}">Actual</th>
+            {% if stats_colspan %}<th class="th-group-stats" colspan="{{ stats_colspan }}">Stats</th>{% endif %}
           </tr>
           <tr>
             <th class="text-start microcycle-start">Start date</th>
@@ -88,11 +89,11 @@
             <th class="actual-start">{{ col_sessions }}</th>
             <th>{{ col_distance }}</th>
             <th>{{ col_long }}</th>
-            {% if "sportload" in visible_cols %}<th>{{ col_sport_load }}</th>{% endif %}
-            {% if "zones" in visible_cols %}<th>Z1</th><th>Z2</th><th>Z3</th><th>Z4</th><th>Z5</th>{% endif %}
             {% if "x" in visible_cols %}<th>X</th>{% endif %}
             {% if "str" in visible_cols %}<th>Str</th>{% endif %}
-            {% if "totload" in visible_cols %}<th>Tot load</th>{% endif %}
+            {% if "zones" in visible_cols %}<th class="stats-start">Z1</th><th>Z2</th><th>Z3</th><th>Z4</th><th>Z5</th>{% endif %}
+            {% if "sportload" in visible_cols %}<th{% if stats_start_col == "sportload" %} class="stats-start"{% endif %}>{{ col_sport_load }}</th>{% endif %}
+            {% if "totload" in visible_cols %}<th{% if stats_start_col == "totload" %} class="stats-start"{% endif %}>Tot load</th>{% endif %}
           </tr>
         </thead>
         <tbody>
@@ -112,11 +113,11 @@
               <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="{{ col_sessions }}" tabindex="0">{% if row.sessions %}{{ row.sessions }}{% endif %}</td>
               <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="{{ col_distance }}">{% if row.sport_distance %}{{ row.sport_distance|floatformat:"-1" }}{% endif %}</td>
               <td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="{{ col_long }}">{% if row.long_distance %}{{ row.long_distance|floatformat:"-1" }}{% endif %}</td>
-              {% if "sportload" in visible_cols %}<td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="{{ col_sport_load }}">{% if row.sport_load %}{{ row.sport_load }}{% endif %}</td>{% endif %}
-              {% if "zones" in visible_cols %}<td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Z1">{% if row.zone_distribution %}{{ row.zone_distribution.0 }}{% endif %}</td><td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Z2">{% if row.zone_distribution %}{{ row.zone_distribution.1 }}{% endif %}</td><td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Z3">{% if row.zone_distribution %}{{ row.zone_distribution.2 }}{% endif %}</td><td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Z4">{% if row.zone_distribution %}{{ row.zone_distribution.3 }}{% endif %}</td><td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Z5">{% if row.zone_distribution %}{{ row.zone_distribution.4 }}{% endif %}</td>{% endif %}
               {% if "x" in visible_cols %}<td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="X">{% if row.cross_sessions %}{{ row.cross_sessions }}{% endif %}</td>{% endif %}
               {% if "str" in visible_cols %}<td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Str">{% if row.strength_sessions %}{{ row.strength_sessions }}{% endif %}</td>{% endif %}
-              {% if "totload" in visible_cols %}<td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Tot load">{% if row.total_load %}{{ row.total_load }}{% endif %}</td>{% endif %}
+              {% if "zones" in visible_cols %}<td class="zone-actual stats-start" data-href="{{ row.workouts_url }}" data-label="Z1">{% if row.zone_distribution %}{{ row.zone_distribution.0 }}{% endif %}</td><td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Z2">{% if row.zone_distribution %}{{ row.zone_distribution.1 }}{% endif %}</td><td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Z3">{% if row.zone_distribution %}{{ row.zone_distribution.2 }}{% endif %}</td><td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Z4">{% if row.zone_distribution %}{{ row.zone_distribution.3 }}{% endif %}</td><td class="zone-actual" data-href="{{ row.workouts_url }}" data-label="Z5">{% if row.zone_distribution %}{{ row.zone_distribution.4 }}{% endif %}</td>{% endif %}
+              {% if "sportload" in visible_cols %}<td class="zone-actual{% if stats_start_col == "sportload" %} stats-start{% endif %}" data-href="{{ row.workouts_url }}" data-label="{{ col_sport_load }}">{% if row.sport_load %}{{ row.sport_load }}{% endif %}</td>{% endif %}
+              {% if "totload" in visible_cols %}<td class="zone-actual{% if stats_start_col == "totload" %} stats-start{% endif %}" data-href="{{ row.workouts_url }}" data-label="Tot load">{% if row.total_load %}{{ row.total_load }}{% endif %}</td>{% endif %}
             </tr>
           {% endfor %}
         </tbody>
