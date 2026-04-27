@@ -38,6 +38,8 @@
   <form id="main-form" method="post">
     {% if view_type == "delete" or not read_only %}{% csrf_token %}{% endif %}
 
+    <p id="form-error" class="invalid" role="alert" hidden></p>
+
     {% block form_content %}{% endblock %}
 
     {% block button_row %}

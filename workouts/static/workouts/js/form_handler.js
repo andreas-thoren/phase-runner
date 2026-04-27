@@ -2,10 +2,24 @@
 // so the form page doesn't stay in browser history.
 const form = document.getElementById("main-form");
 const submitBtn = form?.querySelector('button[type="submit"]');
+const errorBanner = document.getElementById("form-error");
+
+function showError(text) {
+  if (!errorBanner) return;
+  errorBanner.textContent = text;
+  errorBanner.hidden = false;
+}
+
+function hideError() {
+  if (!errorBanner) return;
+  errorBanner.textContent = "";
+  errorBanner.hidden = true;
+}
 
 if (form && submitBtn) {
   form.addEventListener("submit", e => {
     e.preventDefault();
+    hideError();
     submitBtn.setAttribute("aria-busy", "true");
 
     fetch(form.action || location.href, {
@@ -16,13 +30,20 @@ if (form && submitBtn) {
       .then(res => {
         if (res.redirected) {
           location.replace(res.url);
-        } else {
-          // Validation errors — resubmit normally to render server-side errors.
+        } else if (res.ok) {
+          // 200 means validation errors (server did not mutate).
+          // Resubmit so the browser renders the form with errors.
           form.submit();
+        } else {
+          // 4xx/5xx — do not re-POST; that would duplicate any partial
+          // side effects from the first request.
+          submitBtn.removeAttribute("aria-busy");
+          showError(`Server error (HTTP ${res.status}). Please try again or reload the page.`);
         }
       })
       .catch(() => {
-        form.submit();
+        submitBtn.removeAttribute("aria-busy");
+        showError("Network error. Please check your connection and try again.");
       });
   });
 
