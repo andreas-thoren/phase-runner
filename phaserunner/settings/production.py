@@ -50,3 +50,23 @@ SECURE_REDIRECT_EXEMPT = [r"^healthcheck/$"]
 SECURE_HSTS_SECONDS = 31536000
 SECURE_HSTS_INCLUDE_SUBDOMAINS = True
 SECURE_HSTS_PRELOAD = True
+
+# Logging — DEBUG=False routes django.request errors only to mail_admins by
+# default, so unhandled-exception tracebacks never reach stdout/dokku logs.
+# This pipes them to stderr so `dokku logs phase-runner` surfaces 500s.
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+        },
+    },
+    "loggers": {
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+    },
+}
