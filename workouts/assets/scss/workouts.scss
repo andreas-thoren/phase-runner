@@ -761,6 +761,15 @@ body.is-placing .drop-gap {
   margin-bottom: 0.4rem;
 }
 
+// While a microcycle is picked up, the other rows are fully inert — put the
+// current one back first (tap it again, or Esc). `pointer-events: none` kills
+// the hover tint, the pointer cursor, the click and any click-focus in one
+// declaration; JS additionally omits their tabindex so they cannot be tabbed
+// to either.
+body.is-placing .micro-row:not(.is-selected) {
+  pointer-events: none;
+}
+
 .drop-gap {
   // A third colour on purpose. Blue carries structure (mesocycle bar, titles,
   // the picked-up row's outline) and amber carries change (shifted dates), so
@@ -786,9 +795,11 @@ body.is-placing .drop-gap {
     }
   }
 
-  &.is-noop {
-    opacity: 0.22;
-    button { pointer-events: none; }
+  // No-op slots carry the `disabled` attribute, from which Pico already
+  // supplies opacity .5 and pointer-events: none. Dim further so they read as
+  // context ("it is already here") rather than as an option.
+  &.is-noop button {
+    opacity: 0.35;
   }
 }
 

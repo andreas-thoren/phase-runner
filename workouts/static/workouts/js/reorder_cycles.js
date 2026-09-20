@@ -155,9 +155,18 @@ function toggleSelect(pk) {
 // -- Rendering --------------------------------------------------------------
 
 function dropGap(mesoPk, index, noop) {
+  // The slots either side of where the row already sits are no-ops. Use the
+  // `disabled` attribute rather than CSS: a disabled button cannot be focused
+  // or activated, whereas pointer-events alone still leaves it in the tab
+  // order and reachable with Enter.
   const button = el("button", {
     text: "Place here",
-    attrs: { type: "button", "data-meso": mesoPk, "data-index": index },
+    attrs: {
+      type: "button",
+      "data-meso": mesoPk,
+      "data-index": index,
+      ...(noop ? { disabled: "" } : {}),
+    },
   });
   return el("div", { class: noop ? "drop-gap is-noop" : "drop-gap" }, [button]);
 }
@@ -268,19 +277,24 @@ function microRow(micro, info) {
   if (picked) cls += " is-selected";
   if (info.moved) cls += " is-shifted";
 
-  return el(
-    "div",
-    {
-      class: cls,
-      attrs: {
-        "data-pk": micro.pk,
-        tabindex: "0",
-        role: "button",
-        "aria-pressed": String(picked),
-      },
-    },
-    cells
-  );
+  // While one microcycle is picked up the others are inert: you must put the
+  // current one back first (tap it again, or Esc).
+  const locked = selected !== null && !picked;
+  const attrs = {
+    "data-pk": micro.pk,
+    role: "button",
+    "aria-pressed": String(picked),
+  };
+  if (locked) {
+    // Omit tabindex entirely rather than setting "-1": a div with tabindex
+    // "-1" is still focusable by click, and Pico draws its role=button focus
+    // ring on it. With no tabindex at all the row cannot take focus.
+    attrs["aria-disabled"] = "true";
+  } else {
+    attrs.tabindex = "0";
+  }
+
+  return el("div", { class: cls, attrs }, cells);
 }
 
 function render(message) {
@@ -402,10 +416,14 @@ async function save() {
 
 // -- Events -----------------------------------------------------------------
 
+// Only the picked-up row responds while a move is pending — see microRow().
+const isSelectable = row =>
+  selected === null || selected === Number(row.dataset.pk);
+
 function onPlanClick(e) {
   const drop = e.target.closest(".drop-gap button");
   if (drop) {
-    place(Number(drop.dataset.meso), Number(drop.dataset.index));
+    if (!drop.disabled) place(Number(drop.dataset.meso), Number(drop.dataset.index));
     return;
   }
   const mesoBtn = e.target.closest("[data-meso-move]");
@@ -414,12 +432,12 @@ function onPlanClick(e) {
     return;
   }
   const row = e.target.closest(".micro-row");
-  if (row) toggleSelect(Number(row.dataset.pk));
+  if (row && isSelectable(row)) toggleSelect(Number(row.dataset.pk));
 }
 
 function onPlanKeydown(e) {
   const row = e.target.closest(".micro-row");
-  if (row && (e.key === "Enter" || e.key === " ")) {
+  if (row && isSelectable(row) && (e.key === "Enter" || e.key === " ")) {
     e.preventDefault();
     toggleSelect(Number(row.dataset.pk));
   }
