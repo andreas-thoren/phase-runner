@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ macrocycle.name }} — Reorder{% endblock %}
+
+{% block styles %}
+  <link rel="stylesheet" href="{% static 'workouts/css/workouts.css' %}">
+{% endblock %}
+
+{% block scripts %}
+  <script src="{% static 'workouts/js/reorder_cycles.js' %}" defer></script>
+{% endblock %}
+
+{% block main %}
+  <h1>{{ macrocycle.name }}</h1>
+
+  {# Data block, not executable code — a whole plan tree does not fit a data-* attribute. #}
+  {{ reorder_data|json_script:"reorder-data" }}
+
+  <noscript>
+    <p class="invalid" role="alert">
+      Reordering needs JavaScript. <a href="{{ cancel_url }}">Back to the plan</a>.
+    </p>
+  </noscript>
+
+  {% if reorder_data.mesocycles %}
+    <div id="reorder-app"
+         data-save-url="{{ save_url }}"
+         data-cancel-url="{{ cancel_url }}"
+         data-csrf-token="{{ csrf_token }}">
+
+      <p class="reorder-help">
+        Tap a <strong>microcycle</strong> to pick it up, then tap a <em>Place here</em> marker —
+        including one inside a different mesocycle. Tap it again or press <kbd>Esc</kbd> to put it
+        back. <strong>Mesocycles</strong> move with the ▲ ▼ buttons.
+      </p>
+
+      <p class="plan-meta" id="plan-meta"></p>
+
+      <div class="shift-banner" id="shift-banner" hidden></div>
+      <p id="form-error" class="invalid" role="alert" hidden></p>
+
+      <div class="list-toolbar">
+        <h2>Cycles</h2>
+        <a href="{{ cancel_url }}" role="button" class="secondary button-slim" data-replace>Cancel</a>
+        <button type="button" class="secondary button-slim" id="reorder-reset" disabled>Reset</button>
+        <button type="button" class="button-slim" id="reorder-save" disabled>Save order</button>
+      </div>
+
+      <div class="micro-head" aria-hidden="true">
+        <span>Start</span><span>Type</span><span>Days</span><span>km</span><span>Long</span><span>Comment</span>
+      </div>
+
+      <div id="reorder-plan"></div>
+
+      <p class="sr-only" id="reorder-status" role="status" aria-live="polite"></p>
+    </div>
+  {% else %}
+    <p>No mesocycles in this plan yet.</p>
+    <div class="button-row">
+      <a href="{{ cancel_url }}" role="button" class="secondary">Back to plan</a>
+    </div>
+  {% endif %}
+{% endblock %}

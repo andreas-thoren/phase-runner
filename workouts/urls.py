@@ -109,6 +109,11 @@ urlpatterns = [
         views.SummaryStatsFragmentView.as_view(),
         name="summary_stats_fragment",
     ),
+    path(
+        "plan-<int:macro_pk>/reorder/",
+        views.MacrocycleReorderView.as_view(),
+        name="reorder_cycles",
+    ),
     # --- Mesocycle URLs ---
     path(
         "plan-<int:macro_pk>/add-meso/",

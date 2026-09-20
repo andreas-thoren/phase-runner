@@ -101,7 +101,13 @@ from django.views.generic.edit import CreateView, FormView, UpdateView, DeleteVi
 from django.urls import reverse
 
 from .constants import APP_NAMESPACE
-from .utils import create_default_cycles, m_to_km
+from .utils import (
+    StaleOrderingError,
+    apply_cycle_order,
+    create_default_cycles,
+    m_to_km,
+    parse_ordering,
+)
 from .enums import (
     EXTRA_SUMMARY_COLS,
     GUI_SCHEMAS,
@@ -1033,6 +1039,10 @@ class MacrocycleDetailView(
                 f"{APP_NAMESPACE}:macrocycle_summary",
                 kwargs={"macro_pk": self.object.pk},
             )
+            ctx["reorder_url"] = reverse(
+                f"{APP_NAMESPACE}:reorder_cycles",
+                kwargs={"macro_pk": self.object.pk},
+            )
 
         ctx["is_active"] = ActiveMacrocycle.objects.filter(
             user=self.request.user, macrocycle=self.object
@@ -1103,6 +1113,85 @@ class ToggleActiveMacrocycleView(LoginRequiredMixin, View):
                 user=request.user, defaults={"macrocycle": macro}
             )
         return redirect(macro.get_absolute_url())
+
+
+def _build_reorder_data(macro: Macrocycle) -> dict[str, Any]:
+    """Serialise a hydrated macrocycle for the client-side reorder page.
+
+    ``today`` is the server's date rather than the browser's, so the
+    "already trained" warning agrees with the date bucketing that
+    ``_aggregate_workouts()`` does server-side.
+    """
+    return {
+        "plan_start": macro.start_date.isoformat(),
+        "today": date.today().isoformat(),
+        "mesocycles": [
+            {
+                "pk": meso.pk,
+                "label": meso.get_meso_type_display(),
+                "micros": [
+                    {
+                        "pk": micro.pk,
+                        "label": micro.get_micro_type_display(),
+                        "days": micro.duration_days,
+                        "km": micro.planned_distance_km,
+                        "long_km": micro.planned_long_distance_km,
+                        "comment": micro.comment,
+                    }
+                    for micro in meso.hydrated_microcycles
+                ],
+            }
+            for meso in macro.hydrated_mesocycles
+        ],
+    }
+
+
+class MacrocycleReorderView(LoginRequiredMixin, NoCacheMixin, DetailView):
+    """Reorder mesocycles and microcycles within a macrocycle.
+
+    GET renders a client-rendered page (see ``reorder_cycles.js``); POST takes
+    the complete resulting order as JSON and applies it atomically.
+    """
+
+    model = Macrocycle
+    template_name = "workouts/macrocycle_reorder.html"
+    pk_url_kwarg = "macro_pk"
+    context_object_name = "macrocycle"
+
+    def get_queryset(self) -> QuerySet:
+        return Macrocycle.objects.filter(user=self.request.user)
+
+    def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
+        context = super().get_context_data(**kwargs)
+        macro = self.object.hydrate()
+        context["reorder_data"] = _build_reorder_data(macro)
+        context["cancel_url"] = macro.get_absolute_url()
+        context["save_url"] = reverse(
+            f"{APP_NAMESPACE}:reorder_cycles", kwargs={"macro_pk": macro.pk}
+        )
+        return context
+
+    def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> JsonResponse:
+        macro = self.get_object()
+        try:
+            payload = json.loads(request.body)
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return JsonResponse(
+                {"ok": False, "error": "Malformed request."}, status=400
+            )
+        if not isinstance(payload, dict):
+            return JsonResponse(
+                {"ok": False, "error": "Expected a JSON object."}, status=400
+            )
+        try:
+            ordering = parse_ordering(payload.get("mesocycles"))
+            apply_cycle_order(macro, ordering)
+        except StaleOrderingError as exc:
+            # Subclasses ValueError — must be caught first.
+            return JsonResponse({"ok": False, "error": str(exc)}, status=409)
+        except ValueError as exc:
+            return JsonResponse({"ok": False, "error": str(exc)}, status=400)
+        return JsonResponse({"ok": True, "redirect": macro.get_absolute_url()})
 
 
 def _empty_actuals() -> dict[str, Any]:

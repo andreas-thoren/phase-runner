@@ -96,17 +96,62 @@ class OrderMixin(models.Model):
 
     Subclasses must set ``_order_parent_field`` to the FK field name that
     scopes the ordering (e.g. ``"macrocycle"`` for Mesocycle).
+
+    Ordering is rewritten in two phases (``park_orders`` then write 1..N)
+    because the ``(parent, order)`` unique constraints are *immediate*, not
+    deferrable: neither SQLite nor PostgreSQL defers the check to end of
+    statement, so a naive ``order = order ± 1`` can raise a duplicate-key
+    error part-way through depending on the order rows happen to be visited
+    in. Parking first makes each phase's target range disjoint from the live
+    range, which is collision-free regardless of visit order.
     """
 
     _order_parent_field: str
+
+    # Staging offset for the park phase. `order` is a PositiveSmallIntegerField
+    # (CHECK >= 0, max 32767), so parking at negative values is not an option —
+    # we park above the live range instead. A plan has well under 100 cycles.
+    ORDER_STAGING_OFFSET = 10000
 
     def _lock_parent(self) -> None:
         """Lock the parent row with SELECT … FOR UPDATE to serialise sibling operations."""
         parent = getattr(self, self._order_parent_field)
         type(parent).objects.select_for_update().get(pk=parent.pk)
 
+    @classmethod
+    def park_orders(cls, queryset: models.QuerySet) -> None:
+        """Shift ``order`` out of the live 1..N range so it can be rewritten safely.
+
+        Every row moves from ``n`` to ``n + ORDER_STAGING_OFFSET``. The target
+        range is disjoint from the source range, so no intermediate state can
+        violate the unique constraint.
+        """
+        queryset.update(order=models.F("order") + cls.ORDER_STAGING_OFFSET)
+
+    @classmethod
+    def apply_order(cls, parent_id: int, ordered_pks: list[int]) -> None:
+        """Renumber ``ordered_pks`` as 1..N within a single parent.
+
+        Only valid when no row changes parent — see ``utils.apply_cycle_order``
+        for the cross-parent case, which must park the whole tree at once.
+        """
+        if len(ordered_pks) >= cls.ORDER_STAGING_OFFSET:
+            raise ValueError(
+                f"Cannot order {len(ordered_pks)} rows: "
+                f"exceeds staging offset {cls.ORDER_STAGING_OFFSET}."
+            )
+        with transaction.atomic():
+            cls.park_orders(cls.objects.filter(**{cls._order_parent_field: parent_id}))
+            rows = {row.pk: row for row in cls.objects.filter(pk__in=ordered_pks)}
+            ordered_rows = []
+            for index, pk in enumerate(ordered_pks, start=1):
+                row = rows[pk]
+                row.order = index
+                ordered_rows.append(row)
+            cls.objects.bulk_update(ordered_rows, ["order"])
+
     def compact_siblings(self, from_order: int) -> models.QuerySet:
-        """Close the ordering gap by decrementing siblings above ``from_order``.
+        """Close the ordering gap left by a deleted row, renumbering siblings 1..N.
 
         Returns a lazy queryset of the affected siblings (those now at
         ``from_order`` and above). Subclasses may override to perform
@@ -114,9 +159,13 @@ class OrderMixin(models.Model):
         — call ``super().compact_siblings(from_order)`` first.
         """
         parent_id = getattr(self, f"{self._order_parent_field}_id")
-        type(self).objects.filter(
-            **{self._order_parent_field: parent_id, "order__gt": from_order}
-        ).update(order=models.F("order") - 1)
+        remaining = list(
+            type(self)
+            .objects.filter(**{self._order_parent_field: parent_id})
+            .order_by("order")
+            .values_list("pk", flat=True)
+        )
+        type(self).apply_order(parent_id, remaining)
         return type(self).objects.filter(
             **{self._order_parent_field: parent_id, "order__gte": from_order}
         )

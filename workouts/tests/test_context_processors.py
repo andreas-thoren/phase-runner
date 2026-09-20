@@ -74,6 +74,14 @@ class BuildBreadcrumbsDirectTest(BuildBreadcrumbsTestMixin, TestCase):
         self.assertEqual(crumbs[2].label, "Summary")
         self.assertEqual(crumbs[2].url, "")
 
+    def test_reorder_cycles(self):
+        crumbs = _build_breadcrumbs("reorder_cycles", {"macro_pk": self.macro.pk}, None)
+        self.assertEqual(len(crumbs), 3)
+        self.assertEqual(crumbs[1].label, "My Plan")
+        self.assertNotEqual(crumbs[1].url, "")
+        self.assertEqual(crumbs[2].label, "Reorder")
+        self.assertEqual(crumbs[2].url, "")
+
     def test_edit_macrocycle(self):
         crumbs = _build_breadcrumbs(
             "edit_macrocycle", {"macro_pk": self.macro.pk}, None

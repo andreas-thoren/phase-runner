@@ -3,10 +3,16 @@ from datetime import date, timedelta
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
 
 from workouts.enums import SUBTYPE_TYPE_MAP, WorkoutStatus, WorkoutSubtype, WorkoutType
-from workouts.utils import create_default_cycles
+from workouts.tests.helpers import read_ordering
+from workouts.utils import (
+    StaleOrderingError,
+    apply_cycle_order,
+    create_default_cycles,
+    parse_ordering,
+)
 from workouts.models import (
     WEEKLY_UPLOAD_CAP,
     ActiveMacrocycle,
@@ -570,6 +576,671 @@ class OrderMixinTest(TestCase):
         self.assertEqual(mic_a2.order, 1)
         self.assertEqual(mic_b1.order, 1)
         self.assertEqual(mic_b2.order, 2)
+
+
+class ReorderTestMixin:
+    """Builds a three-mesocycle plan and provides ordering assertions.
+
+    Layout (durations in days):
+        A "base"    a1(7)  a2(7)  a3(5)
+        B "build"   b1(7)  b2(7)
+        C "peak"    c1(7)
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = get_user_model().objects.create_user(
+            username="reorderuser", email="reorder@example.com", password="testpass"
+        )
+
+    def setUp(self):
+        super().setUp()
+        self.macro = Macrocycle.objects.create(
+            user=self.user, name="Season", start_date=date(2026, 1, 5)
+        )
+        self.meso_a = Mesocycle.objects.create(macrocycle=self.macro, meso_type="base")
+        self.meso_b = Mesocycle.objects.create(macrocycle=self.macro, meso_type="build")
+        self.meso_c = Mesocycle.objects.create(macrocycle=self.macro, meso_type="peak")
+        self.a1 = Microcycle.objects.create(mesocycle=self.meso_a, duration_days=7)
+        self.a2 = Microcycle.objects.create(mesocycle=self.meso_a, duration_days=7)
+        self.a3 = Microcycle.objects.create(mesocycle=self.meso_a, duration_days=5)
+        self.b1 = Microcycle.objects.create(mesocycle=self.meso_b, duration_days=7)
+        self.b2 = Microcycle.objects.create(mesocycle=self.meso_b, duration_days=7)
+        self.c1 = Microcycle.objects.create(mesocycle=self.meso_c, duration_days=7)
+
+    # -- helpers ---------------------------------------------------------
+
+    def ordering(self, *specs):
+        """Build a payload from (mesocycle, [microcycles]) pairs."""
+        return [
+            {"pk": meso.pk, "micros": [micro.pk for micro in micros]}
+            for meso, micros in specs
+        ]
+
+    def current(self):
+        """Read the stored ordering back as [(meso_pk, [micro_pk, ...]), ...]."""
+        return read_ordering(self.macro)
+
+    def expected(self, *specs):
+        return [(meso.pk, [micro.pk for micro in micros]) for meso, micros in specs]
+
+    def assertGapFree(self):
+        """Every sibling group must be numbered exactly 1..N with no gaps."""
+        meso_orders = list(
+            Mesocycle.objects.filter(macrocycle=self.macro)
+            .order_by("order")
+            .values_list("order", flat=True)
+        )
+        self.assertEqual(meso_orders, list(range(1, len(meso_orders) + 1)))
+        for meso in Mesocycle.objects.filter(macrocycle=self.macro):
+            micro_orders = list(
+                Microcycle.objects.filter(mesocycle=meso)
+                .order_by("order")
+                .values_list("order", flat=True)
+            )
+            self.assertEqual(micro_orders, list(range(1, len(micro_orders) + 1)))
+
+    def apply(self, *specs):
+        apply_cycle_order(self.macro, self.ordering(*specs))
+        self.assertGapFree()
+
+
+class ApplyCycleOrderMicroTest(ReorderTestMixin, TestCase):
+    """Microcycle moves: within a mesocycle and across mesocycles."""
+
+    def test_noop_ordering_changes_nothing(self):
+        before = self.current()
+        self.apply(
+            (self.meso_a, [self.a1, self.a2, self.a3]),
+            (self.meso_b, [self.b1, self.b2]),
+            (self.meso_c, [self.c1]),
+        )
+        self.assertEqual(self.current(), before)
+
+    def test_move_first_to_last_within_mesocycle(self):
+        self.apply(
+            (self.meso_a, [self.a2, self.a3, self.a1]),
+            (self.meso_b, [self.b1, self.b2]),
+            (self.meso_c, [self.c1]),
+        )
+        self.assertEqual(
+            self.current(),
+            self.expected(
+                (self.meso_a, [self.a2, self.a3, self.a1]),
+                (self.meso_b, [self.b1, self.b2]),
+                (self.meso_c, [self.c1]),
+            ),
+        )
+
+    def test_move_last_to_first_within_mesocycle(self):
+        self.apply(
+            (self.meso_a, [self.a3, self.a1, self.a2]),
+            (self.meso_b, [self.b1, self.b2]),
+            (self.meso_c, [self.c1]),
+        )
+        self.assertEqual(
+            self.current()[0], (self.meso_a.pk, [self.a3.pk, self.a1.pk, self.a2.pk])
+        )
+
+    def test_move_middle_to_first_within_mesocycle(self):
+        self.apply(
+            (self.meso_a, [self.a2, self.a1, self.a3]),
+            (self.meso_b, [self.b1, self.b2]),
+            (self.meso_c, [self.c1]),
+        )
+        self.assertEqual(
+            self.current()[0], (self.meso_a.pk, [self.a2.pk, self.a1.pk, self.a3.pk])
+        )
+
+    def test_swap_adjacent_microcycles(self):
+        self.apply(
+            (self.meso_a, [self.a1, self.a2, self.a3]),
+            (self.meso_b, [self.b2, self.b1]),
+            (self.meso_c, [self.c1]),
+        )
+        self.assertEqual(self.current()[1], (self.meso_b.pk, [self.b2.pk, self.b1.pk]))
+
+    def test_full_reversal_within_mesocycle(self):
+        """The case most likely to expose a transient unique-constraint collision."""
+        self.apply(
+            (self.meso_a, [self.a3, self.a2, self.a1]),
+            (self.meso_b, [self.b2, self.b1]),
+            (self.meso_c, [self.c1]),
+        )
+        self.assertEqual(
+            self.current(),
+            self.expected(
+                (self.meso_a, [self.a3, self.a2, self.a1]),
+                (self.meso_b, [self.b2, self.b1]),
+                (self.meso_c, [self.c1]),
+            ),
+        )
+
+    def test_move_microcycle_to_another_mesocycle_at_end(self):
+        self.apply(
+            (self.meso_a, [self.a1, self.a2]),
+            (self.meso_b, [self.b1, self.b2, self.a3]),
+            (self.meso_c, [self.c1]),
+        )
+        self.a3.refresh_from_db()
+        self.assertEqual(self.a3.mesocycle_id, self.meso_b.pk)
+        self.assertEqual(self.a3.order, 3)
+
+    def test_move_microcycle_to_another_mesocycle_at_front(self):
+        self.apply(
+            (self.meso_a, [self.a1, self.a2]),
+            (self.meso_b, [self.a3, self.b1, self.b2]),
+            (self.meso_c, [self.c1]),
+        )
+        self.a3.refresh_from_db()
+        self.b1.refresh_from_db()
+        self.assertEqual(self.a3.mesocycle_id, self.meso_b.pk)
+        self.assertEqual(self.a3.order, 1)
+        self.assertEqual(self.b1.order, 2)
+
+    def test_move_microcycle_into_middle_of_another_mesocycle(self):
+        self.apply(
+            (self.meso_a, [self.a1, self.a2]),
+            (self.meso_b, [self.b1, self.a3, self.b2]),
+            (self.meso_c, [self.c1]),
+        )
+        self.assertEqual(
+            self.current()[1], (self.meso_b.pk, [self.b1.pk, self.a3.pk, self.b2.pk])
+        )
+
+    def test_emptying_a_mesocycle_is_allowed(self):
+        self.apply(
+            (self.meso_a, [self.a1, self.a2, self.a3]),
+            (self.meso_b, []),
+            (self.meso_c, [self.b1, self.b2, self.c1]),
+        )
+        self.assertEqual(Microcycle.objects.filter(mesocycle=self.meso_b).count(), 0)
+        self.assertTrue(Mesocycle.objects.filter(pk=self.meso_b.pk).exists())
+
+    def test_emptied_mesocycle_hydrates_as_zero_length(self):
+        self.apply(
+            (self.meso_a, [self.a1, self.a2, self.a3]),
+            (self.meso_b, []),
+            (self.meso_c, [self.b1, self.b2, self.c1]),
+        )
+        macro = Macrocycle.objects.get(pk=self.macro.pk).hydrate()
+        empty = macro.hydrated_mesocycles[1]
+        self.assertEqual(empty.duration_days, 0)
+        self.assertEqual(empty.start_date, empty.end_date)
+
+    def test_refilling_an_emptied_mesocycle(self):
+        self.apply(
+            (self.meso_a, [self.a1, self.a2, self.a3]),
+            (self.meso_b, []),
+            (self.meso_c, [self.b1, self.b2, self.c1]),
+        )
+        self.apply(
+            (self.meso_a, [self.a1]),
+            (self.meso_b, [self.a2, self.a3]),
+            (self.meso_c, [self.b1, self.b2, self.c1]),
+        )
+        self.assertEqual(self.current()[1], (self.meso_b.pk, [self.a2.pk, self.a3.pk]))
+
+    def test_swap_entire_microcycle_sets_between_mesocycles(self):
+        self.apply(
+            (self.meso_a, [self.b1, self.b2]),
+            (self.meso_b, [self.a1, self.a2, self.a3]),
+            (self.meso_c, [self.c1]),
+        )
+        self.assertEqual(
+            self.current(),
+            self.expected(
+                (self.meso_a, [self.b1, self.b2]),
+                (self.meso_b, [self.a1, self.a2, self.a3]),
+                (self.meso_c, [self.c1]),
+            ),
+        )
+
+    def test_rotate_microcycles_across_all_mesocycles(self):
+        self.apply(
+            (self.meso_a, [self.c1, self.a1]),
+            (self.meso_b, [self.a2, self.a3]),
+            (self.meso_c, [self.b1, self.b2]),
+        )
+        self.assertEqual(
+            self.current(),
+            self.expected(
+                (self.meso_a, [self.c1, self.a1]),
+                (self.meso_b, [self.a2, self.a3]),
+                (self.meso_c, [self.b1, self.b2]),
+            ),
+        )
+
+    def test_move_out_and_back_restores_original(self):
+        before = self.current()
+        self.apply(
+            (self.meso_a, [self.a1, self.a2]),
+            (self.meso_b, [self.a3, self.b1, self.b2]),
+            (self.meso_c, [self.c1]),
+        )
+        self.apply(
+            (self.meso_a, [self.a1, self.a2, self.a3]),
+            (self.meso_b, [self.b1, self.b2]),
+            (self.meso_c, [self.c1]),
+        )
+        self.assertEqual(self.current(), before)
+
+    def test_consolidate_every_microcycle_into_one_mesocycle(self):
+        self.apply(
+            (self.meso_a, []),
+            (self.meso_b, []),
+            (
+                self.meso_c,
+                [self.a1, self.a2, self.a3, self.b1, self.b2, self.c1],
+            ),
+        )
+        self.assertEqual(Microcycle.objects.filter(mesocycle=self.meso_c).count(), 6)
+        self.assertEqual(
+            Microcycle.objects.filter(mesocycle=self.meso_c)
+            .order_by("order")
+            .values_list("order", flat=True)[0],
+            1,
+        )
+
+    def test_applying_twice_is_idempotent(self):
+        specs = (
+            (self.meso_a, [self.a3, self.a1]),
+            (self.meso_b, [self.b2, self.a2]),
+            (self.meso_c, [self.c1, self.b1]),
+        )
+        self.apply(*specs)
+        first = self.current()
+        self.apply(*specs)
+        self.assertEqual(self.current(), first)
+
+
+class ApplyCycleOrderMesoTest(ReorderTestMixin, TestCase):
+    """Mesocycle reordering."""
+
+    def test_swap_adjacent_mesocycles(self):
+        self.apply(
+            (self.meso_b, [self.b1, self.b2]),
+            (self.meso_a, [self.a1, self.a2, self.a3]),
+            (self.meso_c, [self.c1]),
+        )
+        self.meso_a.refresh_from_db()
+        self.meso_b.refresh_from_db()
+        self.assertEqual(self.meso_b.order, 1)
+        self.assertEqual(self.meso_a.order, 2)
+
+    def test_move_first_mesocycle_to_last(self):
+        self.apply(
+            (self.meso_b, [self.b1, self.b2]),
+            (self.meso_c, [self.c1]),
+            (self.meso_a, [self.a1, self.a2, self.a3]),
+        )
+        self.assertEqual(
+            [meso_pk for meso_pk, _ in self.current()],
+            [self.meso_b.pk, self.meso_c.pk, self.meso_a.pk],
+        )
+
+    def test_move_last_mesocycle_to_first(self):
+        self.apply(
+            (self.meso_c, [self.c1]),
+            (self.meso_a, [self.a1, self.a2, self.a3]),
+            (self.meso_b, [self.b1, self.b2]),
+        )
+        self.assertEqual(
+            [meso_pk for meso_pk, _ in self.current()],
+            [self.meso_c.pk, self.meso_a.pk, self.meso_b.pk],
+        )
+
+    def test_full_mesocycle_reversal(self):
+        self.apply(
+            (self.meso_c, [self.c1]),
+            (self.meso_b, [self.b1, self.b2]),
+            (self.meso_a, [self.a1, self.a2, self.a3]),
+        )
+        self.assertEqual(
+            [meso_pk for meso_pk, _ in self.current()],
+            [self.meso_c.pk, self.meso_b.pk, self.meso_a.pk],
+        )
+
+    def test_mesocycle_reorder_preserves_microcycle_order(self):
+        self.apply(
+            (self.meso_c, [self.c1]),
+            (self.meso_b, [self.b1, self.b2]),
+            (self.meso_a, [self.a1, self.a2, self.a3]),
+        )
+        self.assertEqual(
+            self.current()[2], (self.meso_a.pk, [self.a1.pk, self.a2.pk, self.a3.pk])
+        )
+
+    def test_reorder_mesocycles_and_microcycles_together(self):
+        self.apply(
+            (self.meso_c, [self.c1, self.a1]),
+            (self.meso_a, [self.a3, self.a2]),
+            (self.meso_b, [self.b2, self.b1]),
+        )
+        self.assertEqual(
+            self.current(),
+            self.expected(
+                (self.meso_c, [self.c1, self.a1]),
+                (self.meso_a, [self.a3, self.a2]),
+                (self.meso_b, [self.b2, self.b1]),
+            ),
+        )
+
+
+class ApplyCycleOrderDateTest(ReorderTestMixin, TestCase):
+    """Reordering changes internal boundaries but never total plan length."""
+
+    def hydrated(self):
+        return Macrocycle.objects.get(pk=self.macro.pk).hydrate()
+
+    def test_baseline_dates(self):
+        macro = self.hydrated()
+        self.assertEqual(macro.scheduled_duration, 40)
+        self.assertEqual(macro.end_date, date(2026, 2, 13))
+        # A = 7+7+5 = 19 days, B = 14, C = 7.
+        self.assertEqual(macro.hydrated_mesocycles[0].start_date, date(2026, 1, 5))
+        self.assertEqual(macro.hydrated_mesocycles[1].start_date, date(2026, 1, 24))
+        self.assertEqual(macro.hydrated_mesocycles[2].start_date, date(2026, 2, 7))
+
+    def test_total_duration_unchanged_by_microcycle_move(self):
+        self.apply(
+            (self.meso_a, [self.a1, self.a2]),
+            (self.meso_b, [self.a3, self.b1, self.b2]),
+            (self.meso_c, [self.c1]),
+        )
+        macro = self.hydrated()
+        self.assertEqual(macro.scheduled_duration, 40)
+        self.assertEqual(macro.end_date, date(2026, 2, 13))
+
+    def test_total_duration_unchanged_by_mesocycle_move(self):
+        self.apply(
+            (self.meso_c, [self.c1]),
+            (self.meso_b, [self.b1, self.b2]),
+            (self.meso_a, [self.a1, self.a2, self.a3]),
+        )
+        macro = self.hydrated()
+        self.assertEqual(macro.scheduled_duration, 40)
+        self.assertEqual(macro.end_date, date(2026, 2, 13))
+
+    def test_moving_short_microcycle_earlier_shifts_downstream_starts(self):
+        # a3 is 5 days; putting it first makes a1 start 5 days in, not 7.
+        self.apply(
+            (self.meso_a, [self.a3, self.a1, self.a2]),
+            (self.meso_b, [self.b1, self.b2]),
+            (self.meso_c, [self.c1]),
+        )
+        macro = self.hydrated()
+        micros = macro.hydrated_mesocycles[0].hydrated_microcycles
+        self.assertEqual(micros[0].start_date, date(2026, 1, 5))
+        self.assertEqual(micros[1].start_date, date(2026, 1, 10))
+        self.assertEqual(micros[2].start_date, date(2026, 1, 17))
+
+    def test_mesocycle_durations_follow_their_microcycles(self):
+        self.apply(
+            (self.meso_a, [self.a1, self.a2]),
+            (self.meso_b, [self.a3, self.b1, self.b2]),
+            (self.meso_c, [self.c1]),
+        )
+        macro = self.hydrated()
+        self.assertEqual(macro.hydrated_mesocycles[0].duration_days, 14)
+        self.assertEqual(macro.hydrated_mesocycles[1].duration_days, 19)
+        self.assertEqual(macro.hydrated_mesocycles[2].duration_days, 7)
+
+    def test_mesocycle_reversal_reorders_start_dates(self):
+        self.apply(
+            (self.meso_c, [self.c1]),
+            (self.meso_b, [self.b1, self.b2]),
+            (self.meso_a, [self.a1, self.a2, self.a3]),
+        )
+        macro = self.hydrated()
+        starts = [meso.start_date for meso in macro.hydrated_mesocycles]
+        self.assertEqual(
+            starts, [date(2026, 1, 5), date(2026, 1, 12), date(2026, 1, 26)]
+        )
+
+
+class ApplyCycleOrderValidationTest(ReorderTestMixin, TestCase):
+    """Set-equality validation: the guard against stale tabs and foreign pks."""
+
+    def assertRejected(self, ordering):
+        before = self.current()
+        with self.assertRaises(StaleOrderingError):
+            apply_cycle_order(self.macro, ordering)
+        self.assertEqual(self.current(), before)
+
+    def test_missing_mesocycle_rejected(self):
+        self.assertRejected(
+            self.ordering(
+                (self.meso_a, [self.a1, self.a2, self.a3]),
+                (self.meso_b, [self.b1, self.b2, self.c1]),
+            )
+        )
+
+    def test_duplicate_mesocycle_rejected(self):
+        self.assertRejected(
+            self.ordering(
+                (self.meso_a, [self.a1, self.a2, self.a3]),
+                (self.meso_a, []),
+                (self.meso_b, [self.b1, self.b2]),
+                (self.meso_c, [self.c1]),
+            )
+        )
+
+    def test_foreign_mesocycle_rejected(self):
+        other_macro = Macrocycle.objects.create(
+            user=self.user, name="Other", start_date=date(2026, 6, 1)
+        )
+        other_meso = Mesocycle.objects.create(macrocycle=other_macro, meso_type="base")
+        self.assertRejected(
+            self.ordering(
+                (self.meso_a, [self.a1, self.a2, self.a3]),
+                (self.meso_b, [self.b1, self.b2]),
+                (self.meso_c, [self.c1]),
+                (other_meso, []),
+            )
+        )
+
+    def test_missing_microcycle_rejected(self):
+        self.assertRejected(
+            self.ordering(
+                (self.meso_a, [self.a1, self.a2]),
+                (self.meso_b, [self.b1, self.b2]),
+                (self.meso_c, [self.c1]),
+            )
+        )
+
+    def test_duplicate_microcycle_rejected(self):
+        self.assertRejected(
+            self.ordering(
+                (self.meso_a, [self.a1, self.a2, self.a3]),
+                (self.meso_b, [self.b1, self.b2, self.a1]),
+                (self.meso_c, [self.c1]),
+            )
+        )
+
+    def test_microcycle_from_another_macrocycle_rejected(self):
+        other_macro = Macrocycle.objects.create(
+            user=self.user, name="Other", start_date=date(2026, 6, 1)
+        )
+        other_meso = Mesocycle.objects.create(macrocycle=other_macro, meso_type="base")
+        foreign_micro = Microcycle.objects.create(mesocycle=other_meso, duration_days=7)
+        self.assertRejected(
+            self.ordering(
+                (self.meso_a, [self.a1, self.a2, self.a3, foreign_micro]),
+                (self.meso_b, [self.b1, self.b2]),
+                (self.meso_c, [self.c1]),
+            )
+        )
+
+    def test_microcycle_from_another_user_rejected(self):
+        other_user = get_user_model().objects.create_user(
+            username="intruder", email="intruder@example.com", password="testpass"
+        )
+        other_macro = Macrocycle.objects.create(
+            user=other_user, name="Theirs", start_date=date(2026, 6, 1)
+        )
+        other_meso = Mesocycle.objects.create(macrocycle=other_macro, meso_type="base")
+        foreign_micro = Microcycle.objects.create(mesocycle=other_meso, duration_days=7)
+        self.assertRejected(
+            self.ordering(
+                (self.meso_a, [self.a1, self.a2, self.a3, foreign_micro]),
+                (self.meso_b, [self.b1, self.b2]),
+                (self.meso_c, [self.c1]),
+            )
+        )
+        # The other user's plan is untouched.
+        foreign_micro.refresh_from_db()
+        self.assertEqual(foreign_micro.mesocycle_id, other_meso.pk)
+        self.assertEqual(foreign_micro.order, 1)
+
+    def test_microcycle_added_elsewhere_rejects_stale_submission(self):
+        stale = self.ordering(
+            (self.meso_a, [self.a1, self.a2, self.a3]),
+            (self.meso_b, [self.b1, self.b2]),
+            (self.meso_c, [self.c1]),
+        )
+        Microcycle.objects.create(mesocycle=self.meso_c, duration_days=7)
+        self.assertRejected(stale)
+
+    def test_microcycle_deleted_elsewhere_rejects_stale_submission(self):
+        stale = self.ordering(
+            (self.meso_a, [self.a1, self.a2, self.a3]),
+            (self.meso_b, [self.b1, self.b2]),
+            (self.meso_c, [self.c1]),
+        )
+        self.c1.delete()
+        self.assertRejected(stale)
+
+    def test_empty_ordering_rejected_when_plan_has_cycles(self):
+        self.assertRejected([])
+
+    def test_other_macrocycle_untouched_by_a_valid_reorder(self):
+        other_macro = Macrocycle.objects.create(
+            user=self.user, name="Other", start_date=date(2026, 6, 1)
+        )
+        other_meso = Mesocycle.objects.create(macrocycle=other_macro, meso_type="base")
+        other_micro = Microcycle.objects.create(mesocycle=other_meso, duration_days=7)
+        self.apply(
+            (self.meso_c, [self.c1]),
+            (self.meso_b, [self.b1, self.b2]),
+            (self.meso_a, [self.a3, self.a2, self.a1]),
+        )
+        other_meso.refresh_from_db()
+        other_micro.refresh_from_db()
+        self.assertEqual(other_meso.order, 1)
+        self.assertEqual(other_micro.order, 1)
+
+
+class ParseOrderingTest(SimpleTestCase):
+    """Structural validation, kept separate from set-equality checks."""
+
+    def test_valid_payload(self):
+        self.assertEqual(
+            parse_ordering([{"pk": 1, "micros": [2, 3]}]),
+            [{"pk": 1, "micros": [2, 3]}],
+        )
+
+    def test_empty_list_is_structurally_valid(self):
+        self.assertEqual(parse_ordering([]), [])
+
+    def test_non_list_rejected(self):
+        for bad in ({"pk": 1}, "nope", 5, None):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                parse_ordering(bad)
+
+    def test_entry_must_be_object(self):
+        with self.assertRaises(ValueError):
+            parse_ordering([[1, 2]])
+
+    def test_missing_pk_rejected(self):
+        with self.assertRaises(ValueError):
+            parse_ordering([{"micros": []}])
+
+    def test_non_integer_pk_rejected(self):
+        for bad in ("1", 1.5, None):
+            with self.subTest(bad=bad), self.assertRaises(ValueError):
+                parse_ordering([{"pk": bad, "micros": []}])
+
+    def test_boolean_pk_rejected(self):
+        with self.assertRaises(ValueError):
+            parse_ordering([{"pk": True, "micros": []}])
+
+    def test_missing_micros_rejected(self):
+        with self.assertRaises(ValueError):
+            parse_ordering([{"pk": 1}])
+
+    def test_non_list_micros_rejected(self):
+        with self.assertRaises(ValueError):
+            parse_ordering([{"pk": 1, "micros": "12"}])
+
+    def test_non_integer_micro_rejected(self):
+        with self.assertRaises(ValueError):
+            parse_ordering([{"pk": 1, "micros": [1, "2"]}])
+
+    def test_boolean_micro_rejected(self):
+        with self.assertRaises(ValueError):
+            parse_ordering([{"pk": 1, "micros": [False]}])
+
+    def test_stale_ordering_error_is_a_value_error(self):
+        self.assertTrue(issubclass(StaleOrderingError, ValueError))
+
+
+class OrderMixinPrimitiveTest(TestCase):
+    """The park/renumber primitives underpinning both delete and reorder."""
+
+    @classmethod
+    def setUpTestData(cls):
+        cls.user = get_user_model().objects.create_user(
+            username="primuser", email="prim@example.com", password="testpass"
+        )
+
+    def setUp(self):
+        self.macro = Macrocycle.objects.create(
+            user=self.user, name="Season", start_date=date(2026, 1, 1)
+        )
+        self.meso = Mesocycle.objects.create(macrocycle=self.macro, meso_type="base")
+        self.micros = [
+            Microcycle.objects.create(mesocycle=self.meso, duration_days=7)
+            for _ in range(4)
+        ]
+
+    def test_park_orders_shifts_out_of_live_range(self):
+        Microcycle.park_orders(Microcycle.objects.filter(mesocycle=self.meso))
+        orders = list(
+            Microcycle.objects.filter(mesocycle=self.meso)
+            .order_by("order")
+            .values_list("order", flat=True)
+        )
+        offset = Microcycle.ORDER_STAGING_OFFSET
+        self.assertEqual(orders, [offset + 1, offset + 2, offset + 3, offset + 4])
+
+    def test_apply_order_renumbers_single_parent(self):
+        reversed_pks = [micro.pk for micro in reversed(self.micros)]
+        Microcycle.apply_order(self.meso.pk, reversed_pks)
+        self.assertEqual(
+            list(
+                Microcycle.objects.filter(mesocycle=self.meso)
+                .order_by("order")
+                .values_list("pk", flat=True)
+            ),
+            reversed_pks,
+        )
+
+    def test_apply_order_rejects_more_rows_than_staging_offset(self):
+        too_many = list(range(Microcycle.ORDER_STAGING_OFFSET + 1))
+        with self.assertRaises(ValueError):
+            Microcycle.apply_order(self.meso.pk, too_many)
+
+    def test_repeated_deletes_stay_gap_free(self):
+        """Regression net for compact_siblings after the park/renumber rewrite."""
+        while self.micros:
+            self.micros.pop(len(self.micros) // 2).delete()
+            orders = list(
+                Microcycle.objects.filter(mesocycle=self.meso)
+                .order_by("order")
+                .values_list("order", flat=True)
+            )
+            self.assertEqual(orders, list(range(1, len(orders) + 1)))
 
 
 class CreateDefaultCyclesTest(TestCase):

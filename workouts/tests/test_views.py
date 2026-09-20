@@ -8,6 +8,7 @@ from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 
 from workouts.enums import WorkoutStatus, WorkoutSubtype
+from workouts.tests.helpers import read_ordering
 from workouts.models import (
     Workout,
     AerobicDetails,
@@ -1373,6 +1374,257 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
         self.assertEqual(row["sessions"], 0)
         self.assertEqual(row["cross_sessions"], 0)
         self.assertEqual(row["strength_sessions"], 0)
+
+
+class MacrocycleReorderViewTest(AuthenticatedTestMixin, TestCase):
+    """GET rendering and POST application for the reorder page."""
+
+    @classmethod
+    def setUpTestData(cls):
+        User = get_user_model()
+        cls.user = User.objects.create_user(
+            username="reorderview", email="rv@example.com", password="testpassword"
+        )
+        cls.other = User.objects.create_user(
+            username="otheruser", email="other@example.com", password="testpassword"
+        )
+        cls.macro = Macrocycle.objects.create(
+            user=cls.user, name="Reorder Plan", start_date=date(2026, 1, 5)
+        )
+        cls.meso1 = Mesocycle.objects.create(macrocycle=cls.macro, meso_type="base")
+        cls.meso2 = Mesocycle.objects.create(macrocycle=cls.macro, meso_type="build")
+        cls.micro1 = Microcycle.objects.create(
+            mesocycle=cls.meso1,
+            duration_days=7,
+            planned_distance=50000,
+            planned_long_distance=20000,
+            comment="Opening week",
+        )
+        cls.micro2 = Microcycle.objects.create(mesocycle=cls.meso1, duration_days=7)
+        cls.micro3 = Microcycle.objects.create(mesocycle=cls.meso2, duration_days=5)
+
+    def setUp(self):
+        super().setUp()
+        self.url = reverse(
+            "workouts:reorder_cycles", kwargs={"macro_pk": self.macro.pk}
+        )
+
+    def payload(self, *specs):
+        return json.dumps(
+            {
+                "mesocycles": [
+                    {"pk": meso.pk, "micros": [micro.pk for micro in micros]}
+                    for meso, micros in specs
+                ]
+            }
+        )
+
+    def post_json(self, body):
+        return self.client.post(self.url, body, content_type="application/json")
+
+    def stored(self):
+        return read_ordering(self.macro)
+
+    # -- GET -------------------------------------------------------------
+
+    def test_get_renders(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "workouts/macrocycle_reorder.html")
+
+    def test_get_includes_reorder_data_block(self):
+        response = self.client.get(self.url)
+        self.assertContains(response, 'id="reorder-data"')
+        data = response.context["reorder_data"]
+        self.assertEqual(data["plan_start"], "2026-01-05")
+        self.assertEqual(len(data["mesocycles"]), 2)
+        self.assertEqual(
+            [m["pk"] for m in data["mesocycles"]], [self.meso1.pk, self.meso2.pk]
+        )
+        self.assertEqual(
+            [c["pk"] for c in data["mesocycles"][0]["micros"]],
+            [self.micro1.pk, self.micro2.pk],
+        )
+
+    def test_reorder_data_carries_display_fields(self):
+        response = self.client.get(self.url)
+        first = response.context["reorder_data"]["mesocycles"][0]["micros"][0]
+        self.assertEqual(first["days"], 7)
+        self.assertEqual(first["km"], 50.0)
+        self.assertEqual(first["long_km"], 20.0)
+        self.assertEqual(first["comment"], "Opening week")
+
+    def test_reorder_data_today_is_server_side(self):
+        response = self.client.get(self.url)
+        self.assertEqual(
+            response.context["reorder_data"]["today"], date.today().isoformat()
+        )
+
+    def test_get_requires_login(self):
+        self.client.logout()
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/login/", response.url)
+
+    def test_get_other_users_macrocycle_404s(self):
+        self.client.force_login(self.other)
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, 404)
+
+    def test_get_plan_without_mesocycles(self):
+        empty = Macrocycle.objects.create(
+            user=self.user, name="Empty", start_date=date(2026, 5, 1)
+        )
+        url = reverse("workouts:reorder_cycles", kwargs={"macro_pk": empty.pk})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "No mesocycles in this plan yet.")
+
+    # -- POST ------------------------------------------------------------
+
+    def test_post_applies_new_order(self):
+        response = self.post_json(
+            self.payload(
+                (self.meso2, [self.micro3]),
+                (self.meso1, [self.micro2, self.micro1]),
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertTrue(body["ok"])
+        self.assertEqual(body["redirect"], self.macro.get_absolute_url())
+        self.assertEqual(
+            self.stored(),
+            [
+                (self.meso2.pk, [self.micro3.pk]),
+                (self.meso1.pk, [self.micro2.pk, self.micro1.pk]),
+            ],
+        )
+
+    def test_post_moves_microcycle_across_mesocycles(self):
+        response = self.post_json(
+            self.payload(
+                (self.meso1, [self.micro1]),
+                (self.meso2, [self.micro3, self.micro2]),
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        self.micro2.refresh_from_db()
+        self.assertEqual(self.micro2.mesocycle_id, self.meso2.pk)
+        self.assertEqual(self.micro2.order, 2)
+
+    def test_post_allows_emptying_a_mesocycle(self):
+        response = self.post_json(
+            self.payload(
+                (self.meso1, []),
+                (self.meso2, [self.micro3, self.micro1, self.micro2]),
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Microcycle.objects.filter(mesocycle=self.meso1).count(), 0)
+
+    def test_post_stale_ordering_returns_409(self):
+        before = self.stored()
+        extra = Microcycle.objects.create(mesocycle=self.meso2, duration_days=7)
+        body = self.payload(
+            (self.meso1, [self.micro1, self.micro2]),
+            (self.meso2, [self.micro3]),
+        )
+        response = self.post_json(body)
+        self.assertEqual(response.status_code, 409)
+        self.assertFalse(response.json()["ok"])
+        self.assertIn("Reload", response.json()["error"])
+        extra.delete()
+        self.assertEqual(self.stored(), before)
+
+    def test_post_foreign_microcycle_returns_409(self):
+        their_macro = Macrocycle.objects.create(
+            user=self.other, name="Theirs", start_date=date(2026, 2, 1)
+        )
+        their_meso = Mesocycle.objects.create(macrocycle=their_macro, meso_type="base")
+        their_micro = Microcycle.objects.create(mesocycle=their_meso, duration_days=7)
+        response = self.post_json(
+            self.payload(
+                (self.meso1, [self.micro1, self.micro2, their_micro]),
+                (self.meso2, [self.micro3]),
+            )
+        )
+        self.assertEqual(response.status_code, 409)
+        their_micro.refresh_from_db()
+        self.assertEqual(their_micro.mesocycle_id, their_meso.pk)
+
+    def test_post_malformed_json_returns_400(self):
+        response = self.post_json("not json at all")
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(response.json()["ok"])
+
+    def test_post_non_object_json_returns_400(self):
+        response = self.post_json("[1, 2, 3]")
+        self.assertEqual(response.status_code, 400)
+
+    def test_post_missing_mesocycles_key_returns_400(self):
+        response = self.post_json(json.dumps({"nope": []}))
+        self.assertEqual(response.status_code, 400)
+
+    def test_post_bad_shape_returns_400(self):
+        response = self.post_json(json.dumps({"mesocycles": [{"pk": "abc"}]}))
+        self.assertEqual(response.status_code, 400)
+
+    def test_post_requires_login(self):
+        self.client.logout()
+        response = self.post_json(
+            self.payload(
+                (self.meso1, [self.micro1, self.micro2]),
+                (self.meso2, [self.micro3]),
+            )
+        )
+        self.assertEqual(response.status_code, 302)
+
+    def test_post_other_users_macrocycle_404s(self):
+        self.client.force_login(self.other)
+        response = self.post_json(
+            self.payload(
+                (self.meso1, [self.micro1, self.micro2]),
+                (self.meso2, [self.micro3]),
+            )
+        )
+        self.assertEqual(response.status_code, 404)
+
+    def test_post_is_idempotent(self):
+        body = self.payload(
+            (self.meso2, [self.micro3]),
+            (self.meso1, [self.micro2, self.micro1]),
+        )
+        self.assertEqual(self.post_json(body).status_code, 200)
+        first = self.stored()
+        self.assertEqual(self.post_json(body).status_code, 200)
+        self.assertEqual(self.stored(), first)
+
+    # -- Entry points and navigation --------------------------------------
+
+    def test_reorder_link_on_detail_page(self):
+        response = self.client.get(
+            reverse("workouts:macrocycle_detail", kwargs={"macro_pk": self.macro.pk})
+        )
+        self.assertContains(response, self.url)
+
+    def test_reorder_link_on_summary_page(self):
+        response = self.client.get(
+            reverse("workouts:macrocycle_summary", kwargs={"macro_pk": self.macro.pk})
+        )
+        self.assertContains(response, self.url)
+
+    def test_breadcrumb_ends_with_reorder(self):
+        response = self.client.get(self.url)
+        crumbs = response.context["breadcrumbs"]
+        self.assertEqual(crumbs[-1].label, "Reorder")
+        self.assertEqual(crumbs[-1].url, "")
+        self.assertEqual(crumbs[1].label, "Reorder Plan")
+
+    def test_sidebar_highlights_plans(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.context["nav_section"], "plans")
+        self.assertEqual(response.context["nav_item"], "all_plans")
 
 
 class ToggleActiveMacrocycleViewTest(AuthenticatedTestMixin, TestCase):

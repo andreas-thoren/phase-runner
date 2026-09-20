@@ -41,6 +41,7 @@ _URL_SIDEBAR_MAP: dict[str, tuple[str, str]] = {
     "edit_macrocycle": ("plans", "all_plans"),
     "delete_macrocycle": ("plans", "all_plans"),
     "macrocycle_summary": ("plans", "all_plans"),
+    "reorder_cycles": ("plans", "all_plans"),
     "create_default_cycles": ("plans", "all_plans"),
     "toggle_active": ("plans", "all_plans"),
     "mesocycle_detail": ("plans", "all_plans"),
@@ -127,6 +128,9 @@ def _plan_crumbs(
 
     if url_name == "macrocycle_summary":
         return trail + [BreadcrumbItem("Summary")]
+
+    if url_name == "reorder_cycles":
+        return trail + [BreadcrumbItem("Reorder")]
 
     if url_name in ("edit_macrocycle", "delete_macrocycle"):
         action = "Edit" if "edit" in url_name else "Delete"
