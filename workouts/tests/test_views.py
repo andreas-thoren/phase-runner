@@ -1,4 +1,6 @@
 import json
+import pathlib
+import re
 from datetime import date, timedelta
 
 from django.conf import settings
@@ -952,6 +954,26 @@ class MicrocycleViewTest(AuthenticatedTestMixin, TestCase):
         response = self.client.get(url)
         form = response.context["form"]
         self.assertAlmostEqual(form.initial["planned_distance"], 42.195)
+
+
+class TemplateCommentSyntaxTest(SimpleTestCase):
+    """Django's {# #} comments cannot span lines — a multi-line one renders raw."""
+
+    MULTILINE_COMMENT = re.compile(r"\{#(?:(?!#\})[\s\S])*?\n[\s\S]*?#\}")
+
+    def test_no_multiline_django_comments(self):
+        offenders = []
+        root = pathlib.Path(__file__).resolve().parent.parent / "templates"
+        for template in root.rglob("*.html"):
+            match = self.MULTILINE_COMMENT.search(template.read_text(encoding="utf-8"))
+            if match:
+                offenders.append(f"{template.name}: {match.group(0)[:60]!r}")
+        self.assertEqual(
+            offenders,
+            [],
+            "Multi-line {# #} comments render as literal page text. "
+            "Use one line, or {% comment %}...{% endcomment %}.",
+        )
 
 
 class FormContextMixinConventionTest(SimpleTestCase):

@@ -41,7 +41,6 @@
 
       <p class="plan-meta" id="plan-meta"></p>
 
-      <div class="shift-banner" id="shift-banner" hidden></div>
       <p id="form-error" class="invalid" role="alert" hidden></p>
 
       <div class="list-toolbar">
@@ -55,6 +54,9 @@
       <div id="reorder-plan"></div>
 
       <p class="sr-only" id="reorder-status" role="status" aria-live="polite"></p>
+
+      {# Banner sits directly above the actions: last thing read before Save. #}
+      <div class="shift-banner" id="shift-banner" hidden></div>
 
       {# Mirrors form_base.html's button_row: actions sit below what they act on. #}
       <div class="button-row">

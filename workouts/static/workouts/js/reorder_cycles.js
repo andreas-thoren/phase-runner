@@ -97,7 +97,6 @@ function diffDates(now) {
       info.set(micro.pk, {
         moved,
         delta: Math.round((d.start - o.start) / 86400000),
-        wasPast: o.end < TODAY,
         isNow: d.start <= TODAY && TODAY <= d.end,
         start: d.start,
         origStart: o.start,
@@ -219,8 +218,6 @@ function microRow(micro, info) {
   ]);
   if (info.isNow) {
     start.append(el("span", { class: "chip chip--now", text: "now" }));
-  } else if (info.wasPast) {
-    start.append(el("span", { class: "chip", text: "trained" }));
   }
   if (info.moved) {
     const sign = info.delta > 0 ? "+" : "";
