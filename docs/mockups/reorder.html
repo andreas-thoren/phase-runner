@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="dark light">
+  <title>Mock-up — Reorder cycles</title>
+
+  <!-- Real app stylesheets, so the mock-up inherits the actual look. -->
+  <script src="../../workouts/static/workouts/js/theme_init.js"></script>
+  <link rel="stylesheet" href="../../static/css/pico.min.css">
+  <link rel="stylesheet" href="../../static/css/pico_override.css">
+  <link rel="stylesheet" href="../../workouts/static/workouts/css/style.css">
+  <link rel="stylesheet" href="../../workouts/static/workouts/css/navigation.css">
+  <link rel="stylesheet" href="../../workouts/static/workouts/css/workouts.css">
+  <script src="../../workouts/static/workouts/js/main.js" defer></script>
+
+  <!--
+    MOCK-UP ONLY. On implementation these styles move to
+    workouts/assets/scss/workouts.scss and the script to
+    workouts/static/workouts/js/reorder_cycles.js (project rule: no inline CSS/JS).
+  -->
+  <style>
+    :root,
+    html[data-theme="light"] { --mk-warn: #9a5d13; }
+    html[data-theme="dark"] { --mk-warn: #e0a458; }
+
+    .mock-note {
+      border: 1px dashed var(--pico-muted-border-color);
+      border-radius: var(--pico-border-radius);
+      padding: 0.6rem 0.9rem;
+      font-size: 0.8rem;
+      color: var(--pico-muted-color);
+      margin-bottom: 2rem;
+    }
+
+    .reorder-help {
+      font-size: 0.9rem;
+      color: var(--pico-muted-color);
+      margin-bottom: 1.25rem;
+    }
+
+    .plan-meta {
+      font-size: 0.85rem;
+      color: var(--pico-muted-color);
+      margin-bottom: 1.5rem;
+    }
+
+    /* Date-shift warning banner */
+    .shift-banner {
+      border: 1px solid var(--mk-warn);
+      border-radius: var(--pico-border-radius);
+      background: color-mix(in srgb, var(--mk-warn) 12%, transparent);
+      padding: 0.75rem 1rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.88rem;
+    }
+    .shift-banner strong { color: var(--mk-warn); }
+    .shift-banner[hidden] { display: none; }
+
+    /* Mesocycle group */
+    .meso-group {
+      border-left: 3px solid var(--pico-primary);
+      padding-left: 0.9rem;
+      margin-bottom: 2.25rem;
+    }
+    .meso-head {
+      display: flex;
+      align-items: baseline;
+      flex-wrap: wrap;
+      gap: 0.4rem 0.9rem;
+      margin-bottom: 0.55rem;
+    }
+    .meso-title {
+      font-weight: 700;
+      font-size: 1.1rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--pico-primary);
+    }
+    .meso-meta { font-size: 0.8rem; color: var(--pico-muted-color); }
+    .meso-meta.is-shifted { color: var(--mk-warn); }
+    .meso-moves {
+      margin-left: auto;
+      display: flex;
+      gap: 0.4rem;
+      align-self: center;
+    }
+    .meso-moves button {
+      width: 2.4rem;
+      height: 2.4rem;
+      padding: 0;
+      margin: 0;
+      line-height: 1;
+      font-size: 0.9rem;
+    }
+
+    /* Column header (desktop only) */
+    .micro-head,
+    .micro-row {
+      display: grid;
+      grid-template-columns: 9.5rem 6.5rem 3.5rem 5rem 5rem minmax(6rem, 1fr);
+      gap: 0.35rem 1rem;
+      align-items: center;
+      padding: 0.55rem 0.8rem;
+    }
+    .micro-head {
+      padding-bottom: 0.2rem;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--pico-muted-color);
+    }
+    .micro-head span:nth-child(n+3) { text-align: right; }
+    .micro-head span:last-child { text-align: left; }
+
+    /* Microcycle row */
+    .micro-row {
+      background: var(--pico-card-background-color);
+      border: 1px solid transparent;
+      border-radius: var(--pico-border-radius);
+      margin-bottom: 0.4rem;
+      cursor: pointer;
+      transition: background-color 0.15s, transform 0.12s, box-shadow 0.15s;
+    }
+    .micro-row:hover {
+      background: color-mix(in srgb, var(--pico-primary) 10%, var(--pico-card-background-color));
+    }
+    .micro-row:focus-visible {
+      outline: 2px solid var(--pico-primary);
+      outline-offset: 2px;
+    }
+    .micro-row.is-selected {
+      border-color: var(--pico-primary);
+      box-shadow: 0 0 0 1px var(--pico-primary), 0 8px 18px rgba(0, 0, 0, 0.35);
+      transform: translateY(-1px);
+    }
+    .micro-row.is-shifted { box-shadow: inset 3px 0 0 var(--mk-warn); }
+    .micro-row.is-selected.is-shifted {
+      box-shadow: inset 3px 0 0 var(--mk-warn), 0 0 0 1px var(--pico-primary), 0 8px 18px rgba(0, 0, 0, 0.35);
+    }
+
+    .micro-cell:nth-child(n+3) { text-align: right; }
+    .micro-row .micro-cell--comment {
+      text-align: left;
+      color: var(--pico-muted-color);
+      font-size: 0.85rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .micro-date { font-variant-numeric: tabular-nums; }
+    .chip {
+      display: inline-block;
+      font-size: 0.62rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      padding: 0.05rem 0.35rem;
+      border-radius: 1rem;
+      border: 1px solid var(--pico-muted-border-color);
+      color: var(--pico-muted-color);
+      margin-left: 0.4rem;
+      vertical-align: 1px;
+    }
+    .chip--now {
+      border-color: var(--pico-primary);
+      color: var(--pico-primary);
+    }
+    .date-shift {
+      display: block;
+      font-size: 0.7rem;
+      color: var(--mk-warn);
+      font-variant-numeric: tabular-nums;
+    }
+    .micro-row .selected-hint {
+      display: block;
+      grid-column: 1 / -1;
+      text-align: left;
+      font-size: 0.72rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--pico-primary);
+    }
+
+    /* Drop targets: only visible while something is picked up */
+    .drop-gap { display: none; }
+    body.is-placing .drop-gap { display: block; margin-bottom: 0.4rem; }
+    .drop-gap button {
+      width: 100%;
+      height: 2.1rem;
+      padding: 0;
+      margin: 0;
+      background: transparent;
+      border: 1px dashed var(--pico-primary);
+      border-radius: var(--pico-border-radius);
+      color: var(--pico-primary);
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .drop-gap button:hover {
+      background: color-mix(in srgb, var(--pico-primary) 18%, transparent);
+      border-style: solid;
+    }
+    .drop-gap.is-noop { opacity: 0.22; }
+    .drop-gap.is-noop button { pointer-events: none; }
+
+    .meso-empty {
+      font-size: 0.85rem;
+      color: var(--mk-warn);
+      padding: 0.55rem 0.8rem;
+    }
+
+    #payload-dialog pre {
+      max-height: 55vh;
+      overflow: auto;
+      font-size: 0.8rem;
+    }
+
+    .sr-only {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip: rect(0 0 0 0);
+      white-space: nowrap;
+    }
+
+    /* Mobile */
+    @media (max-width: 640px) {
+      .micro-head { display: none; }
+      .micro-row { grid-template-columns: 1fr 1fr; gap: 0.3rem 0.8rem; }
+      .micro-row .micro-cell { text-align: left; }
+      .micro-cell::before {
+        content: attr(data-label) " ";
+        font-size: 0.66rem;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: var(--pico-muted-color);
+      }
+      .micro-cell--start,
+      .micro-row .micro-cell--comment { grid-column: 1 / -1; }
+      .micro-cell--start::before { content: none; }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="app">
+
+    <header class="header">
+      <nav>
+        <ul>
+          <li><a href="#"><strong>PhaseRunner</strong></a></li>
+        </ul>
+        <ul>
+          <li>
+            <a href="#" data-theme-toggle>
+              <span data-theme-when="dark">Light mode</span>
+              <span data-theme-when="light">Dark mode</span>
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </header>
+
+    <main>
+      <div class="main-content">
+
+        <p class="mock-note">
+          <strong>Static mock-up.</strong> No database, no server — the plan below lives in a JS
+          constant and dates are recomputed in the browser exactly the way
+          <code>Macrocycle.hydrate()</code> does it (bottom-up from each microcycle's
+          <code>duration_days</code>). &ldquo;Today&rdquo; is pinned to 2026-09-20.
+        </p>
+
+        <h1>Reorder — Marathon Build 2026</h1>
+
+        <p class="reorder-help">
+          Tap a <strong>microcycle</strong> to pick it up, then tap a <em>Place here</em> marker —
+          including one inside a different mesocycle. Tap it again or press <kbd>Esc</kbd> to put it back.
+          <strong>Mesocycles</strong> move with the ▲ ▼ buttons.
+        </p>
+
+        <p class="plan-meta" id="plan-meta"></p>
+
+        <div class="shift-banner" id="shift-banner" hidden></div>
+
+        <div class="list-toolbar">
+          <h2>Cycles</h2>
+          <button type="button" class="secondary button-slim" id="reset-btn" disabled>Reset</button>
+          <button type="button" class="button-slim" id="save-btn" disabled>Save order</button>
+        </div>
+
+        <div class="micro-head" aria-hidden="true">
+          <span>Start</span><span>Type</span><span>Days</span><span>km</span><span>Long</span><span>Comment</span>
+        </div>
+
+        <div id="plan"></div>
+
+        <p class="sr-only" id="status" role="status" aria-live="polite"></p>
+
+        <dialog id="payload-dialog">
+          <article>
+            <header><strong>POST payload</strong></header>
+            <p style="font-size:.85rem">
+              The whole resulting order is sent in one request — not a &ldquo;move X to Y&rdquo; instruction.
+              The server checks that this set of pks is exactly the set it holds for this macrocycle,
+              then renumbers <code>1..N</code> in a single transaction.
+            </p>
+            <pre><code id="payload-json"></code></pre>
+            <footer>
+              <button type="button" class="secondary" id="payload-close">Close</button>
+            </footer>
+          </article>
+        </dialog>
+
+        <h2 style="margin-top:3rem">What this mock-up is demonstrating</h2>
+        <ul style="font-size:.9rem">
+          <li>Tap-to-select / tap-to-place instead of drag — identical on mouse, touch and keyboard, no library.</li>
+          <li>Microcycles can land in a <em>different</em> mesocycle; drop markers appear in every group.</li>
+          <li>Mesocycles reorder with buttons, which stays usable at phone width.</li>
+          <li>Every date shift is shown inline (<span style="color:var(--mk-warn)">was …</span>), and rows overlapping
+            dates already trained are called out in the banner — the &ldquo;allow it, but make it visible&rdquo; option.</li>
+          <li>Moving every microcycle out of a mesocycle leaves it empty and zero-length, shown explicitly.</li>
+          <li>Total plan length never changes — only the internal boundaries move.</li>
+        </ul>
+
+      </div>
+    </main>
+
+    <footer>
+      <p>&copy; 2025 Andreas Thor&eacute;n &middot; MIT License</p>
+    </footer>
+
+  </div>
+
+  <script>
+    // =====================================================================
+    // MOCK-UP SCRIPT — throwaway. Moves to reorder_cycles.js on implementation.
+    // =====================================================================
+
+    const PLAN_START = "2026-08-10";
+    const TODAY = new Date("2026-09-20T00:00:00");
+
+    const INITIAL = [
+      { pk: 11, type: "Base", micros: [
+        { pk: 41, type: "Load",   days: 7, km: 45, long: 14, comment: "Easy aerobic re-entry" },
+        { pk: 42, type: "Load",   days: 7, km: 52, long: 16, comment: "" },
+        { pk: 43, type: "Load",   days: 7, km: 58, long: 18, comment: "Add strides Thursday" },
+        { pk: 44, type: "Deload", days: 7, km: 40, long: 12, comment: "Cut-back week" },
+      ]},
+      { pk: 12, type: "Build", micros: [
+        { pk: 45, type: "Load",     days: 7, km: 60, long: 20, comment: "First tempo block" },
+        { pk: 46, type: "Load",     days: 7, km: 66, long: 22, comment: "" },
+        { pk: 47, type: "Overload", days: 7, km: 72, long: 24, comment: "Back-to-back long days" },
+        { pk: 48, type: "Deload",   days: 7, km: 48, long: 14, comment: "" },
+      ]},
+      { pk: 13, type: "Sharpen", micros: [
+        { pk: 49, type: "Load",     days: 7, km: 70, long: 26, comment: "Marathon-pace intervals" },
+        { pk: 50, type: "Overload", days: 7, km: 76, long: 30, comment: "Peak volume" },
+        { pk: 51, type: "Deload",   days: 5, km: 42, long: 16, comment: "Short week — travel" },
+      ]},
+      { pk: 14, type: "Peak", micros: [
+        { pk: 52, type: "Load",  days: 7, km: 68, long: 28, comment: "" },
+        { pk: 53, type: "Taper", days: 7, km: 52, long: 20, comment: "Taper starts" },
+        { pk: 54, type: "Race",  days: 7, km: 38, long: 42, comment: "Valencia Marathon" },
+      ]},
+      { pk: 15, type: "Transition", micros: [
+        { pk: 55, type: "Deload", days: 7, km: 25, long: 8, comment: "Easy jogging only" },
+        { pk: 56, type: "Deload", days: 4, km: 15, long: 6, comment: "Wrap-up" },
+      ]},
+    ];
+
+    let plan = structuredClone(INITIAL);
+    let selected = null;   // micro pk currently picked up
+    let focusPk = null;    // row to refocus after a re-render
+
+    const planEl = document.getElementById("plan");
+    const bannerEl = document.getElementById("shift-banner");
+    const metaEl = document.getElementById("plan-meta");
+    const statusEl = document.getElementById("status");
+    const resetBtn = document.getElementById("reset-btn");
+    const saveBtn = document.getElementById("save-btn");
+    const dialog = document.getElementById("payload-dialog");
+
+    // --- Date helpers ---------------------------------------------------
+    const addDays = (d, n) => { const r = new Date(d); r.setDate(r.getDate() + n); return r; };
+    const fmt = d => d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+    const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+    // Mirrors Macrocycle.hydrate(): walk mesos in order, micros in order,
+    // each start is the running cursor, cursor advances by duration_days.
+    function computeDates(source) {
+      const micro = new Map(), meso = new Map();
+      let cursor = new Date(PLAN_START + "T00:00:00");
+      for (const m of source) {
+        const mStart = new Date(cursor);
+        let days = 0;
+        for (const c of m.micros) {
+          const start = new Date(cursor);
+          micro.set(c.pk, { start, end: addDays(start, c.days - 1) });
+          cursor = addDays(cursor, c.days);
+          days += c.days;
+        }
+        meso.set(m.pk, { start: mStart, end: days ? addDays(mStart, days - 1) : mStart, days });
+      }
+      return { micro, meso, end: addDays(cursor, -1) };
+    }
+
+    const ORIGINAL = computeDates(INITIAL);
+
+    // --- Mutations ------------------------------------------------------
+    function locate(pk) {
+      for (let mi = 0; mi < plan.length; mi++) {
+        const ci = plan[mi].micros.findIndex(c => c.pk === pk);
+        if (ci !== -1) return { mi, ci };
+      }
+      return null;
+    }
+
+    function place(mesoPk, index) {
+      const { mi, ci } = locate(selected);
+      const targetMi = plan.findIndex(m => m.pk === mesoPk);
+      const [micro] = plan[mi].micros.splice(ci, 1);
+      if (targetMi === mi && ci < index) index -= 1;
+      plan[targetMi].micros.splice(index, 0, micro);
+      focusPk = selected;
+      selected = null;
+      render("Moved into " + plan[targetMi].type + ".");
+    }
+
+    function moveMeso(pk, dir) {
+      const i = plan.findIndex(m => m.pk === pk);
+      const j = dir === "up" ? i - 1 : i + 1;
+      if (j < 0 || j >= plan.length) return;
+      [plan[i], plan[j]] = [plan[j], plan[i]];
+      render(plan[j].type + " moved " + dir + ".");
+      const same = planEl.querySelector('[data-meso="' + pk + '"][data-meso-move="' + dir + '"]');
+      const target = same && !same.disabled ? same : planEl.querySelector('[data-meso="' + pk + '"]');
+      if (target) target.focus();
+    }
+
+    function toggleSelect(pk) {
+      selected = selected === pk ? null : pk;
+      focusPk = pk;
+      render(selected ? "Picked up. Choose a place-here marker." : "Put back.");
+    }
+
+    // --- Render ---------------------------------------------------------
+    function render(message) {
+      const now = computeDates(plan);
+      let shifted = 0, touchingPast = 0;
+
+      const gap = (mesoPk, index, noop) =>
+        '<div class="drop-gap' + (noop ? " is-noop" : "") + '">' +
+          '<button type="button" data-meso="' + mesoPk + '" data-index="' + index + '">Place here</button>' +
+        '</div>';
+
+      const html = plan.map((m, mesoIdx) => {
+        const md = now.meso.get(m.pk), od = ORIGINAL.meso.get(m.pk);
+        const mesoShifted = md.start.getTime() !== od.start.getTime() || md.days !== od.days;
+        const src = selected ? locate(selected) : null;
+        const srcSameMeso = src && plan[src.mi].pk === m.pk;
+
+        const rows = m.micros.map((c, i) => {
+          const d = now.micro.get(c.pk), o = ORIGINAL.micro.get(c.pk);
+          const moved = d.start.getTime() !== o.start.getTime();
+          const past = o.end < TODAY || d.end < TODAY;
+          if (moved) { shifted++; if (past) touchingPast++; }
+
+          const isNow = d.start <= TODAY && TODAY <= d.end;
+          const wasPast = o.end < TODAY;
+          const delta = Math.round((d.start - o.start) / 86400000);
+
+          const chips =
+            (isNow ? '<span class="chip chip--now">now</span>' : "") +
+            (wasPast && !isNow ? '<span class="chip">trained</span>' : "");
+
+          const shiftNote = moved
+            ? '<span class="date-shift">was ' + fmt(o.start) + ' · ' + (delta > 0 ? "+" : "") + delta + 'd</span>'
+            : "";
+          const hint = selected === c.pk
+            ? '<span class="selected-hint">Picked up — choose a marker, or tap again to put back</span>'
+            : "";
+
+          return (selected ? gap(m.pk, i, srcSameMeso && (i === src.ci || i === src.ci + 1)) : "") +
+            '<div class="micro-row' + (selected === c.pk ? " is-selected" : "") + (moved ? " is-shifted" : "") + '"' +
+                 ' data-pk="' + c.pk + '" tabindex="0" role="button" aria-pressed="' + (selected === c.pk) + '">' +
+              '<span class="micro-cell micro-cell--start">' +
+                '<span class="micro-date">' + fmt(d.start) + '</span>' + chips + shiftNote +
+              '</span>' +
+              '<span class="micro-cell" data-label="Type">' + esc(c.type) + '</span>' +
+              '<span class="micro-cell" data-label="Days">' + c.days + '</span>' +
+              '<span class="micro-cell" data-label="km">' + c.km + '</span>' +
+              '<span class="micro-cell" data-label="Long">' + c.long + '</span>' +
+              '<span class="micro-cell micro-cell--comment" data-label="Comment">' + esc(c.comment) + '</span>' +
+              hint +
+            '</div>';
+        }).join("");
+
+        const tail = selected
+          ? gap(m.pk, m.micros.length, srcSameMeso && src.ci === m.micros.length - 1)
+          : "";
+        const empty = !m.micros.length && !selected
+          ? '<p class="meso-empty">Empty — 0 days. This phase now contributes nothing to the plan.</p>'
+          : "";
+
+        const meta = md.days
+          ? fmt(md.start) + ' – ' + fmt(md.end) + ' · ' + md.days + ' days · ' +
+            m.micros.length + ' microcycle' + (m.micros.length === 1 ? "" : "s") +
+            (mesoShifted ? ' · was ' + fmt(od.start) + ', ' + od.days + ' days' : "")
+          : "no microcycles";
+
+        return '<section class="meso-group">' +
+          '<div class="meso-head">' +
+            '<span class="meso-title">' + esc(m.type) + '</span>' +
+            '<span class="meso-meta' + (mesoShifted ? " is-shifted" : "") + '">' + meta + '</span>' +
+            '<span class="meso-moves">' +
+              '<button type="button" class="secondary outline" data-meso="' + m.pk + '" data-meso-move="up"' +
+                (mesoIdx === 0 ? " disabled" : "") + ' aria-label="Move ' + esc(m.type) + ' up">&#9650;</button>' +
+              '<button type="button" class="secondary outline" data-meso="' + m.pk + '" data-meso-move="down"' +
+                (mesoIdx === plan.length - 1 ? " disabled" : "") + ' aria-label="Move ' + esc(m.type) + ' down">&#9660;</button>' +
+            '</span>' +
+          '</div>' + rows + tail + empty +
+        '</section>';
+      }).join("");
+
+      planEl.innerHTML = html;
+      document.body.classList.toggle("is-placing", selected !== null);
+
+      const totalDays = plan.reduce((n, m) => n + m.micros.reduce((s, c) => s + c.days, 0), 0);
+      metaEl.textContent =
+        "Starts " + fmt(new Date(PLAN_START + "T00:00:00")) + " · ends " + fmt(now.end) +
+        " · " + totalDays + " days total (reordering never changes plan length).";
+
+      if (shifted) {
+        bannerEl.hidden = false;
+        bannerEl.innerHTML =
+          "<strong>" + shifted + " microcycle" + (shifted === 1 ? "" : "s") + " shift date.</strong> " +
+          (touchingPast
+            ? touchingPast + " of them overlap dates you have already trained — the <em>Actual</em> columns " +
+              "for those weeks will re-bucket to whatever workouts really fall in the new window."
+            : "All of them are in the future, so no recorded workouts change hands.");
+      } else {
+        bannerEl.hidden = true;
+      }
+
+      const changed = JSON.stringify(payload()) !== JSON.stringify(payload(INITIAL));
+      resetBtn.disabled = !changed;
+      saveBtn.disabled = !changed;
+
+      if (focusPk !== null) {
+        const row = planEl.querySelector('.micro-row[data-pk="' + focusPk + '"]');
+        if (row) row.focus();
+        focusPk = null;
+      }
+      if (message) statusEl.textContent = message;
+    }
+
+    const payload = (source) => ({
+      mesocycles: (source || plan).map(m => ({ pk: m.pk, micros: m.micros.map(c => c.pk) })),
+    });
+
+    // --- Events ---------------------------------------------------------
+    planEl.addEventListener("click", e => {
+      const drop = e.target.closest(".drop-gap button");
+      if (drop) return place(Number(drop.dataset.meso), Number(drop.dataset.index));
+
+      const mesoBtn = e.target.closest("[data-meso-move]");
+      if (mesoBtn) return moveMeso(Number(mesoBtn.dataset.meso), mesoBtn.dataset.mesoMove);
+
+      const row = e.target.closest(".micro-row");
+      if (row) toggleSelect(Number(row.dataset.pk));
+    });
+
+    planEl.addEventListener("keydown", e => {
+      const row = e.target.closest(".micro-row");
+      if (row && (e.key === "Enter" || e.key === " ")) {
+        e.preventDefault();
+        toggleSelect(Number(row.dataset.pk));
+      }
+    });
+
+    document.addEventListener("keydown", e => {
+      if (e.key === "Escape" && selected !== null) {
+        focusPk = selected;
+        selected = null;
+        render("Put back.");
+      }
+    });
+
+    resetBtn.addEventListener("click", () => {
+      plan = structuredClone(INITIAL);
+      selected = null;
+      render("Order reset.");
+    });
+
+    saveBtn.addEventListener("click", () => {
+      document.getElementById("payload-json").textContent = JSON.stringify(payload(), null, 2);
+      dialog.showModal();
+    });
+    document.getElementById("payload-close").addEventListener("click", () => dialog.close());
+
+    render();
+  </script>
+</body>
+
+</html>
