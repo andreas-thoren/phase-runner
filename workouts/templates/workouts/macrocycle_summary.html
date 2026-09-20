@@ -21,7 +21,7 @@
   <div class="plan-summary-row">
     <a href="{% url 'workouts:macrocycle_detail' macro_pk=object.pk %}" role="button" class="button-slim secondary">Details</a>
     {% if rows %}
-      <a href="{% url 'workouts:reorder_cycles' macro_pk=object.pk %}" role="button" class="button-slim secondary">Reorder</a>
+      <a href="{% url 'workouts:reorder_cycles' macro_pk=object.pk %}?from=summary" role="button" class="button-slim secondary">Reorder</a>
     {% endif %}
   </div>
 

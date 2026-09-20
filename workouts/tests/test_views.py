@@ -1637,6 +1637,55 @@ class MacrocycleReorderViewTest(AuthenticatedTestMixin, TestCase):
         self.assertContains(response, self.url)
         self.assertContains(response, ">Reorder<")
 
+    # -- Origin tracking (Cancel / Save return to where you came from) -----
+
+    def summary_url(self):
+        return reverse(
+            "workouts:macrocycle_summary", kwargs={"macro_pk": self.macro.pk}
+        )
+
+    def test_cancel_defaults_to_macrocycle_detail(self):
+        response = self.client.get(self.url)
+        self.assertEqual(response.context["cancel_url"], self.macro.get_absolute_url())
+        self.assertEqual(response.context["save_url"], self.url)
+
+    def test_cancel_returns_to_summary_when_entered_from_there(self):
+        response = self.client.get(self.url, {"from": "summary"})
+        self.assertEqual(response.context["cancel_url"], self.summary_url())
+        self.assertEqual(response.context["save_url"], f"{self.url}?from=summary")
+
+    def test_save_redirects_to_summary_when_entered_from_there(self):
+        response = self.client.post(
+            f"{self.url}?from=summary",
+            self.payload(
+                (self.meso2, [self.micro3]),
+                (self.meso1, [self.micro1, self.micro2]),
+            ),
+            content_type="application/json",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["redirect"], self.summary_url())
+
+    def test_unknown_origin_falls_back_to_detail(self):
+        """?from= is whitelisted, so it cannot be used as an open redirect."""
+        for bad in ("https://evil.example.com", "workout_list", "", "../"):
+            with self.subTest(origin=bad):
+                response = self.client.get(self.url, {"from": bad})
+                self.assertEqual(
+                    response.context["cancel_url"], self.macro.get_absolute_url()
+                )
+                self.assertEqual(response.context["save_url"], self.url)
+
+    def test_summary_reorder_link_carries_origin(self):
+        response = self.client.get(self.summary_url())
+        self.assertContains(response, f"{self.url}?from=summary")
+
+    def test_detail_reorder_link_has_no_origin(self):
+        response = self.client.get(
+            reverse("workouts:macrocycle_detail", kwargs={"macro_pk": self.macro.pk})
+        )
+        self.assertNotContains(response, f"{self.url}?from=")
+
     def test_details_link_on_summary_page(self):
         """Summary mirrors the detail page's sibling-page nav row."""
         response = self.client.get(

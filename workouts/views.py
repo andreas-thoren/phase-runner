@@ -1158,17 +1158,37 @@ class MacrocycleReorderView(LoginRequiredMixin, NoCacheMixin, DetailView):
     pk_url_kwarg = "macro_pk"
     context_object_name = "macrocycle"
 
+    # Pages that may link here and that Cancel/Save should return to. Whitelisted
+    # rather than trusting the value, so ?from= can never become an open redirect.
+    ORIGINS = {"summary": "macrocycle_summary"}
+
     def get_queryset(self) -> QuerySet:
         return Macrocycle.objects.filter(user=self.request.user)
+
+    def get_origin_url(self, macro: Macrocycle) -> str:
+        """Where Cancel and a successful Save return to.
+
+        This view is reachable from two pages, unlike the CRUD views which each
+        have one natural parent, so a fixed parent URL would drop you somewhere
+        you were never at. ``?from=`` records the entry point.
+        """
+        url_name = self.ORIGINS.get(self.request.GET.get("from", ""))
+        if url_name:
+            return reverse(f"{APP_NAMESPACE}:{url_name}", kwargs={"macro_pk": macro.pk})
+        return macro.get_absolute_url()
 
     def get_context_data(self, **kwargs: Any) -> dict[str, Any]:
         context = super().get_context_data(**kwargs)
         macro = self.object.hydrate()
         context["reorder_data"] = _build_reorder_data(macro)
-        context["cancel_url"] = macro.get_absolute_url()
-        context["save_url"] = reverse(
+        context["cancel_url"] = self.get_origin_url(macro)
+        save_url = reverse(
             f"{APP_NAMESPACE}:reorder_cycles", kwargs={"macro_pk": macro.pk}
         )
+        origin = self.request.GET.get("from", "")
+        if origin in self.ORIGINS:
+            save_url = f"{save_url}?from={origin}"
+        context["save_url"] = save_url
         return context
 
     def post(self, request: HttpRequest, *args: Any, **kwargs: Any) -> JsonResponse:
@@ -1191,7 +1211,7 @@ class MacrocycleReorderView(LoginRequiredMixin, NoCacheMixin, DetailView):
             return JsonResponse({"ok": False, "error": str(exc)}, status=409)
         except ValueError as exc:
             return JsonResponse({"ok": False, "error": str(exc)}, status=400)
-        return JsonResponse({"ok": True, "redirect": macro.get_absolute_url()})
+        return JsonResponse({"ok": True, "redirect": self.get_origin_url(macro)})
 
 
 def _empty_actuals() -> dict[str, Any]:
