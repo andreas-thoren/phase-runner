@@ -16,7 +16,7 @@ Planning is the core of the app — everything else (logging, summaries, exports
 2. From the macrocycle detail page, click **Create default cycles** to auto-generate mesocycles and microcycles (configurable durations). Or add them manually.
 3. Set the macrocycle as **active** (the badge on the detail page) to make the home page redirect to its summary.
 4. Open **Summary** to compare planned goals (sessions, distance, long session) against aggregated actuals from your logged workouts.
-5. Open **Reorder** (from the macrocycle detail page or the summary toolbar) to rearrange the plan. Tap a microcycle to pick it up, then tap a *Place here* marker — including one inside a different mesocycle. Mesocycles move with the ▲ ▼ buttons. Every date the move would shift is shown inline before you save, and a banner flags any weeks you have already trained, since their **Actual** columns re-bucket to whatever workouts fall in the new window. Reordering never changes the plan's total length.
+5. Open **Reorder** (from the macrocycle detail page or the summary page) to rearrange the plan. Tap a microcycle to pick it up, then tap a *Place here* marker — including one inside a different mesocycle. Mesocycles move with the ▲ ▼ buttons. Every date the move would shift is shown inline before you save, and a banner flags any weeks you have already trained, since their **Actual** columns re-bucket to whatever workouts fall in the new window. Reordering never changes the plan's total length.
 
 ### Logging workouts
 
@@ -95,8 +95,10 @@ df = pd.read_csv("workouts_2026-04-13.csv", encoding="utf-8-sig", skiprows=1)
 
 | Shortcut | Context | Action |
 |----------|---------|--------|
-| `Ctrl+S` / `Cmd+S` | Create / Edit views | Save the form |
+| `Ctrl+S` / `Cmd+S` | Create / Edit views, Reorder | Save |
 | `E` | Detail views | Navigate to edit |
+| `Enter` / `Space` | Reorder | Pick up / put back the focused microcycle |
+| `Esc` | Reorder | Put back the picked-up microcycle |
 
 ## For developers
 
@@ -127,10 +129,10 @@ uv run python manage.py runserver
 uv run python manage.py test
 
 # Format
-uv run black .
+uv run python -m black .
 
 # Lint
-uv run pylint workouts/
+uv run python -m pylint workouts/
 ```
 
 ### Rebuilding the database

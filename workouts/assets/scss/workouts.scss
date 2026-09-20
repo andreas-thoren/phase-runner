@@ -661,6 +661,16 @@ html[data-theme="dark"] { --warn-accent: #e0a458; }
 }
 
 .micro-row {
+  // The row carries role="button" (it is a toggle), so Pico styles it as a
+  // real button. Two of those declarations have to be undone: it sets
+  // `--pico-color: var(--pico-primary-inverse)`, which is #fff in *both*
+  // themes and so was invisible on the light card, and `text-align: center`.
+  // Resetting the custom property too, so anything nested that reads
+  // var(--pico-color) resolves to the page text colour rather than white.
+  --pico-color: inherit;
+  color: inherit;
+  text-align: left;
+
   background: var(--pico-card-background-color);
   border: 1px solid transparent;
   border-radius: var(--pico-border-radius);
@@ -750,21 +760,26 @@ body.is-placing .drop-gap {
 }
 
 .drop-gap {
+  // A third colour on purpose. Blue carries structure (mesocycle bar, titles,
+  // the picked-up row's outline) and amber carries change (shifted dates), so
+  // drop markers in either one camouflage as soon as more than one row has
+  // moved. Pico's ins ("insert") token is the semantic fit for a drop target
+  // and is otherwise unused on this page.
   button {
     width: 100%;
     height: 2.1rem;
     padding: 0;
     margin: 0;
     background: transparent;
-    border: 1px dashed var(--pico-primary);
+    border: 1px dashed var(--pico-ins-color, #388e3c);
     border-radius: var(--pico-border-radius);
-    color: var(--pico-primary);
+    color: var(--pico-ins-color, #388e3c);
     font-size: 0.7rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
 
     &:hover {
-      background: color-mix(in srgb, var(--pico-primary) 18%, transparent);
+      background: color-mix(in srgb, var(--pico-ins-color, #388e3c) 18%, transparent);
       border-style: solid;
     }
   }

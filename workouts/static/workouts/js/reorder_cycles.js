@@ -17,7 +17,6 @@ const bannerEl = document.getElementById("shift-banner");
 const errorEl = document.getElementById("form-error");
 const metaEl = document.getElementById("plan-meta");
 const statusEl = document.getElementById("reorder-status");
-const resetBtn = document.getElementById("reorder-reset");
 const saveBtn = document.getElementById("reorder-save");
 
 let PLAN_START = null;
@@ -357,9 +356,7 @@ function render(message) {
     bannerEl.hidden = true;
   }
 
-  const changed = isChanged();
-  resetBtn.disabled = !changed;
-  saveBtn.disabled = !changed;
+  saveBtn.disabled = !isChanged();
 
   if (focusPk !== null) {
     const row = planEl.querySelector(`.micro-row[data-pk="${focusPk}"]`);
@@ -447,13 +444,13 @@ function init() {
       focusPk = selected;
       selected = null;
       render("Put back.");
+      return;
     }
-  });
-
-  resetBtn.addEventListener("click", () => {
-    plan = structuredClone(INITIAL);
-    selected = null;
-    render("Order reset.");
+    // Ctrl+S / Cmd+S → Save, matching form_handler.js on the CRUD form views.
+    if ((e.ctrlKey || e.metaKey) && e.key === "s") {
+      e.preventDefault();
+      if (!saveBtn.disabled) saveBtn.click();
+    }
   });
 
   saveBtn.addEventListener("click", save);

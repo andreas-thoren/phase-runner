@@ -180,7 +180,8 @@ html[data-theme=light] [data-theme-when=light] {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  column-gap: 2.5rem;
+  -moz-column-gap: 2.5rem;
+       column-gap: 2.5rem;
   row-gap: 1rem;
   margin-bottom: 3rem;
 }
