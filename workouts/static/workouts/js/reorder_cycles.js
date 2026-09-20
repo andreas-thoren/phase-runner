@@ -374,6 +374,9 @@ function render(message) {
 function showError(message) {
   errorEl.textContent = message;
   errorEl.hidden = false;
+  // The banner sits above the list (as in form_base.html) but Save is below it,
+  // so on a long plan the message would otherwise appear off-screen.
+  errorEl.scrollIntoView({ block: "center", behavior: "smooth" });
 }
 
 async function save() {

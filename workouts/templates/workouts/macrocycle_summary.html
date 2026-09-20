@@ -14,13 +14,19 @@
 {% endblock %}
 
 {% block main %}
-  <h1>{{ object.name }}</h1>
+  <div class="heading-row">
+    <h1 id="detail-heading">{{ object.name }}</h1>
+  </div>
+
+  <div class="plan-summary-row">
+    <a href="{% url 'workouts:macrocycle_detail' macro_pk=object.pk %}" role="button" class="button-slim secondary">Details</a>
+    {% if rows %}
+      <a href="{% url 'workouts:reorder_cycles' macro_pk=object.pk %}" role="button" class="button-slim secondary">Reorder</a>
+    {% endif %}
+  </div>
+
   {% if rows %}
     <div class="list-toolbar">
-      <a class="icon-btn secondary" href="{% url 'workouts:reorder_cycles' macro_pk=object.pk %}"
-         aria-label="Reorder cycles" title="Reorder cycles">
-        {% include "workouts/partials/arrow-down-up.svg" %}
-      </a>
       <button id="export-csv" class="icon-btn icon-btn--swap secondary" type="button"
               data-export-url="{% url 'workouts:export_plan_summary' macro_pk=object.pk %}"
               aria-label="Export CSV" title="Export CSV">

@@ -11,8 +11,12 @@
   <script src="{% static 'workouts/js/reorder_cycles.js' %}" defer></script>
 {% endblock %}
 
+{% block app_class %}narrow-page{% endblock %}
+
 {% block main %}
-  <h1>{{ macrocycle.name }}</h1>
+  <div class="heading-row">
+    <h1 id="detail-heading">{{ macrocycle.name }}</h1>
+  </div>
 
   {# Data block, not executable code — a whole plan tree does not fit a data-* attribute. #}
   {{ reorder_data|json_script:"reorder-data" }}
@@ -42,9 +46,6 @@
 
       <div class="list-toolbar">
         <h2>Cycles</h2>
-        <a href="{{ cancel_url }}" role="button" class="secondary button-slim" data-replace>Cancel</a>
-        <button type="button" class="secondary button-slim" id="reorder-reset" disabled>Reset</button>
-        <button type="button" class="button-slim" id="reorder-save" disabled>Save order</button>
       </div>
 
       <div class="micro-head" aria-hidden="true">
@@ -54,6 +55,14 @@
       <div id="reorder-plan"></div>
 
       <p class="sr-only" id="reorder-status" role="status" aria-live="polite"></p>
+
+      {# Mirrors form_base.html's button_row: actions sit below what they act on. #}
+      <div class="button-row">
+        <button type="button" class="secondary" id="reorder-reset" disabled>Reset</button>
+        <a class="secondary" href="{{ cancel_url }}" data-replace role="button"
+           aria-label="Cancel" title="Cancel">Cancel</a>
+        <button type="button" id="reorder-save" disabled>Save order</button>
+      </div>
     </div>
   {% else %}
     <p>No mesocycles in this plan yet.</p>

@@ -1613,6 +1613,24 @@ class MacrocycleReorderViewTest(AuthenticatedTestMixin, TestCase):
             reverse("workouts:macrocycle_summary", kwargs={"macro_pk": self.macro.pk})
         )
         self.assertContains(response, self.url)
+        self.assertContains(response, ">Reorder<")
+
+    def test_details_link_on_summary_page(self):
+        """Summary mirrors the detail page's sibling-page nav row."""
+        response = self.client.get(
+            reverse("workouts:macrocycle_summary", kwargs={"macro_pk": self.macro.pk})
+        )
+        self.assertContains(response, self.macro.get_absolute_url())
+        self.assertContains(response, ">Details<")
+
+    def test_save_and_cancel_are_below_the_list(self):
+        """Actions sit under what they act on, as on every other mutation view."""
+        html = self.client.get(self.url).content.decode()
+        self.assertLess(
+            html.index('id="reorder-plan"'), html.index('id="reorder-save"')
+        )
+        self.assertLess(html.index('id="reorder-plan"'), html.index(">Cancel<"))
+        self.assertIn('class="button-row"', html)
 
     def test_breadcrumb_ends_with_reorder(self):
         response = self.client.get(self.url)
