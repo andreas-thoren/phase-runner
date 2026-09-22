@@ -642,15 +642,16 @@ html[data-theme=dark] {
 .micro-row.is-selected.is-shifted {
   box-shadow: inset 3px 0 0 var(--warn-accent), 0 0 0 1px var(--pico-primary), 0 8px 18px rgba(0, 0, 0, 0.35);
 }
-.micro-row .micro-cell:nth-child(n+4) {
+.micro-row .micro-cell--num {
   text-align: right;
 }
 .micro-row .micro-cell--comment {
-  color: var(--pico-muted-color);
-  font-size: 0.85rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.micro-row .section-heading {
+  display: none;
 }
 .micro-row .selected-hint {
   display: block;
@@ -729,25 +730,47 @@ body.is-placing .micro-row:not(.is-selected) {
     display: none;
   }
   .micro-row {
-    grid-template-columns: 1fr 1fr;
-    grid-auto-flow: row dense;
-    gap: 0.3rem 0.8rem;
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+  .micro-row .micro-cell.micro-cell--num {
+    display: none;
+  }
+  .micro-row .section-heading {
+    display: block;
+    grid-column: 1/-1;
+    padding: 0.5rem 0 0.15rem;
+    font-size: 0.8em;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--pico-primary);
+    text-align: center;
   }
   .micro-row .micro-cell {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 0.15rem 0;
     text-align: left;
   }
   .micro-row .micro-cell::before {
-    content: attr(data-label) " ";
-    font-size: 0.66rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    color: var(--pico-muted-color);
+    content: attr(data-label) ":";
+    font-weight: bold;
+    margin-right: 0.5rem;
   }
-  .micro-row .micro-cell--start,
+  .micro-row .micro-cell--start {
+    flex-wrap: wrap;
+  }
+  .micro-row .micro-cell--start .micro-date {
+    margin-left: auto;
+  }
+  .micro-row .micro-cell--start .date-shift {
+    flex-basis: 100%;
+    text-align: right;
+  }
   .micro-row .micro-cell--comment {
-    grid-column: 1/-1;
-  }
-  .micro-row .micro-cell--start::before {
-    content: none;
+    white-space: normal;
+    overflow: visible;
   }
 }

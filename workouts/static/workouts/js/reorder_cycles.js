@@ -213,9 +213,11 @@ function mesoHead(meso, index, now) {
 }
 
 function microRow(micro, info) {
-  const start = el("span", { class: "micro-cell micro-cell--start" }, [
-    el("span", { class: "micro-date", text: fmt(info.start) }),
-  ]);
+  const start = el(
+    "span",
+    { class: "micro-cell micro-cell--start", attrs: { "data-label": "Start date" } },
+    [el("span", { class: "micro-date", text: fmt(info.start) })]
+  );
   if (info.isNow) {
     start.append(el("span", { class: "chip chip--now", text: "now" }));
   }
@@ -230,8 +232,15 @@ function microRow(micro, info) {
   }
 
   // Column order mirrors the summary table: the microcycle's own details
-  // (start, type, comment) first, then the planned numbers.
+  // (start, type, comment) first, then the planned numbers. The heading is
+  // decorative and shows only on small screens, where each row reads as a
+  // card — hidden from assistive tech, which gets the row's cells anyway.
   const cells = [
+    el("span", {
+      class: "section-heading micro-heading",
+      text: "Microcycle",
+      attrs: { "aria-hidden": "true" },
+    }),
     start,
     el("span", { class: "micro-cell", text: micro.label, attrs: { "data-label": "Type" } }),
     el("span", {
@@ -240,17 +249,17 @@ function microRow(micro, info) {
       attrs: { "data-label": "Comment" },
     }),
     el("span", {
-      class: "micro-cell",
+      class: "micro-cell micro-cell--num",
       text: String(micro.days),
       attrs: { "data-label": "Days" },
     }),
     el("span", {
-      class: "micro-cell",
+      class: "micro-cell micro-cell--num",
       text: fmtKm(micro.km),
       attrs: { "data-label": "km" },
     }),
     el("span", {
-      class: "micro-cell",
+      class: "micro-cell micro-cell--num",
       text: fmtKm(micro.long_km),
       attrs: { "data-label": "Long" },
     }),

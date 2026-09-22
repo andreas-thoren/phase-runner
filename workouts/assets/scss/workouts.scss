@@ -704,15 +704,18 @@ html[data-theme="dark"] { --warn-accent: #e0a458; }
       0 8px 18px rgba(0, 0, 0, 0.35);
   }
 
-  .micro-cell:nth-child(n + 4) { text-align: right; }
+  // By class, not position: the mobile card heading occupies the first slot,
+  // so nth-child indices no longer line up with the columns.
+  .micro-cell--num { text-align: right; }
 
   .micro-cell--comment {
-    color: var(--pico-muted-color);
-    font-size: 0.85rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
+
+  // Card heading, small screens only — see the media query below.
+  .section-heading { display: none; }
 
   .selected-hint {
     display: block;
@@ -805,27 +808,68 @@ body.is-placing .micro-row:not(.is-selected) {
 @media (max-width: 640px) {
   .micro-head { display: none; }
 
+  // Start date / Type / Comment only, each a full-width `label: value` row.
+  // Same treatment the summary table gives its microcycle cells at this
+  // width (`td.text-start`), so the two pages read alike on a phone — the
+  // summary just has more rows below these three.
   .micro-row {
-    grid-template-columns: 1fr 1fr;
-    // Comment spans the full width from the 3rd slot, which would otherwise
-    // strand the cell beside Type. Provisional — small screens get their own
-    // layout shortly.
-    grid-auto-flow: row dense;
-    gap: 0.3rem 0.8rem;
+    grid-template-columns: 1fr;
+    // Cells stack flush and supply their own vertical breathing room, as in
+    // the summary card.
+    gap: 0;
 
-    .micro-cell { text-align: left; }
+    // Days, km and Long are desktop-only. Both classes, so this outranks the
+    // generic `.micro-cell { display: flex }` below regardless of source order
+    // — with one class each they tie, and the later rule would win.
+    .micro-cell.micro-cell--num { display: none; }
 
-    .micro-cell::before {
-      content: attr(data-label) " ";
-      font-size: 0.66rem;
+    // Mirrors `.summary-table .section-heading` / `.micro-heading` at this
+    // width. Duplicated rather than shared: those rules are scoped to
+    // `.summary-table`, and the summary view is not to change.
+    .section-heading {
+      display: block;
+      grid-column: 1 / -1;
+      padding: 0.5rem 0 0.15rem;
+      font-size: 0.8em;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: var(--pico-muted-color);
+      letter-spacing: 0.05em;
+      color: var(--pico-primary);
+      text-align: center;
     }
 
-    .micro-cell--start,
-    .micro-cell--comment { grid-column: 1 / -1; }
+    .micro-cell {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding: 0.15rem 0;
+      text-align: left;
 
-    .micro-cell--start::before { content: none; }
+      &::before {
+        content: attr(data-label) ":";
+        font-weight: bold;
+        margin-right: 0.5rem;
+      }
+    }
+
+    // The date carries two things the summary has no counterpart for. Keeping
+    // them: which week is current, and how far a move shifted this one, are
+    // the reasons to be on this page at all. `margin-left: auto` holds the
+    // date and its chip together at the right rather than letting
+    // space-between strand the date mid-row; the shift note then takes a line
+    // of its own underneath.
+    .micro-cell--start {
+      flex-wrap: wrap;
+
+      .micro-date { margin-left: auto; }
+      .date-shift { flex-basis: 100%; text-align: right; }
+    }
+
+    // Wrap the comment in full instead of clipping it to one line, matching
+    // `.summary-comment` on mobile.
+    .micro-cell--comment {
+      white-space: normal;
+      overflow: visible;
+    }
   }
 }

@@ -9,5 +9,4 @@
 - Thin title row should sit between meso row and micro rows instead of on top of meso row as now. Thin top border should seperate from meso "row" above.
 
 ### Small screens
-- No title row. 3 vals per micro. Start date, Type, Comment. Same visuals and stacking as for summary view on small screens for these fields. Do not show other info per micro on small screens.
-
+- Microcycle heading could be made more specific -> Microcycle - Base 1 , etc depending on mesocycle name and order it occurs in mesocycle.
