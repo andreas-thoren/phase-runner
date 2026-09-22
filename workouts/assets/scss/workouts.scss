@@ -753,14 +753,7 @@ html[data-theme="dark"] { --warn-accent: #e0a458; }
   }
 }
 
-// ─── Drop targets: only visible while a microcycle is picked up ────────────
-.drop-gap { display: none; }
-
-body.is-placing .drop-gap {
-  display: block;
-  margin-bottom: 0.4rem;
-}
-
+// ─── Placing a microcycle ──────────────────────────────────────────────────
 // While a microcycle is picked up, the other rows are fully inert — put the
 // current one back first (tap it again, or Esc). `pointer-events: none` kills
 // the hover tint, the pointer cursor, the click and any click-focus in one
@@ -770,7 +763,12 @@ body.is-placing .micro-row:not(.is-selected) {
   pointer-events: none;
 }
 
+// Drop markers exist in the DOM only while a microcycle is picked up, and the
+// two slots either side of where it already sits are not rendered at all — see
+// render() in reorder_cycles.js.
 .drop-gap {
+  margin-bottom: 0.4rem;
+
   // A third colour on purpose. Blue carries structure (mesocycle bar, titles,
   // the picked-up row's outline) and amber carries change (shifted dates), so
   // drop markers in either one camouflage as soon as more than one row has
@@ -793,13 +791,6 @@ body.is-placing .micro-row:not(.is-selected) {
       background: color-mix(in srgb, var(--pico-ins-color, #388e3c) 18%, transparent);
       border-style: solid;
     }
-  }
-
-  // No-op slots carry the `disabled` attribute, from which Pico already
-  // supplies opacity .5 and pointer-events: none. Dim further so they read as
-  // context ("it is already here") rather than as an option.
-  &.is-noop button {
-    opacity: 0.35;
   }
 }
 

@@ -694,19 +694,13 @@ html[data-theme=dark] {
   color: var(--pico-primary);
 }
 
-.drop-gap {
-  display: none;
-}
-
-body.is-placing .drop-gap {
-  display: block;
-  margin-bottom: 0.4rem;
-}
-
 body.is-placing .micro-row:not(.is-selected) {
   pointer-events: none;
 }
 
+.drop-gap {
+  margin-bottom: 0.4rem;
+}
 .drop-gap button {
   width: 100%;
   height: 2.1rem;
@@ -723,9 +717,6 @@ body.is-placing .micro-row:not(.is-selected) {
 .drop-gap button:hover {
   background: color-mix(in srgb, var(--pico-ins-color, #388e3c) 18%, transparent);
   border-style: solid;
-}
-.drop-gap.is-noop button {
-  opacity: 0.35;
 }
 
 .sr-only {

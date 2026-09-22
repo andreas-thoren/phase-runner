@@ -154,21 +154,12 @@ function toggleSelect(pk) {
 
 // -- Rendering --------------------------------------------------------------
 
-function dropGap(mesoPk, index, noop) {
-  // The slots either side of where the row already sits are no-ops. Use the
-  // `disabled` attribute rather than CSS: a disabled button cannot be focused
-  // or activated, whereas pointer-events alone still leaves it in the tab
-  // order and reachable with Enter.
+function dropGap(mesoPk, index) {
   const button = el("button", {
     text: "Place here",
-    attrs: {
-      type: "button",
-      "data-meso": mesoPk,
-      "data-index": index,
-      ...(noop ? { disabled: "" } : {}),
-    },
+    attrs: { type: "button", "data-meso": mesoPk, "data-index": index },
   });
-  return el("div", { class: noop ? "drop-gap is-noop" : "drop-gap" }, [button]);
+  return el("div", { class: "drop-gap" }, [button]);
 }
 
 function mesoHead(meso, index, now) {
@@ -308,26 +299,21 @@ function render(message) {
       mesoHead(meso, mesoIdx, now),
     ]);
     const srcSameMeso = src !== null && plan[src.mi].pk === meso.pk;
+    // The two slots either side of where the row already sits would put it
+    // back exactly where it is, so they are not rendered at all. This holds
+    // only within the picked-up row's own mesocycle: the marker on the far
+    // side of a group boundary looks adjacent but re-parents the microcycle,
+    // which is a real change.
+    const isNoop = i => srcSameMeso && (i === src.ci || i === src.ci + 1);
 
     meso.micros.forEach((micro, i) => {
-      if (selected !== null) {
-        // The two slots either side of where it already sits are no-ops.
-        section.append(
-          dropGap(meso.pk, i, srcSameMeso && (i === src.ci || i === src.ci + 1))
-        );
-      }
+      if (selected !== null && !isNoop(i)) section.append(dropGap(meso.pk, i));
       section.append(microRow(micro, info.get(micro.pk)));
     });
 
-    if (selected !== null) {
-      section.append(
-        dropGap(
-          meso.pk,
-          meso.micros.length,
-          srcSameMeso && src.ci === meso.micros.length - 1
-        )
-      );
-    } else if (!meso.micros.length) {
+    if (selected !== null && !isNoop(meso.micros.length)) {
+      section.append(dropGap(meso.pk, meso.micros.length));
+    } else if (selected === null && !meso.micros.length) {
       section.append(
         el("p", {
           class: "meso-empty",
@@ -423,7 +409,7 @@ const isSelectable = row =>
 function onPlanClick(e) {
   const drop = e.target.closest(".drop-gap button");
   if (drop) {
-    if (!drop.disabled) place(Number(drop.dataset.meso), Number(drop.dataset.index));
+    place(Number(drop.dataset.meso), Number(drop.dataset.index));
     return;
   }
   const mesoBtn = e.target.closest("[data-meso-move]");
