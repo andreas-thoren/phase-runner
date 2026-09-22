@@ -3,7 +3,6 @@
 ## Visual changes
 
 ### Both screen sizes
-- Columns should come in same order as they do in summary view.
 - Blue vertical line should only span microcycles (same as in summary view for small screens)
 
 ### Large screens

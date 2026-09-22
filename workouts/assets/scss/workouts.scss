@@ -642,7 +642,8 @@ html[data-theme="dark"] { --warn-accent: #e0a458; }
 .micro-head,
 .micro-row {
   display: grid;
-  grid-template-columns: 9.5rem 6.5rem 3.5rem 5rem 5rem minmax(6rem, 1fr);
+  // Start | Type | Comment | Days | km | Long — the summary table's order.
+  grid-template-columns: 9.5rem 6.5rem minmax(6rem, 1fr) 3.5rem 5rem 5rem;
   gap: 0.35rem 1rem;
   align-items: center;
   padding: 0.55rem 0.8rem;
@@ -658,8 +659,7 @@ html[data-theme="dark"] { --warn-accent: #e0a458; }
   letter-spacing: 0.05em;
   color: var(--pico-muted-color);
 
-  span:nth-child(n + 3) { text-align: right; }
-  span:last-child { text-align: left; }
+  span:nth-child(n + 4) { text-align: right; }
 }
 
 .micro-row {
@@ -704,10 +704,9 @@ html[data-theme="dark"] { --warn-accent: #e0a458; }
       0 8px 18px rgba(0, 0, 0, 0.35);
   }
 
-  .micro-cell:nth-child(n + 3) { text-align: right; }
+  .micro-cell:nth-child(n + 4) { text-align: right; }
 
   .micro-cell--comment {
-    text-align: left;
     color: var(--pico-muted-color);
     font-size: 0.85rem;
     overflow: hidden;
@@ -808,6 +807,10 @@ body.is-placing .micro-row:not(.is-selected) {
 
   .micro-row {
     grid-template-columns: 1fr 1fr;
+    // Comment spans the full width from the 3rd slot, which would otherwise
+    // strand the cell beside Type. Provisional — small screens get their own
+    // layout shortly.
+    grid-auto-flow: row dense;
     gap: 0.3rem 0.8rem;
 
     .micro-cell { text-align: left; }

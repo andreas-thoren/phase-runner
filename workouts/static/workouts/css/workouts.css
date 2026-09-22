@@ -595,7 +595,7 @@ html[data-theme=dark] {
 .micro-head,
 .micro-row {
   display: grid;
-  grid-template-columns: 9.5rem 6.5rem 3.5rem 5rem 5rem minmax(6rem, 1fr);
+  grid-template-columns: 9.5rem 6.5rem minmax(6rem, 1fr) 3.5rem 5rem 5rem;
   gap: 0.35rem 1rem;
   align-items: center;
   padding: 0.55rem 0.8rem;
@@ -609,11 +609,8 @@ html[data-theme=dark] {
   letter-spacing: 0.05em;
   color: var(--pico-muted-color);
 }
-.micro-head span:nth-child(n+3) {
+.micro-head span:nth-child(n+4) {
   text-align: right;
-}
-.micro-head span:last-child {
-  text-align: left;
 }
 
 .micro-row {
@@ -645,11 +642,10 @@ html[data-theme=dark] {
 .micro-row.is-selected.is-shifted {
   box-shadow: inset 3px 0 0 var(--warn-accent), 0 0 0 1px var(--pico-primary), 0 8px 18px rgba(0, 0, 0, 0.35);
 }
-.micro-row .micro-cell:nth-child(n+3) {
+.micro-row .micro-cell:nth-child(n+4) {
   text-align: right;
 }
 .micro-row .micro-cell--comment {
-  text-align: left;
   color: var(--pico-muted-color);
   font-size: 0.85rem;
   overflow: hidden;
@@ -734,6 +730,7 @@ body.is-placing .micro-row:not(.is-selected) {
   }
   .micro-row {
     grid-template-columns: 1fr 1fr;
+    grid-auto-flow: row dense;
     gap: 0.3rem 0.8rem;
   }
   .micro-row .micro-cell {

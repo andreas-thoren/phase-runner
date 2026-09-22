@@ -229,9 +229,16 @@ function microRow(micro, info) {
     );
   }
 
+  // Column order mirrors the summary table: the microcycle's own details
+  // (start, type, comment) first, then the planned numbers.
   const cells = [
     start,
     el("span", { class: "micro-cell", text: micro.label, attrs: { "data-label": "Type" } }),
+    el("span", {
+      class: "micro-cell micro-cell--comment",
+      text: micro.comment,
+      attrs: { "data-label": "Comment" },
+    }),
     el("span", {
       class: "micro-cell",
       text: String(micro.days),
@@ -246,11 +253,6 @@ function microRow(micro, info) {
       class: "micro-cell",
       text: fmtKm(micro.long_km),
       attrs: { "data-label": "Long" },
-    }),
-    el("span", {
-      class: "micro-cell micro-cell--comment",
-      text: micro.comment,
-      attrs: { "data-label": "Comment" },
     }),
   ];
 
