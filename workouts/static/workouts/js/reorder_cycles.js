@@ -172,11 +172,16 @@ function mesoHead(meso, index, now) {
     md.count !== od.count;
   const range = d => `${fmt(d.start)} – ${fmt(d.end)}`;
 
-  let meta = "no microcycles";
+  const meta = ["no microcycles"];
   if (md.days) {
-    meta = `${range(md)} · ${md.count} microcycle${md.count === 1 ? "" : "s"}`;
+    meta[0] = `${range(md)} · ${md.count} microcycle${md.count === 1 ? "" : "s"}`;
     if (mesoShifted) {
-      meta += ` · was ${range(od)} (${od.count} cycle${od.count === 1 ? "" : "s"})`;
+      meta.push(
+        el("span", {
+          class: "meso-was",
+          text: `was ${range(od)} (${od.count} cycle${od.count === 1 ? "" : "s"})`,
+        }),
+      );
     }
   }
 
@@ -207,10 +212,7 @@ function mesoHead(meso, index, now) {
 
   return el("div", { class: "meso-head" }, [
     el("span", { class: "meso-title", text: meso.label }),
-    el("span", {
-      class: mesoShifted ? "meso-meta is-shifted" : "meso-meta",
-      text: meta,
-    }),
+    el("span", { class: mesoShifted ? "meso-meta is-shifted" : "meso-meta" }, meta),
     moves,
   ]);
 }

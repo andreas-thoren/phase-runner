@@ -593,15 +593,18 @@ html[data-theme="dark"] { --warn-accent: #e0a458; }
   margin-bottom: 2.25rem;
 }
 
+// Never wraps, so the ▲▼ buttons always share the title's row. If space runs
+// short the descriptor's text wraps inside its own slot instead; on phones it
+// drops to a full-width row of its own (see the media query below).
 .meso-head {
   display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
+  align-items: center;
   gap: 0.4rem 0.9rem;
   margin-bottom: 0.55rem;
 }
 
 .meso-title {
+  flex-shrink: 0;
   font-weight: 700;
   font-size: 1.1rem;
   letter-spacing: 0.05em;
@@ -611,14 +614,18 @@ html[data-theme="dark"] { --warn-accent: #e0a458; }
 
 .meso-meta {
   font-size: 0.8rem;
+  font-style: italic;
   color: var(--pico-muted-color);
 
   &.is-shifted { color: var(--warn-accent); }
 }
 
+// The original span and count, on its own line under the new ones.
+.meso-was { display: block; }
+
 .meso-moves {
+  flex-shrink: 0;
   margin-left: auto;
-  align-self: center;
   display: flex;
   gap: 0.4rem;
 
@@ -733,6 +740,7 @@ html[data-theme="dark"] { --warn-accent: #e0a458; }
 .date-shift {
   display: block;
   font-size: 0.7rem;
+  font-style: italic;
   color: var(--warn-accent);
   font-variant-numeric: tabular-nums;
 }
@@ -806,6 +814,14 @@ body.is-placing .micro-row:not(.is-selected) {
 }
 
 @media (max-width: 640px) {
+  // Title and ▲▼ stay on the top row; the descriptor takes the next one.
+  .meso-head { flex-wrap: wrap; }
+
+  .meso-meta {
+    order: 1;
+    flex-basis: 100%;
+  }
+
   .micro-head { display: none; }
 
   // Start date / Type / Comment only, each a full-width `label: value` row.
