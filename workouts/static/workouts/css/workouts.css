@@ -607,8 +607,8 @@ html[data-theme=dark] {
 }
 
 .micro-head {
-  padding-bottom: 0.2rem;
-  padding-left: calc(1.7rem + 3px);
+  padding-block: 0.35rem;
+  border-top: 1px solid var(--pico-muted-border-color);
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;

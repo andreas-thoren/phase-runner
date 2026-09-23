@@ -217,6 +217,16 @@ function mesoHead(meso, index, now) {
   ]);
 }
 
+const MICRO_COLUMNS = ["Start date", "Type", "Comment", "Days", "km", "Long"];
+
+function microHead() {
+  return el(
+    "div",
+    { class: "micro-head", attrs: { "aria-hidden": "true" } },
+    MICRO_COLUMNS.map(text => el("span", { text }))
+  );
+}
+
 function microRow(micro, info) {
   const start = el(
     "span",
@@ -314,6 +324,9 @@ function render(message) {
     const section = el("section", { class: "meso-group" }, [
       mesoHead(meso, mesoIdx, now),
     ]);
+    // Column titles per group, between its heading and its rows. An empty
+    // group has no rows to label.
+    if (meso.micros.length) section.append(microHead());
     const srcSameMeso = src !== null && plan[src.mi].pk === meso.pk;
     // The two slots either side of where the row already sits would put it
     // back exactly where it is, so they are not rendered at all. This holds

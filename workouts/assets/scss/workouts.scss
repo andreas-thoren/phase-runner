@@ -656,11 +656,13 @@ html[data-theme="dark"] { --warn-accent: #e0a458; }
   padding: 0.55rem 0.8rem;
 }
 
+// One per mesocycle, between its heading and its rows. Inside .meso-group
+// like the rows, so the shared padding lines the columns up.
 .micro-head {
-  padding-bottom: 0.2rem;
-  // Rows sit inside .meso-group, which adds a 3px bar + 0.9rem padding.
-  // Match it so the header columns line up with the row columns.
-  padding-left: calc(0.8rem + 0.9rem + 3px);
+  // Equal above and below, so the titles sit centred between the border and
+  // the first row.
+  padding-block: 0.35rem;
+  border-top: 1px solid var(--pico-muted-border-color);
   font-size: 0.72rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
