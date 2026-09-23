@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Microcycle cards v2</title>
+<!-- Real app CSS, so Pico's theme, fonts and the existing .chip render as in the app. -->
+<link rel="stylesheet" href="../../static/css/pico.min.css">
+<link rel="stylesheet" href="../../static/css/pico_override.css">
+<link rel="stylesheet" href="../../workouts/static/workouts/css/style.css">
+<link rel="stylesheet" href="../../workouts/static/workouts/css/workouts.css">
+<style>
+/* ── Proposed new tokens: HR zone colours, per theme ─────────────────── */
+:root, html[data-theme="light"] {
+  --z1: #7a8699; --z2: #1f77c4; --z3: #2e9460; --z4: #c98518; --z5: #c9453f;
+}
+html[data-theme="dark"] {
+  --z1: #8a96a8; --z2: #3b9ae1; --z3: #3fb67a; --z4: #e0a14a; --z5: #e0655f;
+}
+
+body { background: var(--pico-background-color); }
+
+/* ── Mockup chrome (not part of the proposal) ─────────────────────────── */
+.mock-controls {
+  max-width: 390px; margin: 0 auto; padding: 1rem 1rem 0;
+  display: grid; gap: 0.5rem; font-size: 0.8rem;
+}
+.mock-controls label { display: flex; align-items: center; gap: 0.5rem; margin: 0; }
+.mock-controls select { margin: 0; padding: 0.25rem 2rem 0.25rem 0.5rem; font-size: 0.8rem; height: auto; }
+.mock-controls button { margin: 0; padding: 0.25rem 0.75rem; font-size: 0.8rem; width: auto; }
+.mock-note { color: var(--pico-muted-color); margin: 0; }
+
+.phone { max-width: 390px; margin: 0 auto; padding: 1.5rem 16px 3rem; }
+
+/* ── Mesocycle group: unchanged from today (meso-group + meso-title mixins) ── */
+.meso {
+  border-left: 3px solid var(--pico-primary);
+  padding-left: 0.9rem;
+  margin-bottom: 2.25rem;
+}
+.meso-head { margin-bottom: 0.75rem; }
+.meso-head a {
+  font-weight: 700; font-size: 1.1rem; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--pico-primary); text-decoration: none;
+}
+.meso-head .meso-meta { display: block; font-size: 0.8rem; color: var(--pico-muted-color); }
+
+/* ── Microcycle card ──────────────────────────────────────────────────── */
+.mc-card {
+  font-size: 0.9em;                 /* $card-font-size */
+  padding: 0;
+  margin: 0;
+  background-color: var(--pico-card-background-color);
+  border-radius: var(--pico-border-radius);
+  box-shadow: inset 0 0 0 1px var(--pico-muted-border-color);   /* $card-frame */
+}
+.mc-card + .mc-card { margin-top: 1.5rem; }   /* $card-gap */
+
+/* Two link areas. Each holds one real <a>; its ::after stretches over the
+   whole area, so the area is one tap target and one Tab stop. */
+.mc-area { position: relative; padding: 0.75rem 1rem; transition: background-color 0.15s; }
+.mc-area--plan   { border-radius: var(--pico-border-radius) var(--pico-border-radius) 0 0; }
+.mc-area--actual {
+  border-radius: 0 0 var(--pico-border-radius) var(--pico-border-radius);
+  border-top: 1px solid var(--pico-muted-border-color);
+}
+.mc-link::after { content: ""; position: absolute; inset: 0; border-radius: inherit; }
+.mc-link:focus-visible { outline: none; box-shadow: none; }
+
+/* Same tints as today's zones: plan = primary, actual = ins. */
+.mc-area--plan:hover,
+.mc-area--plan:has(.mc-link:focus-visible) {
+  background-color: color-mix(in srgb, var(--pico-primary) 12%, transparent);
+}
+.mc-area--actual:hover,
+.mc-area--actual:has(.mc-link:focus-visible) {
+  background-color: color-mix(in srgb, var(--pico-ins-color) 12%, transparent);
+}
+/* Keyboard focus additionally gets a ring — the only ring on the page. */
+.mc-area:has(.mc-link:focus-visible) {
+  outline: 2px solid var(--pico-primary);
+  outline-offset: -2px;
+}
+
+/* Header */
+.mc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
+.mc-label {
+  display: block; font-size: 0.8em; font-weight: 700; letter-spacing: 0.05em;
+  text-transform: uppercase; color: var(--pico-primary);
+}
+.mc-title { margin: 0.1rem 0 0; font-size: 1.1rem; }
+.mc-card .mc-title a { color: inherit; text-decoration: none; }
+.mc-badges { display: flex; align-items: center; flex-shrink: 0; }
+.mc-type {
+  font-size: 0.8em; padding: 0.1rem 0.6rem; border-radius: 1rem;
+  border: 1px solid var(--pico-muted-border-color); color: var(--pico-muted-color);
+}
+.mc-comment { margin: 0.5rem 0 0; color: var(--pico-muted-color); line-height: 1.4; }
+
+/* Section headings inside the actual area */
+.mc-section {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-bottom: 0.4rem;
+}
+.mc-section + * { margin-top: 0; }
+.mc-section h4 {
+  margin: 0; font-size: 0.75em; font-weight: 700; letter-spacing: 0.08em;
+  text-transform: uppercase; color: var(--pico-muted-color);
+}
+.mc-section a { font-size: 0.85em; font-weight: 600; text-decoration: none; }
+.mc-section--gap { margin-top: 1rem; }
+
+/* Plan vs actual rows */
+.mc-row { margin-bottom: 0.55rem; }
+.mc-row-line { display: flex; justify-content: space-between; align-items: baseline; }
+.mc-row-line b { font-weight: 700; }
+.mc-row-line .of { color: var(--pico-muted-color); }
+.mc-row progress {
+  display: block; height: 0.35rem; margin: 0.25rem 0 0;
+}
+.mc-row progress.is-met { --pico-progress-color: var(--pico-ins-color); }
+.mc-extra { margin: 0.15rem 0 0; font-size: 0.9em; color: var(--pico-muted-color); }
+.mc-extra b { color: var(--pico-color); }
+
+/* Intensity */
+.zbar { display: flex; gap: 2px; height: 0.5rem; border-radius: 0.25rem; overflow: hidden; }
+.zbar span { flex-basis: 0; min-width: 3px; }
+.zlegend {
+  display: grid; grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin-top: 0.35rem; font-size: 0.85em;
+}
+.zlegend span { color: var(--pico-muted-color); white-space: nowrap; }
+.zlegend span::before {
+  content: ""; display: inline-block; width: 0.55em; height: 0.55em;
+  border-radius: 2px; margin-right: 0.3em; background: var(--c);
+}
+.zlegend b { color: var(--pico-color); font-weight: 600; }
+.mc-loads { margin: 0.6rem 0 0; color: var(--pico-muted-color); }
+.mc-loads b { color: var(--pico-color); }
+
+/* ── Current week: variants to compare ───────────────────────────────── */
+body[data-now="tint"] .mc-card.is-now {
+  background-color: color-mix(in srgb, var(--pico-primary) 7%, var(--pico-card-background-color));
+}
+body[data-now="edge"] .mc-card.is-now {
+  box-shadow: inset 0 3px 0 var(--pico-primary), inset 0 0 0 1px var(--pico-muted-border-color);
+}
+</style>
+</head>
+<body data-now="tint">
+
+<div class="mock-controls">
+  <p class="mock-note">
+    Mockup v2 — phone-width view (≤640 px). Hover or Tab through the cards:
+    each card has two link areas, the header (→ microcycle) and the rest (→ workouts).
+  </p>
+  <label>Current week:
+    <select id="now-style">
+      <option value="chip">now chip only</option>
+      <option value="tint" selected>now chip + tint</option>
+      <option value="edge">now chip + top edge</option>
+    </select>
+  </label>
+  <label><button type="button" class="secondary" id="theme">Toggle light / dark</button></label>
+</div>
+
+<div class="phone">
+
+  <section class="meso">
+    <div class="meso-head">
+      <a href="#meso-base">Base</a>
+      <span class="meso-meta">Mon 7 Sep – Sun 27 Sep · 3 microcycles</span>
+    </div>
+
+    <!-- Past week, no plan: same layout, no denominators or bars -->
+    <article class="mc-card">
+      <div class="mc-area mc-area--plan">
+        <div class="mc-head">
+          <div>
+            <span class="mc-label">Base 1 / 3</span>
+            <h3 class="mc-title"><a class="mc-link" href="#micro-1">Mon 7 – Sun 13 Sep</a></h3>
+          </div>
+          <div class="mc-badges"><span class="mc-type">Intro</span></div>
+        </div>
+      </div>
+      <div class="mc-area mc-area--actual">
+        <div class="mc-section">
+          <h4>Actual</h4>
+          <a class="mc-link" href="#workouts-1" aria-label="Workouts, Mon 7 – Sun 13 Sep">Workouts ›</a>
+        </div>
+        <div class="mc-row"><div class="mc-row-line"><span>Runs</span><span><b>3</b></span></div></div>
+        <div class="mc-row"><div class="mc-row-line"><span>Distance</span><span><b>21.4</b> <span class="of">km</span></span></div></div>
+        <div class="mc-row"><div class="mc-row-line"><span>Long run</span><span><b>8.3</b> <span class="of">km</span></span></div></div>
+
+        <div class="mc-section mc-section--gap"><h4>Intensity</h4></div>
+        <div class="zbar" aria-hidden="true">
+          <span style="flex-grow:28; background:var(--z1)"></span>
+          <span style="flex-grow:37; background:var(--z2)"></span>
+          <span style="flex-grow:26; background:var(--z3)"></span>
+          <span style="flex-grow:5;  background:var(--z4)"></span>
+          <span style="flex-grow:4;  background:var(--z5)"></span>
+        </div>
+        <div class="zlegend">
+          <span style="--c:var(--z1)">Z1 <b>28%</b></span>
+          <span style="--c:var(--z2)">Z2 <b>37%</b></span>
+          <span style="--c:var(--z3)">Z3 <b>26%</b></span>
+          <span style="--c:var(--z4)">Z4 <b>5%</b></span>
+          <span style="--c:var(--z5)">Z5 <b>4%</b></span>
+        </div>
+        <p class="mc-loads">Run load <b>322</b> · Total load <b>322</b></p>
+      </div>
+    </article>
+
+    <!-- Past week, planned and met -->
+    <article class="mc-card">
+      <div class="mc-area mc-area--plan">
+        <div class="mc-head">
+          <div>
+            <span class="mc-label">Base 2 / 3</span>
+            <h3 class="mc-title"><a class="mc-link" href="#micro-2">Mon 14 – Sun 20 Sep</a></h3>
+          </div>
+          <div class="mc-badges"><span class="mc-type">Load</span></div>
+        </div>
+        <p class="mc-comment">8 + 5 + 10 km. Kvalitetspass = Lätt progression. Strides x 4 under baspass. Hopprep efter kvalitetspass.</p>
+      </div>
+      <div class="mc-area mc-area--actual">
+        <div class="mc-section">
+          <h4>Plan vs actual</h4>
+          <a class="mc-link" href="#workouts-2" aria-label="Workouts, Mon 14 – Sun 20 Sep">Workouts ›</a>
+        </div>
+        <div class="mc-row">
+          <div class="mc-row-line"><span>Runs</span><span><b>3</b> <span class="of">/ 3</span></span></div>
+          <progress class="is-met" value="3" max="3"></progress>
+        </div>
+        <div class="mc-row">
+          <div class="mc-row-line"><span>Distance</span><span><b>22.8</b> <span class="of">/ 23 km</span></span></div>
+          <progress value="22.8" max="23"></progress>
+        </div>
+        <div class="mc-row">
+          <div class="mc-row-line"><span>Long run</span><span><b>10.0</b> <span class="of">/ 10 km</span></span></div>
+          <progress class="is-met" value="10" max="10"></progress>
+        </div>
+        <p class="mc-extra">Strength <b>1</b> / 1</p>
+
+        <div class="mc-section mc-section--gap"><h4>Intensity</h4></div>
+        <div class="zbar" aria-hidden="true">
+          <span style="flex-grow:31; background:var(--z1)"></span>
+          <span style="flex-grow:40; background:var(--z2)"></span>
+          <span style="flex-grow:18; background:var(--z3)"></span>
+          <span style="flex-grow:8;  background:var(--z4)"></span>
+          <span style="flex-grow:3;  background:var(--z5)"></span>
+        </div>
+        <div class="zlegend">
+          <span style="--c:var(--z1)">Z1 <b>31%</b></span>
+          <span style="--c:var(--z2)">Z2 <b>40%</b></span>
+          <span style="--c:var(--z3)">Z3 <b>18%</b></span>
+          <span style="--c:var(--z4)">Z4 <b>8%</b></span>
+          <span style="--c:var(--z5)">Z5 <b>3%</b></span>
+        </div>
+        <p class="mc-loads">Run load <b>341</b> · Total load <b>389</b></p>
+      </div>
+    </article>
+
+    <!-- Current week, in progress -->
+    <article class="mc-card is-now">
+      <div class="mc-area mc-area--plan">
+        <div class="mc-head">
+          <div>
+            <span class="mc-label">Base 3 / 3</span>
+            <h3 class="mc-title"><a class="mc-link" href="#micro-3">Mon 21 – Sun 27 Sep</a></h3>
+          </div>
+          <div class="mc-badges"><span class="mc-type">Deload</span><span class="chip chip--now">now</span></div>
+        </div>
+        <p class="mc-comment">Lugn vecka. 6 + 5 + 8 km, allt i Z2.</p>
+      </div>
+      <div class="mc-area mc-area--actual">
+        <div class="mc-section">
+          <h4>Plan vs actual</h4>
+          <a class="mc-link" href="#workouts-3" aria-label="Workouts, Mon 21 – Sun 27 Sep">Workouts ›</a>
+        </div>
+        <div class="mc-row">
+          <div class="mc-row-line"><span>Runs</span><span><b>2</b> <span class="of">/ 3</span></span></div>
+          <progress value="2" max="3"></progress>
+        </div>
+        <div class="mc-row">
+          <div class="mc-row-line"><span>Distance</span><span><b>11.5</b> <span class="of">/ 19 km</span></span></div>
+          <progress value="11.5" max="19"></progress>
+        </div>
+        <div class="mc-row">
+          <div class="mc-row-line"><span>Long run</span><span><b>6.5</b> <span class="of">/ 8 km</span></span></div>
+          <progress value="6.5" max="8"></progress>
+        </div>
+        <p class="mc-extra">Cross-training <b>1</b> / 1 · Strength <b>0</b> / 1</p>
+
+        <div class="mc-section mc-section--gap"><h4>Intensity</h4></div>
+        <div class="zbar" aria-hidden="true">
+          <span style="flex-grow:22; background:var(--z1)"></span>
+          <span style="flex-grow:71; background:var(--z2)"></span>
+          <span style="flex-grow:7;  background:var(--z3)"></span>
+        </div>
+        <div class="zlegend">
+          <span style="--c:var(--z1)">Z1 <b>22%</b></span>
+          <span style="--c:var(--z2)">Z2 <b>71%</b></span>
+          <span style="--c:var(--z3)">Z3 <b>7%</b></span>
+          <span style="--c:var(--z4)">Z4 <b>0%</b></span>
+          <span style="--c:var(--z5)">Z5 <b>0%</b></span>
+        </div>
+        <p class="mc-loads">Run load <b>118</b> · Total load <b>176</b></p>
+      </div>
+    </article>
+  </section>
+
+  <section class="meso">
+    <div class="meso-head">
+      <a href="#meso-build">Build</a>
+      <span class="meso-meta">Mon 28 Sep – Sun 25 Oct · 4 microcycles</span>
+    </div>
+
+    <!-- Future week: plan only, empty bars, no Intensity -->
+    <article class="mc-card">
+      <div class="mc-area mc-area--plan">
+        <div class="mc-head">
+          <div>
+            <span class="mc-label">Build 1 / 4</span>
+            <h3 class="mc-title"><a class="mc-link" href="#micro-4">Mon 28 Sep – Sun 4 Oct</a></h3>
+          </div>
+          <div class="mc-badges"><span class="mc-type">Load</span></div>
+        </div>
+        <p class="mc-comment">Första tröskelpasset: 3 × 8 min. Långpass med sista 3 km i maratonfart.</p>
+      </div>
+      <div class="mc-area mc-area--actual">
+        <div class="mc-section">
+          <h4>Plan vs actual</h4>
+          <a class="mc-link" href="#workouts-4" aria-label="Workouts, Mon 28 Sep – Sun 4 Oct">Workouts ›</a>
+        </div>
+        <div class="mc-row">
+          <div class="mc-row-line"><span>Runs</span><span><b>0</b> <span class="of">/ 4</span></span></div>
+          <progress value="0" max="4"></progress>
+        </div>
+        <div class="mc-row">
+          <div class="mc-row-line"><span>Distance</span><span><b>0</b> <span class="of">/ 28 km</span></span></div>
+          <progress value="0" max="28"></progress>
+        </div>
+        <div class="mc-row">
+          <div class="mc-row-line"><span>Long run</span><span><b>0</b> <span class="of">/ 12 km</span></span></div>
+          <progress value="0" max="12"></progress>
+        </div>
+        <p class="mc-extra">Cross-training <b>0</b> / 1 · Strength <b>0</b> / 1</p>
+      </div>
+    </article>
+
+    <!-- Non-standard length: the only case the label shows days -->
+    <article class="mc-card">
+      <div class="mc-area mc-area--plan">
+        <div class="mc-head">
+          <div>
+            <span class="mc-label">Build 2 / 4 · 10 days</span>
+            <h3 class="mc-title"><a class="mc-link" href="#micro-5">Mon 5 – Wed 14 Oct</a></h3>
+          </div>
+          <div class="mc-badges"><span class="mc-type">Overload</span></div>
+        </div>
+      </div>
+      <div class="mc-area mc-area--actual">
+        <div class="mc-section">
+          <h4>Plan vs actual</h4>
+          <a class="mc-link" href="#workouts-5" aria-label="Workouts, Mon 5 – Wed 14 Oct">Workouts ›</a>
+        </div>
+        <div class="mc-row">
+          <div class="mc-row-line"><span>Runs</span><span><b>0</b> <span class="of">/ 6</span></span></div>
+          <progress value="0" max="6"></progress>
+        </div>
+        <div class="mc-row">
+          <div class="mc-row-line"><span>Distance</span><span><b>0</b> <span class="of">/ 45 km</span></span></div>
+          <progress value="0" max="45"></progress>
+        </div>
+        <div class="mc-row">
+          <div class="mc-row-line"><span>Long run</span><span><b>0</b> <span class="of">/ 16 km</span></span></div>
+          <progress value="0" max="16"></progress>
+        </div>
+      </div>
+    </article>
+  </section>
+
+</div>
+
+<script>
+document.getElementById("now-style").addEventListener("change", function (e) {
+  document.body.dataset.now = e.target.value;
+});
+document.getElementById("theme").addEventListener("click", function () {
+  var html = document.documentElement;
+  html.dataset.theme = html.dataset.theme === "dark" ? "light" : "dark";
+});
+// Mockup: links go nowhere.
+document.querySelectorAll(".mc-link, .meso-head a").forEach(function (a) {
+  a.addEventListener("click", function (e) { e.preventDefault(); });
+});
+</script>
+</body>
+</html>
