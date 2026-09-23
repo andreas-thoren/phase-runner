@@ -73,6 +73,7 @@ function computeDates(source) {
       start: mStart,
       end: days ? addDays(mStart, days - 1) : mStart,
       days,
+      count: m.micros.length,
     });
   }
   return { micro, meso, end: addDays(cursor, -1) };
@@ -166,15 +167,17 @@ function mesoHead(meso, index, now) {
   const md = now.meso.get(meso.pk);
   const od = ORIGINAL.meso.get(meso.pk);
   const mesoShifted =
-    md.start.getTime() !== od.start.getTime() || md.days !== od.days;
+    md.start.getTime() !== od.start.getTime() ||
+    md.end.getTime() !== od.end.getTime() ||
+    md.count !== od.count;
+  const range = d => `${fmt(d.start)} – ${fmt(d.end)}`;
 
   let meta = "no microcycles";
   if (md.days) {
-    const count = meso.micros.length;
-    meta =
-      `${fmt(md.start)} – ${fmt(md.end)} · ${md.days} days · ` +
-      `${count} microcycle${count === 1 ? "" : "s"}`;
-    if (mesoShifted) meta += ` · was ${fmt(od.start)}, ${od.days} days`;
+    meta = `${range(md)} · ${md.count} microcycle${md.count === 1 ? "" : "s"}`;
+    if (mesoShifted) {
+      meta += ` · was ${range(od)} (${od.count} cycle${od.count === 1 ? "" : "s"})`;
+    }
   }
 
   const moves = el("span", { class: "meso-moves" }, [
