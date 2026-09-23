@@ -1339,7 +1339,7 @@ def _build_summary_rows(
     for meso in macro.hydrated_mesocycles:
         meso_first = True
         meso_micro_count = len(meso.hydrated_microcycles)
-        for micro in meso.hydrated_microcycles:
+        for position, micro in enumerate(meso.hydrated_microcycles, start=1):
             actuals = actuals_by_micro.get(micro.pk, _empty_actuals())
             date_from = micro.start_date.isoformat()
             date_to = micro.end_date.isoformat()
@@ -1358,6 +1358,12 @@ def _build_summary_rows(
                     "meso_url": meso.get_absolute_url(),
                     "meso_first_row": meso_first,
                     "meso_rowspan": meso_micro_count if meso_first else 0,
+                    # Mobile card headings: "Base · <dates> · 4 microcycles"
+                    # above the group, "Microcycle – Base 2 / 4" on each card.
+                    "meso_start_date": meso.start_date,
+                    "meso_end_date": meso.end_date,
+                    "meso_micro_count": meso_micro_count,
+                    "meso_position": position,
                     "micro_type_display": micro.get_micro_type_display(),
                     "micro_url": micro.get_absolute_url(),
                     "workouts_url": (

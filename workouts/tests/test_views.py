@@ -1140,6 +1140,21 @@ class MacrocycleSummaryViewTest(AuthenticatedTestMixin, TestCase):
         self.assertTrue(rows[2]["meso_first_row"])
         self.assertEqual(rows[2]["meso_rowspan"], 1)
 
+    def test_meso_position_and_count(self):
+        response = self.client.get(self.url)
+        rows = response.context["rows"]
+        self.assertEqual(
+            [(r["meso_position"], r["meso_micro_count"]) for r in rows],
+            [(1, 2), (2, 2), (1, 1)],
+        )
+
+    def test_mobile_card_headings_in_rendered_html(self):
+        response = self.client.get(self.url)
+        self.assertContains(response, "Microcycle – Base 2 / 2")
+        self.assertContains(response, "Microcycle – Build 1 / 1")
+        self.assertContains(response, "· 2 microcycles</span>")
+        self.assertContains(response, "· 1 microcycle</span>")
+
     def test_rowspan_in_rendered_html(self):
         response = self.client.get(self.url)
         self.assertContains(response, 'rowspan="2"')

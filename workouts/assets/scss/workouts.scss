@@ -309,7 +309,10 @@
 }
 
 // Section sub-headings live in the DOM for mobile but are invisible on desktop.
-.summary-table .section-heading { display: none; }
+// So does the mesocycle descriptor, which the rotated desktop header has no
+// room for. Three classes, so it outranks `.meso-header > span` above.
+.summary-table .section-heading,
+.summary-table .meso-header .meso-meta { display: none; }
 
 @media (max-width: 640px) {
 
@@ -402,15 +405,16 @@
     td:not(.zone-hover):not(.zone-focus),
     th:not(.zone-hover):not(.zone-focus) { background-color: transparent; }
 
-    // First card of a meso: extra top margin for the lifted meso heading +
-    // visible inter-meso gap.
+    // First card of a meso: room above it for the lifted meso heading, plus
+    // the inter-meso gap — the same 2.25rem the reorder page leaves between
+    // groups. The bar extends up through the heading room only, so it starts
+    // level with the heading's top, as `.meso-group`'s border does there.
     .meso-group-start {
-      margin-top: 3rem;
-      &:first-child { margin-top: 1.75rem; } // Just heading room, no inter-meso gap above.
+      --meso-heading-room: 3.8rem;
+      margin-top: calc(var(--meso-heading-room) + 2.25rem);
+      &:first-child { margin-top: var(--meso-heading-room); }
 
-      // Bar starts at the card's top — does not extend up beside the meso
-      // heading or into the inter-meso gap.
-      &::before { top: 0; }
+      &::before { top: calc(-1 * var(--meso-heading-room)); }
     }
     // Last card in a meso: don't extend the bar below into the inter-meso gap.
     tr:has(+ .meso-group-start)::before,
@@ -418,28 +422,46 @@
       bottom: 0;
     }
 
-    // Meso TYPE: lifted out of the card via absolute positioning so it sits in
-    // the empty space above the card with no card background or border around it.
-    // `bottom: 100%` anchors the heading's bottom edge at the card's top edge.
+    // Meso heading: lifted out of the card via absolute positioning so it sits
+    // in the heading room above the card, with no card background or border.
+    // Top-anchored at the bar's top edge. Type and descriptor mirror the
+    // reorder page's `.meso-head` / `.meso-title`; the descriptor reuses its
+    // `.meso-meta` rules, which already put it on a row of its own here.
     .meso-header {
       position: absolute;
-      bottom: 100%;
+      top: calc(-1 * var(--meso-heading-room));
       left: 0;
       right: 0;
-      margin-bottom: 0.25rem;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 0.4rem 0.9rem;
       writing-mode: horizontal-tb;
       transform: none;
       background: transparent;
       border: none;
-      padding: 0 0 0 0rem; // align with the card's content padding-left
-      text-align: center;
+      padding: 0;
+      text-align: left;
 
       a {
         writing-mode: horizontal-tb;
         transform: none;
-        font-size: 1.25em;
-        color: var(--pico-primary);
+        font-weight: 700;
+        font-size: 1.1rem;
+        letter-spacing: 0.05em;
         text-transform: uppercase;
+        color: var(--pico-primary);
+      }
+
+      // Undo the desktop `.meso-header > span` rotation and sizing, which
+      // outrank `.meso-meta`'s own font-size.
+      .meso-meta {
+        display: block;
+        writing-mode: horizontal-tb;
+        transform: none;
+        white-space: normal;
+        font-size: 0.8rem;
+        font-weight: 400;
       }
     }
 
@@ -843,7 +865,7 @@ body.is-placing .micro-row:not(.is-selected) {
 
     // Mirrors `.summary-table .section-heading` / `.micro-heading` at this
     // width. Duplicated rather than shared: those rules are scoped to
-    // `.summary-table`, and the summary view is not to change.
+    // `.summary-table`, a table with its own layout concerns.
     .section-heading {
       display: block;
       grid-column: 1 / -1;
