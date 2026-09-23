@@ -227,7 +227,8 @@ function microHead() {
   );
 }
 
-function microRow(micro, info) {
+// `heading` names the card's group and position, e.g. "Microcycle – Base 2 / 4".
+function microRow(micro, info, heading) {
   const start = el(
     "span",
     { class: "micro-cell micro-cell--start", attrs: { "data-label": "Start date" } },
@@ -253,7 +254,7 @@ function microRow(micro, info) {
   const cells = [
     el("span", {
       class: "section-heading micro-heading",
-      text: "Microcycle",
+      text: heading,
       attrs: { "aria-hidden": "true" },
     }),
     start,
@@ -337,7 +338,8 @@ function render(message) {
 
     meso.micros.forEach((micro, i) => {
       if (selected !== null && !isNoop(i)) section.append(dropGap(meso.pk, i));
-      section.append(microRow(micro, info.get(micro.pk)));
+      const heading = `Microcycle – ${meso.label} ${i + 1} / ${meso.micros.length}`;
+      section.append(microRow(micro, info.get(micro.pk), heading));
     });
 
     if (selected !== null && !isNoop(meso.micros.length)) {
