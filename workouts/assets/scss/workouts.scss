@@ -1,4 +1,5 @@
 @use 'variables' as v;
+@use 'cards' as c;
 
 .list-toolbar {
   display: flex;
@@ -424,18 +425,16 @@
 
     // Meso heading: lifted out of the card via absolute positioning so it sits
     // in the heading room above the card, with no card background or border.
-    // Top-anchored at the bar's top edge. Type and descriptor mirror the
-    // reorder page's `.meso-head` / `.meso-title`; the descriptor reuses its
+    // Top-anchored at the bar's top edge. Type and descriptor share the
+    // reorder page's `_cards` mixins; the descriptor also reuses its
     // `.meso-meta` rules, which already put it on a row of its own here.
     .meso-header {
+      @include c.meso-heading-row;
       position: absolute;
       top: calc(-1 * var(--meso-heading-room));
       left: 0;
       right: 0;
-      display: flex;
       flex-wrap: wrap;
-      align-items: center;
-      gap: 0.4rem 0.9rem;
       writing-mode: horizontal-tb;
       transform: none;
       background: transparent;
@@ -444,13 +443,9 @@
       text-align: left;
 
       a {
+        @include c.meso-title;
         writing-mode: horizontal-tb;
         transform: none;
-        font-weight: 700;
-        font-size: 1.1rem;
-        letter-spacing: 0.05em;
-        text-transform: uppercase;
-        color: var(--pico-primary);
       }
 
       // Undo the desktop `.meso-header > span` rotation and sizing, which
@@ -467,13 +462,7 @@
 
     // Section sub-headings (mobile-only via the .section-heading default rule above).
     .section-heading {
-      display: block;
-      padding: 0.5rem 0 0.15rem;
-      font-size: 0.8em;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--pico-primary);
+      @include c.card-heading;
       background: transparent;
       border: none;
     }
@@ -485,33 +474,17 @@
     // Microcycle info cells (Start date / Type / Comment): full-width "label: value".
     td.text-start {
       grid-column: 1 / -1;
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      padding: 0.15rem 0;
       border: none;
       text-align: left;
-      &::before {
-        content: attr(data-label) ":";
-        font-weight: bold;
-        margin-right: 0.5rem;
-      }
+      @include c.label-value-cell;
     }
 
     // Planned data cells: label + value, span cols 1+2.
     td.zone-planned:not(.text-start):not(.zone-stats) {
       grid-column: 1 / span 2;
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      padding: 0.15rem 0;
       border: none;
       text-align: right;
-      &::before {
-        content: attr(data-label) ":";
-        font-weight: bold;
-        margin-right: 0.5rem;
-      }
+      @include c.label-value-cell;
     }
 
     // Actual data cells (non-stats): just the value in col 3.
@@ -535,17 +508,9 @@
     // Stats cells (zones / sportload / totload): full-width "label: value".
     td.zone-stats {
       grid-column: 1 / -1;
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      padding: 0.15rem 0;
       border: none;
       text-align: right;
-      &::before {
-        content: attr(data-label) ":";
-        font-weight: bold;
-        margin-right: 0.5rem;
-      }
+      @include c.label-value-cell;
     }
 
     // Allow comment to wrap full-width on mobile (no 2-line clamp).
@@ -619,19 +584,13 @@ html[data-theme="dark"] { --warn-accent: #e0a458; }
 // short the descriptor's text wraps inside its own slot instead; on phones it
 // drops to a full-width row of its own (see the media query below).
 .meso-head {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem 0.9rem;
+  @include c.meso-heading-row;
   margin-bottom: 0.55rem;
 }
 
 .meso-title {
+  @include c.meso-title;
   flex-shrink: 0;
-  font-weight: 700;
-  font-size: 1.1rem;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  color: var(--pico-primary);
 }
 
 .meso-meta {
@@ -863,33 +822,17 @@ body.is-placing .micro-row:not(.is-selected) {
     // — with one class each they tie, and the later rule would win.
     .micro-cell.micro-cell--num { display: none; }
 
-    // Mirrors `.summary-table .section-heading` / `.micro-heading` at this
-    // width. Duplicated rather than shared: those rules are scoped to
-    // `.summary-table`, a table with its own layout concerns.
+    // Same heading and cells as the summary card at this width, via the
+    // `_cards` mixins.
     .section-heading {
-      display: block;
+      @include c.card-heading;
       grid-column: 1 / -1;
-      padding: 0.5rem 0 0.15rem;
-      font-size: 0.8em;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--pico-primary);
       text-align: center;
     }
 
     .micro-cell {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      padding: 0.15rem 0;
       text-align: left;
-
-      &::before {
-        content: attr(data-label) ":";
-        font-weight: bold;
-        margin-right: 0.5rem;
-      }
+      @include c.label-value-cell;
     }
 
     // The date carries two things the summary has no counterpart for. Keeping

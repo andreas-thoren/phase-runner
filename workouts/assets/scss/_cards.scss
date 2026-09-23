@@ -1,0 +1,48 @@
+// Shared by the summary table's mobile cards and the reorder page, which render
+// the same mesocycle / microcycle cards from different markup (a server-side
+// <table> and JS-built <div>s). Mixins rather than shared classes: each page
+// keeps its own selectors, whose specificity is tuned against Pico's table
+// styles and the summary's desktop rules.
+//
+// Sizes keep the units they had. The em values are relative on purpose — the
+// summary table is 0.9em, so the same 0.8em heading is a touch smaller there.
+
+// Mesocycle heading row: type, descriptor, and (reorder only) ▲▼ buttons.
+@mixin meso-heading-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem 0.9rem;
+}
+
+@mixin meso-title {
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--pico-primary);
+}
+
+// Card sub-heading, e.g. "MICROCYCLE – BASE 2 / 4", "PLANNED".
+@mixin card-heading {
+  display: block;
+  padding: 0.5rem 0 0.15rem;
+  font-size: 0.8em;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--pico-primary);
+}
+
+// Full-width `label: value` row; the label comes from `data-label`.
+@mixin label-value-cell {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 0.15rem 0;
+
+  &::before {
+    content: attr(data-label) ":";
+    font-weight: bold;
+    margin-right: 0.5rem;
+  }
+}
