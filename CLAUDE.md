@@ -192,3 +192,6 @@ Single Django app (`workouts`) with one `Workout` model and optional detail mode
 Before every commit, always:
 1. Run `uv run python -m black .` to format the entire repo.
 2. Review and update `CLAUDE.md` and `README.md` if the changes affect architecture, commands, or conventions — even if the user doesn't explicitly ask.
+3. Write the commit message (including any Co-Authored-By trailer) to a temp file and give the user its path, so they can run `git commit -F <file>`.
+
+Never run git commands that write — `commit`, `add`, `reset`, `push`, `checkout`/`switch`, `stash`, `rebase`, `merge`, `tag`, etc. Leave them to the user. Read-only commands (`status`, `diff`, `log`, `show`, `blame`) are fine.
