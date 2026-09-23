@@ -6,6 +6,32 @@
 //
 // Sizes keep the units they had. The em values are relative on purpose — the
 // summary table is 0.9em, so the same 0.8em heading is a touch smaller there.
+// The reorder page's cards set the same 0.9em at phone width, via
+// $card-font-size, so the two render at one size there.
+
+$card-font-size: 0.9em;
+// Vertical space between two microcycle cards in the same mesocycle.
+$card-gap: 1.5rem;
+
+// Microcycle card surface. The frame is an inset shadow rather than a border
+// so it takes no space, and state rings can be layered on top of it.
+$card-frame: inset 0 0 0 1px var(--pico-muted-border-color);
+
+@mixin micro-card {
+  padding: 0.5rem 0.75rem;
+  background-color: var(--pico-card-background-color);
+  border: none;
+  border-radius: var(--pico-border-radius);
+  box-shadow: $card-frame;
+}
+
+// A mesocycle's heading and cards, with one continuous blue bar down their
+// left. Groups are separated by the bottom margin.
+@mixin meso-group {
+  border-left: 3px solid var(--pico-primary);
+  padding-left: 0.9rem;
+  margin-bottom: 2.25rem;
+}
 
 // Mesocycle heading row: type, descriptor, and (reorder only) ▲▼ buttons.
 @mixin meso-heading-row {

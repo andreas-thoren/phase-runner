@@ -164,7 +164,7 @@
 
 .summary-table {
   white-space: nowrap;
-  font-size: 0.9em;
+  font-size: c.$card-font-size;
 
   th, td { padding: 0.4rem 0.6rem; text-align: right; }
 
@@ -345,11 +345,21 @@
     white-space: normal;
     thead { display: none; }
     & { display: block; }
-    // tbody is a flex column so trs become flex items and `margin-top` on
+    // One tbody per mesocycle, drawn like the reorder page's `.meso-group`:
+    // a single bar down its left, and room at the top for the lifted meso
+    // heading. A flex column so trs become flex items and `margin-top` on
     // them gives a reliable inter-card gap. With `display: block` on tbody
     // browsers ignore tr margins (the table-row nature wins even when
     // `display: grid` is set on the tr itself).
-    tbody { display: flex; flex-direction: column; }
+    tbody {
+      @include c.meso-group;
+      --meso-heading-room: 3.8rem;
+      display: flex;
+      flex-direction: column;
+      padding-top: var(--meso-heading-room);
+
+      &:last-child { margin-bottom: 0; }
+    }
 
     // Each microcycle row = a card laid out as a 3-col grid.
     // `dense` auto-flow pairs planned (col 1+2) with actual (col 3) by DOM
@@ -357,13 +367,8 @@
     // col 3, so the n-th planned and n-th actual end up on the same row even
     // though all planned cells precede all actual cells in the DOM.
     //
-    // Card border: 4 inset box-shadows draw a 1px muted frame inside the
-    // padding-box, fully enclosing the card content.
-    //
-    // Blue meso bar: rendered as an absolutely-positioned ::before pseudo to
-    // the LEFT of the card so there's a visible gap between bar and card. With
-    // margin: 0 between cards in the same meso, adjacent ::before bars stack
-    // flush vertically and read as one continuous bar.
+    // Card surface (padding, background, 1px muted frame, radius) comes from
+    // the `micro-card` mixin, shared with the reorder page.
     tr {
       position: relative;
       display: grid;
@@ -374,29 +379,9 @@
       // contiguous block instead of striped rows. Cells use their own
       // top/bottom padding for vertical breathing room.
       row-gap: 0;
-      padding: 0.5rem 0.75rem;
-      background-color: var(--pico-card-background-color);
-      border: none;
-      box-shadow:
-        inset  1px  0   0 var(--pico-muted-border-color),  // left
-        inset -1px  0   0 var(--pico-muted-border-color),  // right
-        inset  0    1px 0 var(--pico-muted-border-color),  // top
-        inset  0   -1px 0 var(--pico-muted-border-color);  // bottom
-      border-radius: var(--pico-border-radius);
-      margin: 1.5rem 0 0 1.75rem; // 0.5rem inter-card gap; 1.75rem left for bar+gap.
+      @include c.micro-card;
 
-      &::before {
-        content: "";
-        position: absolute;
-        // Extend bar up by the inter-card gap so the bar reads as continuous
-        // through cards in the same meso despite the 0.5rem gap between them.
-        top: -5rem;
-        bottom: 0;
-        left: -1.25rem;   // bar sits 1.25rem to the left of the card edge
-        width: 2px;       // bar's right edge at -1rem → ~1rem gap to the card
-        background: var(--pico-primary);
-        pointer-events: none;
-      }
+      & + tr { margin-top: c.$card-gap; }
     }
 
     // Pico applies row-striping / cell backgrounds on td/th by default.
@@ -406,26 +391,9 @@
     td:not(.zone-hover):not(.zone-focus),
     th:not(.zone-hover):not(.zone-focus) { background-color: transparent; }
 
-    // First card of a meso: room above it for the lifted meso heading, plus
-    // the inter-meso gap — the same 2.25rem the reorder page leaves between
-    // groups. The bar extends up through the heading room only, so it starts
-    // level with the heading's top, as `.meso-group`'s border does there.
-    .meso-group-start {
-      --meso-heading-room: 3.8rem;
-      margin-top: calc(var(--meso-heading-room) + 2.25rem);
-      &:first-child { margin-top: var(--meso-heading-room); }
-
-      &::before { top: calc(-1 * var(--meso-heading-room)); }
-    }
-    // Last card in a meso: don't extend the bar below into the inter-meso gap.
-    tr:has(+ .meso-group-start)::before,
-    tbody tr:last-child::before {
-      bottom: 0;
-    }
-
     // Meso heading: lifted out of the card via absolute positioning so it sits
-    // in the heading room above the card, with no card background or border.
-    // Top-anchored at the bar's top edge. Type and descriptor share the
+    // in the tbody's heading room above the card, with no card background or
+    // border. Top-anchored at the bar's top edge. Type and descriptor share the
     // reorder page's `_cards` mixins; the descriptor also reuses its
     // `.meso-meta` rules, which already put it on a row of its own here.
     .meso-header {
@@ -557,7 +525,8 @@ html[data-theme="dark"] { --warn-accent: #e0a458; }
 .plan-meta {
   font-size: 0.85rem;
   color: var(--pico-muted-color);
-  margin-bottom: 1.5rem;
+  // Matches .heading-row's margin above the help text, framing the text block.
+  margin-bottom: 3rem;
 }
 
 .shift-banner {
@@ -574,11 +543,7 @@ html[data-theme="dark"] { --warn-accent: #e0a458; }
 }
 
 // ─── Mesocycle group ───────────────────────────────────────────────────────
-.meso-group {
-  border-left: 3px solid var(--pico-primary);
-  padding-left: 0.9rem;
-  margin-bottom: 2.25rem;
-}
+.meso-group { @include c.meso-group; }
 
 // Never wraps, so the ▲▼ buttons always share the title's row. If space runs
 // short the descriptor's text wraps inside its own slot instead; on phones it
@@ -611,12 +576,12 @@ html[data-theme="dark"] { --warn-accent: #e0a458; }
   gap: 0.4rem;
 
   button {
-    width: 2.4rem;
-    height: 2.4rem;
+    width: 1.92rem;
+    height: 1.92rem;
     padding: 0;
     margin: 0;
     line-height: 1;
-    font-size: 0.9rem;
+    font-size: 0.72rem;
   }
 }
 
@@ -634,15 +599,15 @@ html[data-theme="dark"] { --warn-accent: #e0a458; }
   grid-template-columns: 9.5rem 6.5rem minmax(6rem, 1fr) 3.5rem 5rem 5rem;
   gap: 0.35rem 1rem;
   align-items: center;
-  padding: 0.55rem 0.8rem;
 }
 
 // One per mesocycle, between its heading and its rows. Inside .meso-group
-// like the rows, so the shared padding lines the columns up.
+// like the rows, with the same inline padding as their `micro-card`, so the
+// columns line up.
 .micro-head {
   // Equal above and below, so the titles sit centred between the border and
   // the first row.
-  padding-block: 0.35rem;
+  padding: 0.35rem 0.75rem;
   border-top: 1px solid var(--pico-muted-border-color);
   font-size: 0.72rem;
   text-transform: uppercase;
@@ -663,9 +628,7 @@ html[data-theme="dark"] { --warn-accent: #e0a458; }
   color: inherit;
   text-align: left;
 
-  background: var(--pico-card-background-color);
-  border: 1px solid transparent;
-  border-radius: var(--pico-border-radius);
+  @include c.micro-card;
   margin-bottom: 0.4rem;
   cursor: pointer;
   transition: background-color 0.15s, transform 0.12s, box-shadow 0.15s;
@@ -679,17 +642,22 @@ html[data-theme="dark"] { --warn-accent: #e0a458; }
     outline-offset: 2px;
   }
 
+  // The state shadows replace the `micro-card` frame, so each repeats it (or,
+  // when selected, a 2px primary ring straddling the card edge in its place).
   &.is-selected {
-    border-color: var(--pico-primary);
-    box-shadow: 0 0 0 1px var(--pico-primary), 0 8px 18px rgba(0, 0, 0, 0.35);
+    box-shadow:
+      inset 0 0 0 1px var(--pico-primary),
+      0 0 0 1px var(--pico-primary),
+      0 8px 18px rgba(0, 0, 0, 0.35);
     transform: translateY(-1px);
   }
 
-  &.is-shifted { box-shadow: inset 3px 0 0 var(--warn-accent); }
+  &.is-shifted { box-shadow: inset 3px 0 0 var(--warn-accent), c.$card-frame; }
 
   &.is-selected.is-shifted {
     box-shadow:
       inset 3px 0 0 var(--warn-accent),
+      inset 0 0 0 1px var(--pico-primary),
       0 0 0 1px var(--pico-primary),
       0 8px 18px rgba(0, 0, 0, 0.35);
   }
@@ -762,6 +730,11 @@ body.is-placing .micro-row:not(.is-selected) {
 .drop-gap {
   margin-bottom: 0.4rem;
 
+  // The first marker in a group follows the column titles, which have no
+  // margin of their own; match the space below so it sits centred. On phones
+  // the titles are hidden and this collapses into `.meso-head`'s larger margin.
+  .micro-head + & { margin-top: 0.4rem; }
+
   // A third colour on purpose. Blue carries structure (mesocycle bar, titles,
   // the picked-up row's outline) and amber carries change (shifted dates), so
   // drop markers in either one camouflage as soon as more than one row has
@@ -807,11 +780,20 @@ body.is-placing .micro-row:not(.is-selected) {
 
   .micro-head { display: none; }
 
+  // Drop markers take the cards' gap too, so a marker sits centred between
+  // the two cards it would go between. Whichever comes last in a group needs
+  // no gap: `.meso-group`'s margin separates the groups.
+  .drop-gap { margin-bottom: c.$card-gap; }
+  .meso-group > :is(.micro-row, .drop-gap):last-child { margin-bottom: 0; }
+
   // Start date / Type / Comment only, each a full-width `label: value` row.
   // Same treatment the summary table gives its microcycle cells at this
   // width (`td.text-start`), so the two pages read alike on a phone — the
   // summary just has more rows below these three.
+  // Gap and text size match the summary's mobile cards.
   .micro-row {
+    font-size: c.$card-font-size;
+    margin-bottom: c.$card-gap;
     grid-template-columns: 1fr;
     // Cells stack flush and supply their own vertical breathing room, as in
     // the summary card.

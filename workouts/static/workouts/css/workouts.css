@@ -344,8 +344,16 @@
     display: block;
   }
   .summary-table:not(.summary-stats-table) tbody {
+    border-left: 3px solid var(--pico-primary);
+    padding-left: 0.9rem;
+    margin-bottom: 2.25rem;
+    --meso-heading-room: 3.8rem;
     display: flex;
     flex-direction: column;
+    padding-top: var(--meso-heading-room);
+  }
+  .summary-table:not(.summary-stats-table) tbody:last-child {
+    margin-bottom: 0;
   }
   .summary-table:not(.summary-stats-table) tr {
     position: relative;
@@ -358,37 +366,15 @@
     padding: 0.5rem 0.75rem;
     background-color: var(--pico-card-background-color);
     border: none;
-    box-shadow: inset 1px 0 0 var(--pico-muted-border-color), inset -1px 0 0 var(--pico-muted-border-color), inset 0 1px 0 var(--pico-muted-border-color), inset 0 -1px 0 var(--pico-muted-border-color);
     border-radius: var(--pico-border-radius);
-    margin: 1.5rem 0 0 1.75rem;
+    box-shadow: inset 0 0 0 1px var(--pico-muted-border-color);
   }
-  .summary-table:not(.summary-stats-table) tr::before {
-    content: "";
-    position: absolute;
-    top: -5rem;
-    bottom: 0;
-    left: -1.25rem;
-    width: 2px;
-    background: var(--pico-primary);
-    pointer-events: none;
+  .summary-table:not(.summary-stats-table) tr + tr {
+    margin-top: 1.5rem;
   }
   .summary-table:not(.summary-stats-table) td:not(.zone-hover):not(.zone-focus),
   .summary-table:not(.summary-stats-table) th:not(.zone-hover):not(.zone-focus) {
     background-color: transparent;
-  }
-  .summary-table:not(.summary-stats-table) .meso-group-start {
-    --meso-heading-room: 3.8rem;
-    margin-top: calc(var(--meso-heading-room) + 2.25rem);
-  }
-  .summary-table:not(.summary-stats-table) .meso-group-start:first-child {
-    margin-top: var(--meso-heading-room);
-  }
-  .summary-table:not(.summary-stats-table) .meso-group-start::before {
-    top: calc(-1 * var(--meso-heading-room));
-  }
-  .summary-table:not(.summary-stats-table) tr:has(+ .meso-group-start)::before,
-  .summary-table:not(.summary-stats-table) tbody tr:last-child::before {
-    bottom: 0;
   }
   .summary-table:not(.summary-stats-table) .meso-header {
     display: flex;
@@ -541,7 +527,7 @@ html[data-theme=dark] {
 .plan-meta {
   font-size: 0.85rem;
   color: var(--pico-muted-color);
-  margin-bottom: 1.5rem;
+  margin-bottom: 3rem;
 }
 
 .shift-banner {
@@ -598,12 +584,12 @@ html[data-theme=dark] {
   gap: 0.4rem;
 }
 .meso-moves button {
-  width: 2.4rem;
-  height: 2.4rem;
+  width: 1.92rem;
+  height: 1.92rem;
   padding: 0;
   margin: 0;
   line-height: 1;
-  font-size: 0.9rem;
+  font-size: 0.72rem;
 }
 
 .meso-empty {
@@ -618,11 +604,10 @@ html[data-theme=dark] {
   grid-template-columns: 9.5rem 6.5rem minmax(6rem, 1fr) 3.5rem 5rem 5rem;
   gap: 0.35rem 1rem;
   align-items: center;
-  padding: 0.55rem 0.8rem;
 }
 
 .micro-head {
-  padding-block: 0.35rem;
+  padding: 0.35rem 0.75rem;
   border-top: 1px solid var(--pico-muted-border-color);
   font-size: 0.72rem;
   text-transform: uppercase;
@@ -637,9 +622,11 @@ html[data-theme=dark] {
   --pico-color: inherit;
   color: inherit;
   text-align: left;
-  background: var(--pico-card-background-color);
-  border: 1px solid transparent;
+  padding: 0.5rem 0.75rem;
+  background-color: var(--pico-card-background-color);
+  border: none;
   border-radius: var(--pico-border-radius);
+  box-shadow: inset 0 0 0 1px var(--pico-muted-border-color);
   margin-bottom: 0.4rem;
   cursor: pointer;
   transition: background-color 0.15s, transform 0.12s, box-shadow 0.15s;
@@ -652,15 +639,14 @@ html[data-theme=dark] {
   outline-offset: 2px;
 }
 .micro-row.is-selected {
-  border-color: var(--pico-primary);
-  box-shadow: 0 0 0 1px var(--pico-primary), 0 8px 18px rgba(0, 0, 0, 0.35);
+  box-shadow: inset 0 0 0 1px var(--pico-primary), 0 0 0 1px var(--pico-primary), 0 8px 18px rgba(0, 0, 0, 0.35);
   transform: translateY(-1px);
 }
 .micro-row.is-shifted {
-  box-shadow: inset 3px 0 0 var(--warn-accent);
+  box-shadow: inset 3px 0 0 var(--warn-accent), inset 0 0 0 1px var(--pico-muted-border-color);
 }
 .micro-row.is-selected.is-shifted {
-  box-shadow: inset 3px 0 0 var(--warn-accent), 0 0 0 1px var(--pico-primary), 0 8px 18px rgba(0, 0, 0, 0.35);
+  box-shadow: inset 3px 0 0 var(--warn-accent), inset 0 0 0 1px var(--pico-primary), 0 0 0 1px var(--pico-primary), 0 8px 18px rgba(0, 0, 0, 0.35);
 }
 .micro-row .micro-cell--num {
   text-align: right;
@@ -719,6 +705,9 @@ body.is-placing .micro-row:not(.is-selected) {
 .drop-gap {
   margin-bottom: 0.4rem;
 }
+.micro-head + .drop-gap {
+  margin-top: 0.4rem;
+}
 .drop-gap button {
   width: 100%;
   height: 2.1rem;
@@ -757,7 +746,15 @@ body.is-placing .micro-row:not(.is-selected) {
   .micro-head {
     display: none;
   }
+  .drop-gap {
+    margin-bottom: 1.5rem;
+  }
+  .meso-group > :is(.micro-row, .drop-gap):last-child {
+    margin-bottom: 0;
+  }
   .micro-row {
+    font-size: 0.9em;
+    margin-bottom: 1.5rem;
     grid-template-columns: 1fr;
     gap: 0;
   }
