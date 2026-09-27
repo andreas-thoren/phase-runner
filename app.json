@@ -1,0 +1,8 @@
+{
+  "cron": [
+    {
+      "command": "python manage.py sendtestemail andreasthoren79@gmail.com",
+      "schedule": "0 9 1 * *"
+    }
+  ]
+}
