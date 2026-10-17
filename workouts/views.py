@@ -105,6 +105,7 @@ from .utils import (
     StaleOrderingError,
     apply_cycle_order,
     create_default_cycles,
+    get_client_ip,
     m_to_km,
     parse_ordering,
 )
@@ -319,7 +320,7 @@ class PasswordResetView(auth_views.PasswordResetView):
     COOLOFF_SECONDS = 3600
 
     def form_valid(self, form: forms.Form) -> HttpResponse:
-        ip = self.request.META.get("REMOTE_ADDR", "")
+        ip = get_client_ip(self.request)
         cache_key = f"password_reset_{ip}"
         attempts = cache.get(cache_key, 0)
         if attempts >= self.RATE_LIMIT:

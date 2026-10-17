@@ -116,3 +116,9 @@ AXES_COOLOFF_TIME = 1  # hours
 AXES_LOCKOUT_PARAMETERS = ["username", "ip_address"]
 AXES_RESET_ON_SUCCESS = True
 AXES_LOCKOUT_URL = "/login/"
+
+# Client IP — number of reverse proxies in front of the app whose
+# X-Forwarded-For entries are trusted (0 = use REMOTE_ADDR). Read by
+# workouts.utils.get_client_ip, which Axes and the password-reset limit share.
+TRUSTED_PROXY_COUNT = 0
+AXES_CLIENT_IP_CALLABLE = "workouts.utils.get_client_ip"

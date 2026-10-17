@@ -38,6 +38,10 @@ DEFAULT_FROM_EMAIL = "noreply@phaserunner.app"
 
 # Reverse proxy — Dokku's nginx terminates SSL and forwards HTTP to gunicorn
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+# One trusted hop: Dokku's nginx. REMOTE_ADDR is its Docker bridge address,
+# so the client IP is the right-most X-Forwarded-For entry, which nginx sets.
+# The domain is DNS-only (no Cloudflare), so CF-Connecting-IP is never trusted.
+TRUSTED_PROXY_COUNT = 1
 CSRF_TRUSTED_ORIGINS = [
     f"https://{host}" for host in ALLOWED_HOSTS if host  # noqa: F405
 ]

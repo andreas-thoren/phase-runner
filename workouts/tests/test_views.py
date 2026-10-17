@@ -5,12 +5,14 @@ from datetime import date, timedelta
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.test import SimpleTestCase, TestCase, override_settings
+from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
 from django.urls import NoReverseMatch, reverse
 from django.utils import timezone
 
 from workouts.enums import WorkoutStatus, WorkoutSubtype
 from workouts.tests.helpers import read_ordering
+from workouts.utils import get_client_ip
+from workouts.views import PasswordResetView
 from workouts.models import (
     Workout,
     AerobicDetails,
@@ -2423,3 +2425,134 @@ class LoginRateLimitTest(TestCase):
             follow=True,
         )
         self.assertFalse(response.wsgi_request.user.is_authenticated)
+
+
+# Behind Dokku's nginx REMOTE_ADDR is the Docker bridge, shared by every client.
+BRIDGE = "172.17.0.1"
+SPOOF = "1.2.3.4"
+
+
+class GetClientIpTest(SimpleTestCase):
+    def _ip(self, xff: str | None = None, **meta: str) -> str:
+        if xff is not None:
+            meta["HTTP_X_FORWARDED_FOR"] = xff
+        return get_client_ip(RequestFactory().get("/", REMOTE_ADDR=BRIDGE, **meta))
+
+    @override_settings(TRUSTED_PROXY_COUNT=0)
+    def test_no_proxy_uses_remote_addr_and_ignores_headers(self):
+        self.assertEqual(self._ip(SPOOF, HTTP_CF_CONNECTING_IP=SPOOF), BRIDGE)
+
+    @override_settings(TRUSTED_PROXY_COUNT=1)
+    def test_one_proxy_overwriting_header(self):
+        # Dokku's default: nginx replaces X-Forwarded-For with $remote_addr.
+        self.assertEqual(self._ip("203.0.113.7"), "203.0.113.7")
+
+    @override_settings(TRUSTED_PROXY_COUNT=1)
+    def test_one_proxy_appending_ignores_client_supplied_entries(self):
+        # If nginx were set to append ($proxy_add_x_forwarded_for), the
+        # client's spoofed value would sit to the left of the real one.
+        self.assertEqual(self._ip(f"{SPOOF}, 203.0.113.7"), "203.0.113.7")
+        self.assertEqual(self._ip(f"{SPOOF},203.0.113.7"), "203.0.113.7")
+
+    @override_settings(TRUSTED_PROXY_COUNT=1)
+    def test_cf_connecting_ip_is_never_read(self):
+        self.assertEqual(
+            self._ip("203.0.113.7", HTTP_CF_CONNECTING_IP=SPOOF), "203.0.113.7"
+        )
+
+    @override_settings(TRUSTED_PROXY_COUNT=1)
+    def test_missing_or_empty_header_falls_back_to_remote_addr(self):
+        self.assertEqual(self._ip(), BRIDGE)
+        self.assertEqual(self._ip(""), BRIDGE)
+        self.assertEqual(self._ip(f"{SPOOF}, "), BRIDGE)
+
+    @override_settings(TRUSTED_PROXY_COUNT=2)
+    def test_two_proxies_take_second_from_right(self):
+        self.assertEqual(self._ip(f"{SPOOF}, 203.0.113.7, 10.0.0.2"), "203.0.113.7")
+        # Fewer hops than trusted proxies: the header cannot be trusted.
+        self.assertEqual(self._ip("203.0.113.7"), BRIDGE)
+
+
+@override_settings(TRUSTED_PROXY_COUNT=1, AXES_FAILURE_LIMIT=3, AXES_COOLOFF_TIME=1)
+class LoginClientIpTest(TestCase):
+    """Axes behind one trusted proxy: per-client buckets, spoofing ignored."""
+
+    @classmethod
+    def setUpTestData(cls):
+        User = get_user_model()
+        cls.user = User.objects.create_user(
+            username="testuser", email="test@example.com", password="testpassword"
+        )
+        cls.url = reverse("login")
+
+    def setUp(self):
+        from axes.utils import reset
+
+        reset()
+
+    def _post(self, username: str, password: str, xff: str):
+        return self.client.post(
+            self.url,
+            {"username": username, "password": password},
+            REMOTE_ADDR=BRIDGE,
+            headers={"x-forwarded-for": xff, "cf-connecting-ip": SPOOF},
+            follow=True,
+        )
+
+    def test_attempt_recorded_under_proxy_supplied_ip(self):
+        from axes.models import AccessAttempt
+
+        self._post("nobody", "wrong", f"{SPOOF}, 203.0.113.7")
+        self.assertEqual(
+            list(AccessAttempt.objects.values_list("ip_address", flat=True)),
+            ["203.0.113.7"],
+        )
+
+    def test_lockout_of_one_client_does_not_lock_out_another(self):
+        for i in range(settings.AXES_FAILURE_LIMIT):
+            self._post(f"attacker{i}", "wrong", "198.51.100.66")
+        locked = self._post("someone", "wrong", "198.51.100.66")
+        self.assertTrue(
+            any("Too many failed login" in str(m) for m in locked.context["messages"])
+        )
+        response = self._post("testuser", "testpassword", "203.0.113.7")
+        self.assertTrue(response.wsgi_request.user.is_authenticated)
+
+    def test_spoofed_header_cannot_escape_ip_lockout(self):
+        for i in range(settings.AXES_FAILURE_LIMIT):
+            self._post(f"attacker{i}", "wrong", f"10.9.9.{i}, 198.51.100.66")
+        response = self._post("testuser", "testpassword", f"{SPOOF}, 198.51.100.66")
+        self.assertFalse(response.wsgi_request.user.is_authenticated)
+
+
+@override_settings(
+    TRUSTED_PROXY_COUNT=1,
+    CACHES={"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}},
+)
+class PasswordResetClientIpTest(TestCase):
+    @classmethod
+    def setUpTestData(cls):
+        User = get_user_model()
+        User.objects.create_user(
+            username="testuser", email="reset@example.com", password="testpassword"
+        )
+        cls.url = reverse("password_reset")
+
+    def setUp(self):
+        from django.core.cache import cache
+
+        cache.clear()
+
+    def _post(self, xff: str):
+        return self.client.post(
+            self.url,
+            {"email": "reset@example.com"},
+            REMOTE_ADDR=BRIDGE,
+            headers={"x-forwarded-for": xff},
+        )
+
+    def test_limit_is_per_client_not_per_proxy(self):
+        for _ in range(PasswordResetView.RATE_LIMIT):
+            self._post("198.51.100.66")
+        self.assertRedirects(self._post("198.51.100.66"), reverse("password_reset"))
+        self.assertRedirects(self._post("203.0.113.7"), reverse("password_reset_done"))

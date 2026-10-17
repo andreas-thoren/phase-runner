@@ -1,16 +1,40 @@
-"""Shared utilities: unit converters, validators, hydration descriptor, cycle
-generation, and cycle reordering."""
+"""Shared utilities: client IP resolution, unit converters, validators, hydration
+descriptor, cycle generation, and cycle reordering."""
 
 from __future__ import annotations
 
 from datetime import timedelta
 from typing import TYPE_CHECKING, Any
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
 if TYPE_CHECKING:
+    from django.http import HttpRequest
+
     from .models import Macrocycle, Mesocycle
+
+
+def get_client_ip(request: HttpRequest) -> str:
+    """The client address as recorded by the outermost proxy we trust.
+
+    Behind a reverse proxy ``REMOTE_ADDR`` is the proxy itself, so every client
+    would share one address. Each trusted proxy writes the address it received
+    the connection from at the right-hand end of ``X-Forwarded-For``; the entry
+    ``TRUSTED_PROXY_COUNT`` places from the right is therefore ours, and anything
+    left of it is client-supplied and spoofable. ``CF-Connecting-IP`` and
+    ``X-Real-IP`` are never read. Also wired into django-axes via
+    ``AXES_CLIENT_IP_CALLABLE``.
+    """
+    count = settings.TRUSTED_PROXY_COUNT
+    if count:
+        hops = [
+            h.strip() for h in request.META.get("HTTP_X_FORWARDED_FOR", "").split(",")
+        ]
+        if len(hops) >= count and hops[-count]:
+            return hops[-count]
+    return request.META.get("REMOTE_ADDR", "")
 
 
 def m_to_km(meters: int | float | None) -> float | None:
