@@ -104,7 +104,7 @@ df = pd.read_csv("workouts_2026-04-13.csv", encoding="utf-8-sig", skiprows=1)
 
 ### Tech stack
 
-- **Backend:** Django 5, Python 3.11+
+- **Backend:** Django 6, Python 3.13
 - **Frontend:** Pico CSS, vanilla JavaScript
 - **Database:** SQLite (dev), PostgreSQL-ready
 - **Tooling:** [uv](https://docs.astral.sh/uv/) (deps), Black (format), Pylint (lint)
